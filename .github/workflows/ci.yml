@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  node:
+    name: Node, Prisma, API, Admin
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma validate
+        env:
+          DATABASE_URL: postgresql://massage:massage@localhost:5432/massage_vn?schema=public
+        run: npx prisma validate --schema apps/api/prisma/schema.prisma
+
+      - name: Prisma generate
+        env:
+          DATABASE_URL: postgresql://massage:massage@localhost:5432/massage_vn?schema=public
+        run: npx prisma generate --schema apps/api/prisma/schema.prisma
+
+      - name: Typecheck API
+        run: npm run typecheck --workspace @massage-vn/api
+
+      - name: Typecheck Admin Web
+        run: npm run typecheck --workspace @massage-vn/admin-web
+
+      - name: Build API
+        run: npm run build --workspace @massage-vn/api
+
+      - name: Build Admin Web
+        env:
+          ADMIN_API_BASE_URL: http://localhost:3000/api
+        run: npm run build --workspace @massage-vn/admin-web
+
+      - name: Script syntax checks
+        run: |
+          node --check infra/scripts/api-smoke.mjs
+          node --check infra/scripts/check-env.mjs
+          node --check apps/api/prisma/seed.js
+
+      - name: Environment template check
+        run: node infra/scripts/check-env.mjs .env.example

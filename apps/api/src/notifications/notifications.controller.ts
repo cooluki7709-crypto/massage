@@ -1,0 +1,41 @@
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Role } from '@prisma/client';
+import { AuthenticatedUser } from '../auth/auth.types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { NotificationsService } from './notifications.service';
+
+@Controller('notifications')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.CUSTOMER, Role.PROVIDER, Role.ADMIN)
+export class NotificationsController {
+  constructor(private readonly notifications: NotificationsService) {}
+
+  @Get()
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.notifications.listForUser(user.id);
+  }
+
+  @Patch(':id/read')
+  markRead(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() _body: Record<string, never>) {
+    return this.notifications.markRead(user.id, id);
+  }
+
+  @Patch('device-token/register')
+  registerDeviceToken(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { token: string; platform: 'ios' | 'android' | 'web' },
+  ) {
+    return this.notifications.registerDeviceToken(user.id, body);
+  }
+
+  @Post('device-token/register')
+  registerDeviceTokenPost(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { token: string; platform: 'ios' | 'android' | 'web' },
+  ) {
+    return this.notifications.registerDeviceToken(user.id, body);
+  }
+}

@@ -1,0 +1,68 @@
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ProviderStatus, Role } from '@prisma/client';
+import { AuthenticatedUser } from '../auth/auth.types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { ProvidersService } from './providers.service';
+
+@Controller()
+export class ProvidersController {
+  constructor(private readonly providers: ProvidersService) {}
+
+  @Get('customer/providers/nearby')
+  nearby(@Query('lat') lat: string, @Query('lng') lng: string) {
+    return this.providers.findNearby(Number(lat), Number(lng));
+  }
+
+  @Get('customer/providers/:id')
+  detail(@Param('id') id: string) {
+    return this.providers.getDetail(id);
+  }
+
+  @Patch('provider/me/profile')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  updateProviderProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { displayName?: string; bio?: string },
+  ) {
+    return this.providers.updateProfile(user.id, body);
+  }
+
+  @Post('provider/online')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  online(@CurrentUser() user: AuthenticatedUser) {
+    return this.providers.setStatus(user.id, ProviderStatus.ONLINE_AVAILABLE);
+  }
+
+  @Post('provider/offline')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  offline(@CurrentUser() user: AuthenticatedUser) {
+    return this.providers.setStatus(user.id, ProviderStatus.OFFLINE);
+  }
+
+  @Post('provider/location')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  updateLocation(@CurrentUser() user: AuthenticatedUser, @Body() body: { lat: number; lng: number }) {
+    return this.providers.updateLocation(user.id, body);
+  }
+
+  @Get('provider/verification')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  verification(@CurrentUser() user: AuthenticatedUser) {
+    return this.providers.getVerification(user.id);
+  }
+
+  @Post('provider/verification/submit')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  submitVerification(@CurrentUser() user: AuthenticatedUser, @Body() body: { fileIds?: string[] }) {
+    return this.providers.submitVerification(user.id, body);
+  }
+}

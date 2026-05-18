@@ -1,0 +1,41 @@
+import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { Role } from '@prisma/client';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { AuthenticatedUser } from '../auth/auth.types';
+import { UsersService } from './users.service';
+
+@Controller()
+export class UsersController {
+  constructor(private readonly users: UsersService) {}
+
+  @Get('customer/me')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CUSTOMER)
+  getCustomerMe(@CurrentUser() user: AuthenticatedUser) {
+    return this.users.getMe(user.id);
+  }
+
+  @Patch('customer/me')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CUSTOMER)
+  updateCustomerMe(@CurrentUser() user: AuthenticatedUser, @Body() body: { fullName?: string; email?: string }) {
+    return this.users.updateMe(user.id, body);
+  }
+
+  @Get('provider/me')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  getProviderMe(@CurrentUser() user: AuthenticatedUser) {
+    return this.users.getMe(user.id);
+  }
+
+  @Patch('provider/me')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  updateProviderMe(@CurrentUser() user: AuthenticatedUser, @Body() body: { fullName?: string; email?: string }) {
+    return this.users.updateMe(user.id, body);
+  }
+}

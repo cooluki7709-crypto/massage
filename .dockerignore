@@ -1,0 +1,15 @@
+node_modules
+apps/*/node_modules
+apps/*/.next
+apps/*/dist
+dist
+build
+coverage
+.git
+.env
+.env.*
+!.env.example
+*.log
+.dart_tool
+android/.gradle
+ios/Pods

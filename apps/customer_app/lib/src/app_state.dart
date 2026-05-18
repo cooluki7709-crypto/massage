@@ -1,0 +1,97 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'core/api_client.dart';
+import 'core/app_config.dart';
+import 'core/realtime_socket.dart';
+
+final apiClientProvider = Provider<ApiClient>((ref) {
+  return ApiClient(baseUrl: AppConfig.apiBaseUrl);
+});
+
+final realtimeSocketProvider = Provider<RealtimeSocket>((ref) {
+  final socket = RealtimeSocket(baseUrl: AppConfig.socketBaseUrl);
+  ref.onDispose(socket.dispose);
+  return socket;
+});
+
+final authControllerProvider = StateNotifierProvider<AuthController, AuthSession?>((ref) {
+  return AuthController(ref.read(apiClientProvider), ref.read(realtimeSocketProvider));
+});
+
+class AuthSession {
+  const AuthSession({
+    required this.userId,
+    required this.accessToken,
+    required this.user,
+  });
+
+  final String userId;
+  final String accessToken;
+  final Map<String, dynamic> user;
+}
+
+class AuthController extends StateNotifier<AuthSession?> {
+  AuthController(this._api, this._socket) : super(null);
+
+  final ApiClient _api;
+  final RealtimeSocket _socket;
+
+  Future<void> signInDemoCustomer() async {
+    final result = await _api.postJson('/auth/verify-otp', {
+      'phone': '+84900000001',
+      'otp': '123456',
+      'role': 'CUSTOMER',
+    });
+    final accessToken = result['accessToken'] as String;
+    final user = result['user'] as Map<String, dynamic>;
+    _api.accessToken = accessToken;
+    _socket.connect(accessToken);
+    state = AuthSession(userId: user['id'] as String, accessToken: accessToken, user: user);
+  }
+}
+
+final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
+  return CustomerRepository(ref.read(apiClientProvider), ref.read(realtimeSocketProvider));
+});
+
+class CustomerRepository {
+  CustomerRepository(this._api, this._socket);
+
+  final ApiClient _api;
+  final RealtimeSocket _socket;
+
+  Future<List<dynamic>> listServices() async {
+    final result = await _api.getJson('/services');
+    return result is List<dynamic> ? result : [];
+  }
+
+  Future<List<dynamic>> nearbyProviders() async {
+    final result = await _api.getJson('/customer/providers/nearby?lat=10.7769&lng=106.7009');
+    return result is List<dynamic> ? result : [];
+  }
+
+  Future<Map<String, dynamic>> createBooking(String serviceId) async {
+    final result = await _api.postJson('/customer/bookings', {
+      'serviceId': serviceId,
+      'scheduledStartAt': DateTime.now().add(const Duration(hours: 1)).toIso8601String(),
+      'address': {'line1': 'District 1, Ho Chi Minh City'},
+      'lat': 10.7769,
+      'lng': 106.7009,
+      'paymentMethod': 'CASH',
+    });
+    _socket.joinBooking(result['id'] as String);
+    return result;
+  }
+
+  Future<Map<String, dynamic>> selectProvider(String bookingId, String providerProfileId) async {
+    final result = await _api.postJson('/customer/bookings/$bookingId/select-provider', {'providerId': providerProfileId});
+    return result as Map<String, dynamic>;
+  }
+
+  Future<void> registerPushToken(String token) async {
+    await _api.postJson('/notifications/device-token/register', {
+      'token': token,
+      'platform': 'android',
+    });
+  }
+}

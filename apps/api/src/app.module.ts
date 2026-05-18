@@ -1,0 +1,53 @@
+import { BullModule } from '@nestjs/bullmq';
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AdminModule } from './admin/admin.module';
+import { AuthModule } from './auth/auth.module';
+import { BookingsModule } from './bookings/bookings.module';
+import { ChatModule } from './chat/chat.module';
+import { CustomersModule } from './customers/customers.module';
+import { EarningsModule } from './earnings/earnings.module';
+import { FilesModule } from './files/files.module';
+import { HealthModule } from './health/health.module';
+import { LocationsModule } from './locations/locations.module';
+import { MatchingModule } from './matching/matching.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { PaymentsModule } from './payments/payments.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { ProvidersModule } from './providers/providers.module';
+import { RedisModule } from './redis/redis.module';
+import { ServicesModule } from './services/services.module';
+import { UsersModule } from './users/users.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          url: config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
+          maxRetriesPerRequest: null,
+        },
+      }),
+    }),
+    PrismaModule,
+    RedisModule,
+    AuthModule,
+    UsersModule,
+    CustomersModule,
+    ProvidersModule,
+    ServicesModule,
+    BookingsModule,
+    MatchingModule,
+    ChatModule,
+    PaymentsModule,
+    NotificationsModule,
+    EarningsModule,
+    FilesModule,
+    HealthModule,
+    AdminModule,
+    LocationsModule,
+  ],
+})
+export class AppModule {}

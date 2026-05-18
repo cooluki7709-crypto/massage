@@ -1,0 +1,51 @@
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { BookingStatus } from '@prisma/client';
+import { Job } from 'bullmq';
+import { PaymentsService } from '../payments/payments.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { RedisStateService } from '../redis/redis-state.service';
+import { MatchingGateway } from './matching.gateway';
+
+type BookingTimeoutJob = {
+  bookingId: string;
+};
+
+@Processor('booking-timeouts')
+export class BookingTimeoutProcessor extends WorkerHost {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redisState: RedisStateService,
+    private readonly gateway: MatchingGateway,
+    private readonly payments: PaymentsService,
+  ) {
+    super();
+  }
+
+  async process(job: Job<BookingTimeoutJob>) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: job.data.bookingId },
+      include: { payment: true },
+    });
+
+    if (!booking || booking.status !== BookingStatus.OPEN_MATCHING) {
+      return { skipped: true };
+    }
+
+    if (booking.payment) {
+      await this.payments.release(booking.payment.id);
+    }
+
+    const expired = await this.prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: BookingStatus.EXPIRED,
+      },
+      include: { payment: true },
+    });
+
+    await this.redisState.closeMatching(booking.id);
+    this.gateway.emitBookingExpired(booking.id, expired);
+
+    return { expired: true, bookingId: booking.id };
+  }
+}

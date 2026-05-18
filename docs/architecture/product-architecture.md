@@ -1,0 +1,62 @@
+# Product Architecture
+
+## System Shape
+
+This is a modular monorepo, not microservices. The NestJS API owns REST endpoints, Socket.IO gateways, BullMQ processors, Prisma persistence, and payment provider integrations.
+
+```mermaid
+flowchart LR
+  C["Customer Flutter"] --> API["NestJS API"]
+  P["Provider Flutter"] --> API
+  A["Next.js Admin"] --> API
+  API --> DB["PostgreSQL + PostGIS"]
+  API --> R["Redis"]
+  API --> S["S3/R2 Storage"]
+  API --> Pay["MoMo/VNPay/Cash"]
+  API --> Push["FCM"]
+  API <--> WS["Socket.IO Rooms"]
+```
+
+## Realtime Matching
+
+- A booking starts as `CREATED`.
+- Payment is authorized or marked cash-pending.
+- Booking moves to `OPEN_MATCHING`.
+- Providers join as `BookingParticipant` records.
+- Providers are sorted by server-side distance and availability.
+- Customer selects the final provider.
+- Booking moves to `MATCHED`; chat room is created.
+
+## Availability Formula
+
+`provider_next_available_at = current_booking_end_time + travel_buffer_minutes - early_accept_window_minutes`
+
+Defaults:
+
+- `travel_buffer_minutes = 30`
+- `early_accept_window_minutes = 20`
+
+## Redis Responsibilities
+
+- Provider online status
+- Provider latest realtime location
+- Active booking matching state
+- Socket.IO scale-out adapter state
+- Timeout and no-response job coordination
+
+## BullMQ Jobs
+
+- Booking timeout
+- Provider no-response
+- Payment status check
+- Notification retry
+- Review reminder
+
+## Security
+
+- OTP login, JWT access token, refresh token
+- Role guards for customer/provider/admin
+- Private verification files
+- Public provider images through CDN
+- No hardcoded secrets
+

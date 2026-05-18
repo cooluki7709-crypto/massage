@@ -1,0 +1,399 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+}
+
+enum BookingStatus {
+  CREATED
+  OPEN_MATCHING
+  MATCHED
+  PROVIDER_ON_THE_WAY
+  ARRIVED
+  IN_SERVICE
+  COMPLETED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum ProviderStatus {
+  OFFLINE
+  ONLINE_AVAILABLE
+  ONLINE_BUSY
+  ONLINE_AVAILABLE_SOON
+}
+
+enum VerificationStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum ParticipantStatus {
+  JOINED
+  ACCEPTED
+  REJECTED
+  SELECTED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  RELEASED
+}
+
+enum PaymentMethod {
+  MOMO
+  VNPAY
+  CASH
+}
+
+enum FileVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum ReviewStatus {
+  PUBLISHED
+  HIDDEN
+  REPORTED
+}
+
+enum EarningStatus {
+  PENDING
+  AVAILABLE
+  PAID
+  CANCELLED
+}
+
+enum PayoutBatchStatus {
+  DRAFT
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+model User {
+  id              String           @id @default(cuid())
+  phone           String           @unique
+  email           String?
+  fullName        String?
+  roles           Role[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  customerProfile CustomerProfile?
+  providerProfile ProviderProfile?
+  notifications   Notification[]
+  pushDevices     PushDevice[]
+  chatMessages    ChatMessage[]
+  auditLogs        AdminAuditLog[]  @relation("AdminActor")
+}
+
+model CustomerProfile {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id])
+  addresses Json?
+  bookings  Booking[]
+  reviews   Review[]
+}
+
+model ProviderProfile {
+  id                 String                  @id @default(cuid())
+  userId             String                  @unique
+  user               User                    @relation(fields: [userId], references: [id])
+  displayName        String
+  bio                String?
+  status             ProviderStatus          @default(OFFLINE)
+  ratingAvg          Decimal                 @default(0) @db.Decimal(3, 2)
+  reviewCount        Int                     @default(0)
+  currentLat         Decimal?                @db.Decimal(10, 7)
+  currentLng         Decimal?                @db.Decimal(10, 7)
+  nextAvailableAt    DateTime?
+  verification       ProviderVerification?
+  services           ProviderService[]
+  participants       BookingParticipant[]
+  selectedBookings   Booking[]               @relation("SelectedProvider")
+  locationSnapshots  LocationSnapshot[]
+  reviews            Review[]
+  earnings           ProviderEarning[]
+  payoutBatches      ProviderPayoutBatch[]
+}
+
+model ProviderVerification {
+  id                String             @id @default(cuid())
+  providerProfileId String             @unique
+  providerProfile   ProviderProfile    @relation(fields: [providerProfileId], references: [id])
+  status            VerificationStatus @default(DRAFT)
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  rejectionReason   String?
+  files             FileAsset[]
+}
+
+model MassageService {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  durationMin Int
+  basePrice   Int
+  active      Boolean           @default(true)
+  providers   ProviderService[]
+  bookings    BookingService[]
+}
+
+model ProviderService {
+  id                String          @id @default(cuid())
+  providerProfileId String
+  serviceId         String
+  price             Int
+  active            Boolean         @default(true)
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  service           MassageService  @relation(fields: [serviceId], references: [id])
+
+  @@unique([providerProfileId, serviceId])
+}
+
+model Booking {
+  id                 String                @id @default(cuid())
+  customerProfileId  String
+  selectedProviderId String?
+  status             BookingStatus         @default(CREATED)
+  scheduledStartAt   DateTime
+  scheduledEndAt     DateTime
+  address            Json
+  lat                Decimal               @db.Decimal(10, 7)
+  lng                Decimal               @db.Decimal(10, 7)
+  notes              String?
+  travelBufferMin    Int                   @default(30)
+  earlyAcceptMin     Int                   @default(20)
+  openedAt           DateTime?
+  expiresAt          DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  customerProfile    CustomerProfile       @relation(fields: [customerProfileId], references: [id])
+  selectedProvider   ProviderProfile?      @relation("SelectedProvider", fields: [selectedProviderId], references: [id])
+  services           BookingService[]
+  participants       BookingParticipant[]
+  chatRoom           ChatRoom?
+  payment            Payment?
+  review             Review?
+  refunds            Refund[]
+  snapshots          LocationSnapshot[]
+  earning            ProviderEarning?
+}
+
+model BookingService {
+  id        String         @id @default(cuid())
+  bookingId String
+  serviceId String
+  quantity  Int            @default(1)
+  price     Int
+  booking   Booking        @relation(fields: [bookingId], references: [id])
+  service   MassageService @relation(fields: [serviceId], references: [id])
+}
+
+model BookingParticipant {
+  id                String            @id @default(cuid())
+  bookingId         String
+  providerProfileId String
+  status            ParticipantStatus @default(JOINED)
+  distanceMeters    Int?
+  providerStatusAtJoin ProviderStatus?
+  joinedAt          DateTime          @default(now())
+  respondedAt       DateTime?
+  booking           Booking           @relation(fields: [bookingId], references: [id])
+  providerProfile   ProviderProfile   @relation(fields: [providerProfileId], references: [id])
+
+  @@unique([bookingId, providerProfileId])
+}
+
+model ChatRoom {
+  id        String        @id @default(cuid())
+  bookingId String        @unique
+  booking   Booking       @relation(fields: [bookingId], references: [id])
+  messages  ChatMessage[]
+  createdAt DateTime      @default(now())
+}
+
+model ChatMessage {
+  id         String    @id @default(cuid())
+  chatRoomId String
+  senderId   String
+  body       String
+  attachments Json?
+  createdAt  DateTime  @default(now())
+  chatRoom   ChatRoom  @relation(fields: [chatRoomId], references: [id])
+  sender     User      @relation(fields: [senderId], references: [id])
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  bookingId String        @unique
+  method    PaymentMethod
+  status    PaymentStatus @default(PENDING)
+  amount    Int
+  currency  String        @default("VND")
+  providerRef String?       @unique
+  rawMeta   Json?
+  booking   Booking       @relation(fields: [bookingId], references: [id])
+  refunds   Refund[]
+}
+
+model Review {
+  id                String          @id @default(cuid())
+  bookingId         String          @unique
+  customerProfileId String
+  providerProfileId String
+  rating            Int
+  comment           String?
+  tipAmount         Int             @default(0)
+  status            ReviewStatus    @default(PUBLISHED)
+  reportReason      String?
+  moderatedAt       DateTime?
+  createdAt         DateTime        @default(now())
+  booking           Booking         @relation(fields: [bookingId], references: [id])
+  customerProfile   CustomerProfile @relation(fields: [customerProfileId], references: [id])
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+}
+
+model ProviderEarning {
+  id                String          @id @default(cuid())
+  providerProfileId String
+  bookingId         String          @unique
+  grossAmount       Int
+  platformFee       Int
+  tipAmount         Int             @default(0)
+  netAmount         Int
+  currency          String          @default("VND")
+  status            EarningStatus   @default(PENDING)
+  availableAt       DateTime?
+  paidAt            DateTime?
+  payoutBatchId     String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  booking           Booking         @relation(fields: [bookingId], references: [id])
+  payoutBatch       ProviderPayoutBatch? @relation(fields: [payoutBatchId], references: [id])
+}
+
+model ProviderPayoutBatch {
+  id                String            @id @default(cuid())
+  providerProfileId String
+  totalNetAmount    Int
+  currency          String            @default("VND")
+  status            PayoutBatchStatus @default(DRAFT)
+  transferRef       String?
+  notes             String?
+  createdAt         DateTime          @default(now())
+  paidAt            DateTime?
+  providerProfile   ProviderProfile   @relation(fields: [providerProfileId], references: [id])
+  earnings          ProviderEarning[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  deliveries NotificationDelivery[]
+}
+
+model PushDevice {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  deliveries NotificationDelivery[]
+}
+
+model NotificationDelivery {
+  id             String       @id @default(cuid())
+  notificationId String
+  pushDeviceId   String
+  provider       String
+  status         String
+  response       Json?
+  attemptedAt    DateTime     @default(now())
+  notification   Notification @relation(fields: [notificationId], references: [id])
+  pushDevice     PushDevice   @relation(fields: [pushDeviceId], references: [id])
+}
+
+model FileAsset {
+  id                     String                @id @default(cuid())
+  key                    String                @unique
+  url                    String?
+  contentType            String
+  visibility             FileVisibility
+  providerVerificationId String?
+  providerVerification   ProviderVerification? @relation(fields: [providerVerificationId], references: [id])
+  createdAt              DateTime              @default(now())
+}
+
+model LocationSnapshot {
+  id                String           @id @default(cuid())
+  bookingId         String?
+  providerProfileId String
+  lat               Decimal          @db.Decimal(10, 7)
+  lng               Decimal          @db.Decimal(10, 7)
+  recordedAt        DateTime         @default(now())
+  booking           Booking?         @relation(fields: [bookingId], references: [id])
+  providerProfile   ProviderProfile  @relation(fields: [providerProfileId], references: [id])
+}
+
+model Coupon {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  description String?
+  discount    Json
+  active      Boolean  @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+}
+
+model Refund {
+  id        String   @id @default(cuid())
+  bookingId String
+  paymentId String
+  amount    Int
+  reason    String?
+  status    String   @default("REQUESTED")
+  createdAt DateTime @default(now())
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  payment   Payment  @relation(fields: [paymentId], references: [id])
+}
+
+model AdminAuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String
+  target    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  actor     User     @relation("AdminActor", fields: [actorId], references: [id])
+}

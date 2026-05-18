@@ -1,0 +1,126 @@
+const { PrismaClient, Role, ProviderStatus, VerificationStatus } = require('@prisma/client');
+
+const prisma = new PrismaClient();
+
+async function main() {
+  const services = await Promise.all([
+    prisma.massageService.upsert({
+      where: { id: 'svc-swedish-60' },
+      update: {},
+      create: {
+        id: 'svc-swedish-60',
+        name: 'Swedish Massage',
+        description: 'Relaxing full-body massage for first-time customers.',
+        durationMin: 60,
+        basePrice: 450000,
+      },
+    }),
+    prisma.massageService.upsert({
+      where: { id: 'svc-deep-tissue-90' },
+      update: {},
+      create: {
+        id: 'svc-deep-tissue-90',
+        name: 'Deep Tissue Massage',
+        description: 'Focused pressure for muscle tension and recovery.',
+        durationMin: 90,
+        basePrice: 690000,
+      },
+    }),
+    prisma.massageService.upsert({
+      where: { id: 'svc-foot-45' },
+      update: {},
+      create: {
+        id: 'svc-foot-45',
+        name: 'Foot Massage',
+        description: 'Foot and lower-leg massage for quick recovery.',
+        durationMin: 45,
+        basePrice: 300000,
+      },
+    }),
+  ]);
+
+  const customer = await prisma.user.upsert({
+    where: { phone: '+84900000001' },
+    update: {},
+    create: {
+      phone: '+84900000001',
+      fullName: 'Demo Customer',
+      roles: [Role.CUSTOMER],
+      customerProfile: { create: {} },
+    },
+    include: { customerProfile: true },
+  });
+
+  const provider = await prisma.user.upsert({
+    where: { phone: '+84900000002' },
+    update: {},
+    create: {
+      phone: '+84900000002',
+      fullName: 'Demo Provider',
+      roles: [Role.PROVIDER],
+      providerProfile: {
+        create: {
+          displayName: 'Linh Wellness',
+          bio: 'Verified provider available for home massage in Ho Chi Minh City.',
+          status: ProviderStatus.ONLINE_AVAILABLE,
+          currentLat: 10.7769,
+          currentLng: 106.7009,
+          verification: {
+            create: {
+              status: VerificationStatus.APPROVED,
+              submittedAt: new Date(),
+              reviewedAt: new Date(),
+            },
+          },
+        },
+      },
+    },
+    include: { providerProfile: true },
+  });
+
+  const admin = await prisma.user.upsert({
+    where: { phone: '+84900000099' },
+    update: {},
+    create: {
+      phone: '+84900000099',
+      fullName: 'Demo Admin',
+      roles: [Role.ADMIN],
+    },
+  });
+
+  if (provider.providerProfile) {
+    for (const service of services) {
+      await prisma.providerService.upsert({
+        where: {
+          providerProfileId_serviceId: {
+            providerProfileId: provider.providerProfile.id,
+            serviceId: service.id,
+          },
+        },
+        update: {},
+        create: {
+          providerProfileId: provider.providerProfile.id,
+          serviceId: service.id,
+          price: service.basePrice,
+        },
+      });
+    }
+  }
+
+  console.log({
+    services: services.map((service) => service.id),
+    customerUserId: customer.id,
+    providerUserId: provider.id,
+    adminUserId: admin.id,
+    providerProfileId: provider.providerProfile && provider.providerProfile.id,
+  });
+}
+
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

@@ -1,0 +1,143 @@
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { ReviewStatus, Role, VerificationStatus } from '@prisma/client';
+import { AuthenticatedUser } from '../auth/auth.types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { AdminService } from './admin.service';
+
+@Controller('admin')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
+export class AdminController {
+  constructor(private readonly admin: AdminService) {}
+
+  @Get('users')
+  users() {
+    return this.admin.listUsers();
+  }
+
+  @Get('providers')
+  providers() {
+    return this.admin.listProviders();
+  }
+
+  @Post('providers/:id/approve')
+  approveProvider(@CurrentUser() user: AuthenticatedUser, @Param('id') providerProfileId: string) {
+    return this.admin.reviewProvider(user.id, providerProfileId, VerificationStatus.APPROVED);
+  }
+
+  @Post('providers/:id/reject')
+  rejectProvider(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') providerProfileId: string,
+    @Body() body: { reason?: string },
+  ) {
+    return this.admin.reviewProvider(user.id, providerProfileId, VerificationStatus.REJECTED, body.reason);
+  }
+
+  @Get('bookings')
+  bookings() {
+    return this.admin.listBookings();
+  }
+
+  @Get('payments')
+  payments() {
+    return this.admin.listPayments();
+  }
+
+  @Get('refunds')
+  refunds() {
+    return this.admin.listRefunds();
+  }
+
+  @Get('earnings')
+  earnings() {
+    return this.admin.listEarnings();
+  }
+
+  @Get('earnings/summary')
+  earningsSummary() {
+    return this.admin.earningsSummary();
+  }
+
+  @Post('earnings/:id/mark-paid')
+  markEarningPaid(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.admin.markEarningPaid(user.id, id);
+  }
+
+  @Get('payout-batches')
+  payoutBatches() {
+    return this.admin.listPayoutBatches();
+  }
+
+  @Post('payout-batches')
+  createPayoutBatch(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { providerProfileId: string; transferRef?: string; notes?: string },
+  ) {
+    return this.admin.createPayoutBatch(user.id, body);
+  }
+
+  @Get('reviews')
+  reviews() {
+    return this.admin.listReviews();
+  }
+
+  @Patch('reviews/:id/moderate')
+  moderateReview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: { status: ReviewStatus; reportReason?: string },
+  ) {
+    return this.admin.moderateReview(user.id, id, body);
+  }
+
+  @Get('coupons')
+  coupons() {
+    return this.admin.listCoupons();
+  }
+
+  @Post('coupons')
+  createCoupon(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body()
+    body: {
+      code: string;
+      description?: string;
+      discount: unknown;
+      active?: boolean;
+      startsAt?: string;
+      endsAt?: string;
+    },
+  ) {
+    return this.admin.createCoupon(user.id, body);
+  }
+
+  @Patch('coupons/:id')
+  updateCoupon(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      description?: string;
+      discount?: unknown;
+      active?: boolean;
+      startsAt?: string | null;
+      endsAt?: string | null;
+    },
+  ) {
+    return this.admin.updateCoupon(user.id, id, body);
+  }
+
+  @Get('audit-logs')
+  auditLogs() {
+    return this.admin.listAuditLogs();
+  }
+
+  @Get('notifications')
+  notifications() {
+    return this.admin.listNotifications();
+  }
+}
