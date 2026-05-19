@@ -79,7 +79,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool loading = false;
   String? error;
   String? realtimeMessage;
-  String? providerLocationMessage;
+  Map<String, dynamic>? providerLocation;
 
   @override
   void initState() {
@@ -126,7 +126,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
       if (payload is Map) {
         setState(() {
-          providerLocationMessage = 'Provider location: ${payload['lat']}, ${payload['lng']}';
+          providerLocation = Map<String, dynamic>.from(payload);
+          realtimeMessage = 'Provider location updated.';
         });
       }
     });
@@ -282,7 +283,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             if (loading) const LinearProgressIndicator(),
             if (error != null) ErrorPanel(text: error!),
             if (realtimeMessage != null) EmptyPanel(text: realtimeMessage!),
-            if (providerLocationMessage != null) EmptyPanel(text: providerLocationMessage!),
+            if (providerLocation != null) ProviderLocationPanel(location: providerLocation!),
             const SizedBox(height: 12),
             Text('Services', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
@@ -326,6 +327,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class ProviderLocationPanel extends StatelessWidget {
+  const ProviderLocationPanel({super.key, required this.location});
+
+  final Map<String, dynamic> location;
+
+  @override
+  Widget build(BuildContext context) {
+    final lat = location['lat'];
+    final lng = location['lng'];
+    final recordedAt = location['recordedAt'] ?? 'just now';
+    return Card(
+      child: ListTile(
+        leading: const CircleAvatar(child: Icon(Icons.navigation_outlined)),
+        title: const Text('Provider on the way'),
+        subtitle: Text('Lat $lat, Lng $lng\nUpdated $recordedAt'),
+        isThreeLine: true,
       ),
     );
   }

@@ -59,7 +59,13 @@ export class LocationsGateway implements OnGatewayConnection {
       if (!booking) {
         return { ok: false, error: 'BOOKING_LOCATION_FORBIDDEN' };
       }
-      this.server.to(SOCKET_ROOMS.booking(payload.bookingId)).emit('provider.location.updated', payload);
+      this.server.to(SOCKET_ROOMS.booking(payload.bookingId)).emit('provider.location.updated', {
+        bookingId: payload.bookingId,
+        providerProfileId: provider.id,
+        lat: payload.lat,
+        lng: payload.lng,
+        recordedAt: new Date().toISOString(),
+      });
     }
     return { ok: true };
   }

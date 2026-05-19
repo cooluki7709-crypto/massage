@@ -574,6 +574,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final messageController = TextEditingController();
   List<dynamic> messages = [];
   String? chatRoomId;
+  String? bookingId;
   String? statusMessage;
   String? error;
   bool loading = false;
@@ -641,6 +642,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final loadedMessages = await ref.read(providerRepositoryProvider).listChatMessages(roomId);
     setState(() {
       chatRoomId = roomId;
+      bookingId = booking?['id'] as String?;
       messages = loadedMessages;
       statusMessage = 'Chat room loaded for booking ${booking?['id']}.';
     });
@@ -655,6 +657,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
     messageController.clear();
     ref.read(providerRepositoryProvider).sendChatMessage(roomId, text);
+  }
+
+  Future<void> shareLocation() async {
+    final activeBookingId = bookingId;
+    if (activeBookingId == null) {
+      return;
+    }
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      await ref.read(providerRepositoryProvider).updateLocation(bookingId: activeBookingId);
+      setState(() => statusMessage = 'Current location shared with the customer.');
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
   }
 
   @override
@@ -693,6 +716,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             const InfoCard(text: 'A chat room appears when the customer selects you.')
           else ...[
             Text('Room $chatRoomId', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            FilledButton.tonalIcon(
+              onPressed: loading ? null : shareLocation,
+              icon: const Icon(Icons.my_location_outlined),
+              label: const Text('Share current location'),
+            ),
             const SizedBox(height: 8),
             if (messages.isEmpty)
               const InfoCard(text: 'No messages yet.')

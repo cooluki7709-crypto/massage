@@ -136,6 +136,18 @@ try {
   const matchedPayload = await bookingMatched;
   const chatRoomId = matchedPayload.booking.chatRoom.id;
 
+  const providerLocationUpdated = waitForEvent(
+    customerSocket,
+    'provider.location.updated',
+    (payload) => payload.bookingId === booking.id && payload.providerProfileId === providerAuth.user.providerProfile.id,
+  );
+  providerSocket.emit('provider.location.update', {
+    bookingId: booking.id,
+    lat: 10.7777,
+    lng: 106.7011,
+  });
+  const locationPayload = await providerLocationUpdated;
+
   await emitAndWait(customerSocket, 'chat.join_room', { chatRoomId });
   await emitAndWait(providerSocket, 'chat.join_room', { chatRoomId });
   const chatMessageCreated = waitForEvent(
@@ -154,6 +166,11 @@ try {
     openedEvent: openedPayload.status,
     joinedEvent: 'provider.joined',
     matchedEvent: matchedPayload.status,
+    locationEvent: {
+      lat: locationPayload.lat,
+      lng: locationPayload.lng,
+      recordedAt: locationPayload.recordedAt,
+    },
     chatEvent: 'chat.message.created',
     providerRoomBroadcast: true,
   });
