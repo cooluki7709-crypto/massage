@@ -98,6 +98,8 @@ const matched = await postJson(`/customer/bookings/${booking.id}/select-provider
   providerId: providerAuth.user.providerProfile.id,
 });
 
+const customerBookings = await getJson('/customer/bookings', customerAuth.accessToken);
+const providerBookings = await getJson('/provider/bookings', providerAuth.accessToken);
 const chatRoomId = matched.booking.chatRoom.id;
 
 const chatMessage = await postJson(`/chat/rooms/${chatRoomId}/messages`, customerAuth.accessToken, {
@@ -132,6 +134,8 @@ console.log({
   ok: true,
   bookingId: booking.id,
   chatRoomId,
+  customerBookingCount: customerBookings.length,
+  providerBookingCount: providerBookings.length,
   chatMessageId: chatMessage.id,
   reviewId: review.id,
   earningCount: providerEarnings.length,

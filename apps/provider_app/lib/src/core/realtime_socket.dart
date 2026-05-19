@@ -25,6 +25,14 @@ class RealtimeSocket {
     _socket?.emit('booking.join_room', {'bookingId': bookingId});
   }
 
+  void joinChat(String chatRoomId) {
+    _socket?.emit('chat.join_room', {'chatRoomId': chatRoomId});
+  }
+
+  void sendChatMessage(String chatRoomId, String text) {
+    _socket?.emit('chat.message.create', {'chatRoomId': chatRoomId, 'text': text});
+  }
+
   void updateLocation({required double lat, required double lng, String? bookingId}) {
     _socket?.emit('provider.location.update', {
       if (bookingId != null) 'bookingId': bookingId,

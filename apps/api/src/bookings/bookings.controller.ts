@@ -30,6 +30,13 @@ export class BookingsController {
     return this.bookings.createOpenMatchingBooking(user.id, body);
   }
 
+  @Get('customer/bookings')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CUSTOMER)
+  listCustomerBookings(@CurrentUser() user: AuthenticatedUser) {
+    return this.bookings.listCustomerBookings(user.id);
+  }
+
   @Get('customer/bookings/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CUSTOMER)
@@ -53,6 +60,13 @@ export class BookingsController {
   @Roles(Role.PROVIDER)
   getOpenBookings() {
     return this.bookings.getOpenBookings();
+  }
+
+  @Get('provider/bookings')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  listProviderBookings(@CurrentUser() user: AuthenticatedUser) {
+    return this.bookings.listProviderBookings(user.id);
   }
 
   @Post('provider/bookings/:id/join')

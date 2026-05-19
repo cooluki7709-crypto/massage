@@ -134,13 +134,27 @@ try {
     providerId: providerAuth.user.providerProfile.id,
   });
   const matchedPayload = await bookingMatched;
+  const chatRoomId = matchedPayload.booking.chatRoom.id;
+
+  await emitAndWait(customerSocket, 'chat.join_room', { chatRoomId });
+  await emitAndWait(providerSocket, 'chat.join_room', { chatRoomId });
+  const chatMessageCreated = waitForEvent(
+    providerSocket,
+    'chat.message.created',
+    (payload) => payload.chatRoomId === chatRoomId && payload.body === 'Realtime hello',
+  );
+  customerSocket.emit('chat.message.create', { chatRoomId, text: 'Realtime hello' });
+  const chatPayload = await chatMessageCreated;
 
   console.log({
     ok: true,
     bookingId: booking.id,
+    chatRoomId,
+    chatMessageId: chatPayload.id,
     openedEvent: openedPayload.status,
     joinedEvent: 'provider.joined',
     matchedEvent: matchedPayload.status,
+    chatEvent: 'chat.message.created',
     providerRoomBroadcast: true,
   });
 } finally {

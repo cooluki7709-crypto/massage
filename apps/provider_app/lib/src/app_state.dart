@@ -79,6 +79,11 @@ class ProviderRepository {
     return result is List<dynamic> ? result : [];
   }
 
+  Future<List<dynamic>> listBookings() async {
+    final result = await _api.getJson('/provider/bookings');
+    return result is List<dynamic> ? result : [];
+  }
+
   Future<Map<String, dynamic>> joinBooking(String bookingId) async {
     final result = await _api.postJson('/provider/bookings/$bookingId/join', {}) as Map<String, dynamic>;
     _socket.joinBooking(bookingId);
@@ -93,6 +98,19 @@ class ProviderRepository {
   Future<Map<String, dynamic>> rejectBooking(String bookingId) async {
     final result = await _api.postJson('/provider/bookings/$bookingId/reject', {});
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
+  }
+
+  Future<List<dynamic>> listChatMessages(String chatRoomId) async {
+    final result = await _api.getJson('/chat/rooms/$chatRoomId/messages');
+    return result is List<dynamic> ? result : [];
+  }
+
+  void joinChat(String chatRoomId) {
+    _socket.joinChat(chatRoomId);
+  }
+
+  void sendChatMessage(String chatRoomId, String text) {
+    _socket.sendChatMessage(chatRoomId, text);
   }
 
   Future<void> registerPushToken(String token) async {

@@ -123,11 +123,48 @@ export class BookingsService {
     });
   }
 
+  async listCustomerBookings(customerUserId: string) {
+    const customer = await this.prisma.customerProfile.findUniqueOrThrow({ where: { userId: customerUserId } });
+    return this.prisma.booking.findMany({
+      where: { customerProfileId: customer.id },
+      include: {
+        services: { include: { service: true } },
+        participants: { include: { providerProfile: true } },
+        selectedProvider: true,
+        payment: true,
+        chatRoom: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+  }
+
   getOpenBookings() {
     return this.prisma.booking.findMany({
       where: { status: BookingStatus.OPEN_MATCHING, expiresAt: { gt: new Date() } },
       include: { services: { include: { service: true } }, participants: true },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async listProviderBookings(providerUserId: string) {
+    const provider = await this.requireProvider(providerUserId);
+    return this.prisma.booking.findMany({
+      where: {
+        OR: [
+          { selectedProviderId: provider.id },
+          { participants: { some: { providerProfileId: provider.id } } },
+        ],
+      },
+      include: {
+        services: { include: { service: true } },
+        participants: true,
+        selectedProvider: true,
+        payment: true,
+        chatRoom: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
     });
   }
 

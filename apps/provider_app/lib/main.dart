@@ -42,7 +42,7 @@ class _ProviderShellState extends ConsumerState<ProviderShell> {
       RequestsScreen(),
       ProviderMvpScreen(title: 'Schedule', items: ['Availability', 'Available soon', 'Busy until']),
       EarningsScreen(),
-      ProviderMvpScreen(title: 'Chat', items: ['Customer chat', 'Support']),
+      ChatScreen(),
       ProfileScreen(),
     ];
 
@@ -557,6 +557,184 @@ class EarningsScreen extends ConsumerWidget {
               },
             ),
         ],
+      ),
+    );
+  }
+}
+
+class ChatScreen extends ConsumerStatefulWidget {
+  const ChatScreen({super.key});
+
+  @override
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends ConsumerState<ChatScreen> {
+  late final RealtimeSocket _socket;
+  final messageController = TextEditingController();
+  List<dynamic> messages = [];
+  String? chatRoomId;
+  String? statusMessage;
+  String? error;
+  bool loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _socket = ref.read(realtimeSocketProvider);
+  }
+
+  @override
+  void dispose() {
+    _socket.offEvent('chat.message.created');
+    messageController.dispose();
+    super.dispose();
+  }
+
+  void attachChatListener() {
+    _socket.offEvent('chat.message.created');
+    _socket.onEvent('chat.message.created', (payload) {
+      if (!mounted || payload is! Map || payload['chatRoomId'] != chatRoomId) {
+        return;
+      }
+      setState(() {
+        messages = [...messages, payload];
+        statusMessage = 'New customer message received.';
+      });
+    });
+  }
+
+  Future<void> signInAndLoadChat() async {
+    setState(() {
+      loading = true;
+      error = null;
+      statusMessage = null;
+    });
+    try {
+      if (ref.read(authControllerProvider) == null) {
+        await ref.read(authControllerProvider.notifier).signInDemoProvider();
+      }
+      await loadLatestChat();
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> loadLatestChat() async {
+    final bookings = await ref.read(providerRepositoryProvider).listBookings();
+    final booking = bookings.cast<Map<String, dynamic>?>().firstWhere(
+          (item) => item?['chatRoom'] != null,
+          orElse: () => null,
+        );
+    final room = booking?['chatRoom'] as Map<String, dynamic>?;
+    if (room == null) {
+      setState(() => statusMessage = 'No selected booking chat yet.');
+      return;
+    }
+
+    final roomId = room['id'] as String;
+    ref.read(providerRepositoryProvider).joinChat(roomId);
+    final loadedMessages = await ref.read(providerRepositoryProvider).listChatMessages(roomId);
+    setState(() {
+      chatRoomId = roomId;
+      messages = loadedMessages;
+      statusMessage = 'Chat room loaded for booking ${booking?['id']}.';
+    });
+    attachChatListener();
+  }
+
+  Future<void> sendMessage() async {
+    final roomId = chatRoomId;
+    final text = messageController.text.trim();
+    if (roomId == null || text.isEmpty) {
+      return;
+    }
+    messageController.clear();
+    ref.read(providerRepositoryProvider).sendChatMessage(roomId, text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = ref.watch(authControllerProvider);
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text('Chat', style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 8),
+          Text(
+            auth == null ? 'Login to load selected booking chats.' : 'Realtime messages with the customer.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: loading ? null : signInAndLoadChat,
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: Text(chatRoomId == null ? 'Load latest chat' : 'Refresh chat'),
+          ),
+          if (loading) ...[
+            const SizedBox(height: 12),
+            const LinearProgressIndicator(),
+          ],
+          if (statusMessage != null) ...[
+            const SizedBox(height: 12),
+            InfoCard(text: statusMessage!),
+          ],
+          if (error != null) ...[
+            const SizedBox(height: 12),
+            ErrorCard(text: error!),
+          ],
+          const SizedBox(height: 16),
+          if (chatRoomId == null)
+            const InfoCard(text: 'A chat room appears when the customer selects you.')
+          else ...[
+            Text('Room $chatRoomId', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            if (messages.isEmpty)
+              const InfoCard(text: 'No messages yet.')
+            else
+              for (final message in messages)
+                MessageTile(message: message as Map<String, dynamic>),
+            const SizedBox(height: 12),
+            TextField(
+              controller: messageController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Message',
+              ),
+              minLines: 1,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: sendMessage,
+              icon: const Icon(Icons.send_outlined),
+              label: const Text('Send'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class MessageTile extends StatelessWidget {
+  const MessageTile({super.key, required this.message});
+
+  final Map<String, dynamic> message;
+
+  @override
+  Widget build(BuildContext context) {
+    final sender = message['sender'] as Map<String, dynamic>?;
+    return Card(
+      child: ListTile(
+        leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+        title: Text(message['body'] as String? ?? ''),
+        subtitle: Text(sender?['fullName'] as String? ?? 'Sender'),
       ),
     );
   }
