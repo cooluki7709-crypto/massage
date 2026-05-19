@@ -199,18 +199,24 @@ $flutterCache = "C:\tools\flutter\bin\cache"
 if ((Test-CommandExists "flutter") -and (Test-DirectoryWritable $flutterCache)) {
   Invoke-Check "customer flutter pub get" "flutter pub get" "$root\apps\customer_app"
   Invoke-Check "customer flutter analyze" "flutter analyze" "$root\apps\customer_app"
+  Invoke-Check "customer flutter test" "flutter test" "$root\apps\customer_app"
   Invoke-Check "provider flutter pub get" "flutter pub get" "$root\apps\provider_app"
   Invoke-Check "provider flutter analyze" "flutter analyze" "$root\apps\provider_app"
+  Invoke-Check "provider flutter test" "flutter test" "$root\apps\provider_app"
 } elseif (Test-CommandExists "flutter") {
   Add-Result "customer flutter pub get" "SKIP" "Flutter is installed, but $flutterCache is not writable by this user."
   Add-Result "customer flutter analyze" "SKIP" "Flutter is installed, but $flutterCache is not writable by this user."
+  Add-Result "customer flutter test" "SKIP" "Flutter is installed, but $flutterCache is not writable by this user."
   Add-Result "provider flutter pub get" "SKIP" "Flutter is installed, but $flutterCache is not writable by this user."
   Add-Result "provider flutter analyze" "SKIP" "Flutter is installed, but $flutterCache is not writable by this user."
+  Add-Result "provider flutter test" "SKIP" "Flutter is installed, but $flutterCache is not writable by this user."
 } else {
   Add-Result "customer flutter pub get" "SKIP" "Flutter is not installed or not on PATH."
   Add-Result "customer flutter analyze" "SKIP" "Flutter is not installed or not on PATH."
+  Add-Result "customer flutter test" "SKIP" "Flutter is not installed or not on PATH."
   Add-Result "provider flutter pub get" "SKIP" "Flutter is not installed or not on PATH."
   Add-Result "provider flutter analyze" "SKIP" "Flutter is not installed or not on PATH."
+  Add-Result "provider flutter test" "SKIP" "Flutter is not installed or not on PATH."
 }
 
 Write-Host ""

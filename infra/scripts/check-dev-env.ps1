@@ -66,6 +66,8 @@ $tools = @(
     Args = @()
     Required = $false
     Choco = "androidstudio"
+    FallbackCommands = @("C:\Program Files\Android\Android Studio\bin\studio64.exe")
+    DetectOnlyFallback = $true
   }
 )
 

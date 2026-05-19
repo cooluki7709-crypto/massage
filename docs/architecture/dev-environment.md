@@ -26,9 +26,10 @@ Recommended tools:
 
 Current local status after setup:
 
-- Git, Docker Desktop, Flutter, Dart, Node.js, npm, and Java are available.
+- Git, Docker Desktop, Flutter, Dart, Node.js, npm, Java, Android Studio, Android SDK, and Android Emulator are available.
 - `verify-local.ps1 -WithServices` passes Docker, Prisma, API smoke, Admin build, and Flutter analyze checks.
-- Android Studio remains optional but recommended for emulator/device testing and APK dynamic analysis.
+- Customer and Provider apps build, install, and launch on the Android emulator from an ASCII-only path such as `C:\dev\massage-on-demand-vn`.
+- The source workspace path contains Korean characters. Flutter analyze/test works there, but Android Gradle builds can fail on Windows unless the project is run from an ASCII-only path.
 
 If required tools are missing and Chocolatey is available, open PowerShell as Administrator and run:
 
@@ -89,3 +90,9 @@ powershell -ExecutionPolicy Bypass -File .\infra\scripts\verify-local.ps1 -WithS
 ## Current Known Limitation
 
 The Codex shell may not have Administrator privileges. If Chocolatey fails with an access error under `C:\ProgramData\chocolatey`, rerun the install command from an Administrator PowerShell window.
+
+Android builds on Windows should be run from an ASCII-only project path. If the repo is under a path such as `C:\Users\laboy\Downloads\느시`, mirror or move it to a path such as `C:\dev\massage-on-demand-vn` before running:
+
+```powershell
+flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:3000/api --dart-define=SOCKET_BASE_URL=http://10.0.2.2:3000
+```

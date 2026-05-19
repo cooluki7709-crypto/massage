@@ -16,7 +16,7 @@ The customer Flutter app now includes:
 Run with custom endpoints:
 
 ```powershell
-flutter run --dart-define=API_BASE_URL=http://localhost:3000/api --dart-define=SOCKET_BASE_URL=http://localhost:3000
+flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:3000/api --dart-define=SOCKET_BASE_URL=http://10.0.2.2:3000
 ```
 
 ## Provider App
@@ -38,5 +38,7 @@ The provider Flutter app now includes:
 - UI is intentionally MVP-plain and close to the reference flow hierarchy, not final branding.
 - Google Maps rendering is not wired yet.
 - Push notification token registration exists at the API/client layer, but real FCM delivery credentials are not configured yet.
-- `flutter pub get` and `flutter analyze` pass for both customer and provider apps in the local Windows environment.
-- Device/emulator runs still need Android Studio or a physical Android device.
+- `flutter pub get`, `flutter analyze`, and widget smoke tests pass for both customer and provider apps in the local Windows environment.
+- Android platform folders are generated for both Flutter apps.
+- Customer and Provider apps have been build-installed-launched on `emulator-5554` from an ASCII-only path.
+- Windows Android builds should run from an ASCII-only path such as `C:\dev\massage-on-demand-vn`; the original workspace path contains Korean characters and can trigger Android/Flutter toolchain failures.
