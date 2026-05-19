@@ -52,6 +52,23 @@ flowchart TD
   N --> O["Review And Tip"]
 ```
 
+## Reference Dynamic Flow Notes
+
+Physical-device dynamic analysis confirmed this high-level customer flow shape:
+
+```mermaid
+flowchart TD
+  A["Explore Home"] --> B["Service Category Card"]
+  B --> C["Provider List"]
+  C --> D["Search And Filter"]
+  C --> E["Provider Card"]
+  E --> F["Booking CTA"]
+  F --> G["Authentication Gate"]
+  G --> H["Google Or Phone Login"]
+```
+
+MVP Phase 1 keeps the same broad order: explore first, service category second, provider list third, booking action fourth. The intentional product change is after booking action: instead of copying the reference booking mechanics, our app opens a realtime matching job and lets multiple providers join before the customer selects the final provider.
+
 ## Provider Sequence
 
 ```mermaid
@@ -75,4 +92,3 @@ flowchart TD
 - Preserve: onboarding/auth/location prompts, tab-based IA, service/provider browsing before booking, booking detail/status timeline, chat placement, provider verification sequence.
 - Change: original branding, artwork, copy, colors, icons, and payment/provider matching mechanics.
 - Improve: make matching explicit and anxiety-reducing with visible provider participants and clear timeout/refund states.
-

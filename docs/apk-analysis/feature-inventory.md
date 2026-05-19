@@ -5,8 +5,10 @@
 - Splash, onboarding carousel, language and region choice
 - Phone OTP auth and password reset/create flows
 - Location and push permission prompts
-- Home with service categories, banners, nearby staff/spas
-- Service list, service detail, therapist list, therapist detail
+- Home with location selector, notification/chat shortcuts, service category cards, support affordance, and bottom tabs
+- Service list, therapist/provider list, search, filter chips, sort controls, provider cards, therapist detail
+- Provider cards include image, display name, rating/review count, distance, earliest availability, and booking CTA
+- Booking CTA routes unauthenticated users to Google/phone auth gate
 - Saved addresses with map pin/search
 - Booking form with time, address, contact, notes, coupon
 - Checkout with wallet/card/cash-like methods and gateway WebView
@@ -41,4 +43,3 @@
 The MVP keeps the broad screen order and navigation hierarchy, but changes the core booking model into open matching:
 
 `service -> provider list/detail -> booking confirmation -> open matching -> provider participants -> customer selects final provider -> chat/location/service lifecycle -> review/tip`
-

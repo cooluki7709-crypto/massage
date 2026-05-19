@@ -100,8 +100,20 @@ Captured local artifacts:
 
 - `logs/apk-dynamic/glow-logcat-launch.txt`
 - `logs/apk-dynamic/glow-logcat-xapk-phone-launch.txt`
+- `logs/apk-dynamic/screens/01-current.png`
+- `logs/apk-dynamic/screens/02-service-entry.png`
+- `logs/apk-dynamic/screens/03-booking-entry.png`
 
-The dynamic pass did not bypass authentication, certificate pinning, payment controls, or app security controls. Existing app data on the physical phone was not read or extracted. Screen capture/UI hierarchy capture is intentionally deferred until the app is confirmed to be on a logged-out, test-account, or otherwise non-private screen.
+UI flow observations:
+
+- Home/explore screen uses a top location selector, notification icon, chat/support shortcut, large service category cards, floating support button, and three bottom tabs: explore, activity, account.
+- Main service cards are image-led and action-oriented. The first visible path is massage home service; additional cards include treatment/spa-style categories.
+- Service entry screen shifts to a provider/therapist list with back navigation, location selector, search, favorites, filter chips, sorting, and repeated provider cards.
+- Provider cards expose profile image, display name, rating/review count, distance, earliest available time, and a booking CTA.
+- Tapping booking from the provider list while logged out routes to an auth gate rather than a booking detail screen.
+- Auth gate offers Google sign-in and phone-number login, with language selector and close affordance.
+
+The dynamic pass did not bypass authentication, certificate pinning, payment controls, or app security controls. Existing app data on the physical phone was not read or extracted beyond user-approved foreground screen captures. Specific personal/provider names and images are not reused in the MVP.
 
 ## Legal Reuse Boundary
 
