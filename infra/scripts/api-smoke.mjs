@@ -92,6 +92,15 @@ const booking = await postJson('/customer/bookings', customerAuth.accessToken, {
   paymentMethod: 'CASH',
 });
 
+const momoBooking = await postJson('/customer/bookings', customerAuth.accessToken, {
+  serviceId: service.id,
+  scheduledStartAt: new Date(Date.now() + 90 * 60_000).toISOString(),
+  address: { line1: 'District 1, Ho Chi Minh City' },
+  lat: 10.7769,
+  lng: 106.7009,
+  paymentMethod: 'MOMO',
+});
+
 await postJson(`/provider/bookings/${booking.id}/join`, providerAuth.accessToken);
 
 const matched = await postJson(`/customer/bookings/${booking.id}/select-provider`, customerAuth.accessToken, {
@@ -131,6 +140,16 @@ if (!adminBooking?.chatRoom?.id || !adminBooking?.services?.length || !adminBook
 const payment = await getJson('/admin/payments', adminAuth.accessToken).then((payments) =>
   payments.find((item) => item.bookingId === booking.id),
 );
+const momoPayment = await getJson('/admin/payments', adminAuth.accessToken).then((payments) =>
+  payments.find((item) => item.bookingId === momoBooking.id),
+);
+const syncedMomo = momoPayment
+  ? await postJson(`/admin/payments/${momoPayment.id}/sync`, adminAuth.accessToken)
+  : null;
+const releasedMomo = momoPayment
+  ? await postJson(`/admin/payments/${momoPayment.id}/release`, adminAuth.accessToken)
+  : null;
+const capturedCash = payment ? await postJson(`/admin/payments/${payment.id}/capture`, adminAuth.accessToken) : null;
 const refund = payment ? await postJson(`/admin/payments/${payment.id}/refund`, adminAuth.accessToken) : null;
 const adminRefunds = await getJson('/admin/refunds', adminAuth.accessToken);
 const notifications = await getJson('/notifications', customerAuth.accessToken);
@@ -148,6 +167,10 @@ console.log({
   payoutBatchId: payoutBatch.id,
   payoutBatchCount: adminPayoutBatches.length,
   adminBookingMonitorReady: true,
+  momoPaymentStatus: momoPayment?.status ?? null,
+  syncedMomoStatus: syncedMomo?.status ?? null,
+  releasedMomoStatus: releasedMomo?.status ?? null,
+  capturedCashStatus: capturedCash?.status ?? null,
   refundId: refund?.refunds?.at(-1)?.id ?? null,
   refundCount: adminRefunds.length,
   verificationFileId: verificationUpload.file.id,

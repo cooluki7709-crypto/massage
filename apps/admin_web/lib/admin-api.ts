@@ -54,6 +54,14 @@ export type AdminPayment = {
   amount: number;
   currency: string;
   bookingId: string;
+  providerRef?: string | null;
+  rawMeta?: unknown;
+  booking?: {
+    status?: string;
+    customerProfile?: { user?: { phone?: string; fullName?: string | null } };
+    selectedProvider?: { displayName?: string | null };
+  };
+  refunds?: Array<{ id: string; amount: number; status: string; createdAt?: string }>;
 };
 
 export type AdminEarning = {

@@ -1,5 +1,5 @@
 import { AdminPayment, adminGet } from '../../lib/admin-api';
-import { refundPayment } from './actions';
+import { capturePayment, refundPayment, releasePayment, syncPayment } from './actions';
 
 export default async function PaymentsPage() {
   const payments = await adminGet<AdminPayment[]>('/admin/payments', []);
@@ -7,6 +7,24 @@ export default async function PaymentsPage() {
   return (
     <>
       <h1>Payments</h1>
+      <section className="grid" style={{ marginBottom: 16 }}>
+        <div className="card">
+          <p>Authorized</p>
+          <h2>{payments.filter((payment) => payment.status === 'AUTHORIZED').length}</h2>
+        </div>
+        <div className="card">
+          <p>Pending cash</p>
+          <h2>{payments.filter((payment) => payment.method === 'CASH' && payment.status === 'PENDING').length}</h2>
+        </div>
+        <div className="card">
+          <p>Captured</p>
+          <h2>{payments.filter((payment) => payment.status === 'CAPTURED').length}</h2>
+        </div>
+        <div className="card">
+          <p>Refunded</p>
+          <h2>{payments.filter((payment) => payment.status === 'REFUNDED').length}</h2>
+        </div>
+      </section>
       <div className="card">
         <table className="table">
           <thead>
@@ -15,6 +33,8 @@ export default async function PaymentsPage() {
               <th>Method</th>
               <th>Status</th>
               <th>Amount</th>
+              <th>Booking</th>
+              <th>Provider ref</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -28,23 +48,65 @@ export default async function PaymentsPage() {
                   {payment.amount} {payment.currency}
                 </td>
                 <td>
-                  <form action={refundPayment}>
-                    <input type="hidden" name="paymentId" value={payment.id} />
-                    <button type="submit" disabled={payment.status === 'REFUNDED'}>
-                      Refund
-                    </button>
-                  </form>
+                  {payment.bookingId}
+                  <div className="muted">{payment.booking?.status ?? 'UNKNOWN'}</div>
+                  <div className="muted">{payment.booking?.customerProfile?.user?.phone ?? 'No customer phone'}</div>
+                </td>
+                <td>{payment.providerRef ?? 'NONE'}</td>
+                <td>
+                  <div className="actions">
+                    <PaymentAction action={syncPayment} paymentId={payment.id} label="Sync" disabled={!payment.providerRef} />
+                    <PaymentAction
+                      action={capturePayment}
+                      paymentId={payment.id}
+                      label="Capture"
+                      disabled={payment.status === 'CAPTURED' || payment.status === 'REFUNDED' || payment.status === 'RELEASED'}
+                    />
+                    <PaymentAction
+                      action={releasePayment}
+                      paymentId={payment.id}
+                      label="Release"
+                      disabled={payment.status === 'CAPTURED' || payment.status === 'REFUNDED' || payment.status === 'RELEASED'}
+                    />
+                    <PaymentAction
+                      action={refundPayment}
+                      paymentId={payment.id}
+                      label="Refund"
+                      disabled={payment.status === 'REFUNDED' || payment.status === 'RELEASED'}
+                    />
+                  </div>
                 </td>
               </tr>
             ))}
             {payments.length === 0 && (
               <tr>
-                <td colSpan={5}>No payments loaded.</td>
+                <td colSpan={7}>No payments loaded.</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
     </>
+  );
+}
+
+function PaymentAction({
+  action,
+  paymentId,
+  label,
+  disabled,
+}: {
+  action: (formData: FormData) => Promise<void>;
+  paymentId: string;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <form action={action}>
+      <input type="hidden" name="paymentId" value={paymentId} />
+      <button type="submit" disabled={disabled}>
+        {label}
+      </button>
+    </form>
   );
 }

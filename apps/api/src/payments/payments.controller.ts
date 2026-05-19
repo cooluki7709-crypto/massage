@@ -18,6 +18,27 @@ export class PaymentsController {
     return this.payments.refund(user.id, paymentId);
   }
 
+  @Post('admin/payments/:id/sync')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  sync(@CurrentUser() user: AuthenticatedUser, @Param('id') paymentId: string) {
+    return this.payments.syncStatusForAdmin(user.id, paymentId);
+  }
+
+  @Post('admin/payments/:id/capture')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  capture(@CurrentUser() user: AuthenticatedUser, @Param('id') paymentId: string) {
+    return this.payments.capture(user.id, paymentId);
+  }
+
+  @Post('admin/payments/:id/release')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  release(@CurrentUser() user: AuthenticatedUser, @Param('id') paymentId: string) {
+    return this.payments.releaseForAdmin(user.id, paymentId);
+  }
+
   @Post('payments/:method/callback')
   callback(@Param('method') method: PaymentMethod, @Body() body: unknown) {
     return this.payments.handleCallback(method, body);

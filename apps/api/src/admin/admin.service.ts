@@ -84,7 +84,10 @@ export class AdminService {
     return this.prisma.payment.findMany({
       orderBy: { id: 'desc' },
       take: 100,
-      include: { booking: true, refunds: true },
+      include: {
+        booking: { include: { customerProfile: { include: { user: true } }, selectedProvider: true } },
+        refunds: true,
+      },
     });
   }
 

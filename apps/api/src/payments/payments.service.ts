@@ -90,6 +90,27 @@ export class PaymentsService {
     return { paymentId, status: updated.status };
   }
 
+  async syncStatusForAdmin(actorId: string, paymentId: string) {
+    const result = await this.checkAndSyncStatus(paymentId);
+    await this.admin.writeAudit(actorId, 'payment.sync', `payment:${paymentId}`, toJsonOrUndefined(result));
+    return result;
+  }
+
+  async capture(actorId: string, paymentId: string) {
+    const payment = await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: PaymentStatus.CAPTURED },
+    });
+
+    await this.admin.writeAudit(actorId, 'payment.capture', `payment:${paymentId}`, {
+      amount: payment.amount,
+      method: payment.method,
+      bookingId: payment.bookingId,
+    });
+
+    return payment;
+  }
+
   async release(paymentId: string) {
     const payment = await this.prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
     const status = this.adapterFor(payment.method).release(payment.providerRef);
@@ -97,6 +118,17 @@ export class PaymentsService {
       where: { id: paymentId },
       data: { status },
     });
+  }
+
+  async releaseForAdmin(actorId: string, paymentId: string) {
+    const payment = await this.release(paymentId);
+    await this.admin.writeAudit(actorId, 'payment.release', `payment:${paymentId}`, {
+      amount: payment.amount,
+      method: payment.method,
+      bookingId: payment.bookingId,
+      status: payment.status,
+    });
+    return payment;
   }
 
   async refund(actorId: string, paymentId: string) {
