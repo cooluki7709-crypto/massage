@@ -1,6 +1,7 @@
 export const SOCKET_ROOMS = {
   user: (userId: string) => `user:${userId}`,
   provider: (providerId: string) => `provider:${providerId}`,
+  providers: () => 'providers:online',
   booking: (bookingId: string) => `booking:${bookingId}`,
   chat: (chatRoomId: string) => `chat:${chatRoomId}`,
 };
@@ -19,4 +20,3 @@ export const REALTIME_EVENTS = [
   'service.completed',
   'payment.updated',
 ] as const;
-

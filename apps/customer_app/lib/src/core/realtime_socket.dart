@@ -37,8 +37,11 @@ class RealtimeSocket {
     _socket?.on(event, handler);
   }
 
+  void offEvent(String event) {
+    _socket?.off(event);
+  }
+
   void dispose() {
     _socket?.dispose();
   }
 }
-

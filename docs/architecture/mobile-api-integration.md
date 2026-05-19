@@ -12,6 +12,7 @@ The customer Flutter app now includes:
 - Nearby provider loading from `GET /api/customer/providers/nearby`
 - Booking creation through `POST /api/customer/bookings`
 - Booking room join after booking creation
+- Realtime UI updates for `provider.joined`, `booking.matched`, `booking.expired`, and `provider.location.updated`
 
 Run with custom endpoints:
 
@@ -33,6 +34,14 @@ The provider Flutter app now includes:
 - Join booking through `POST /api/provider/bookings/:id/join`
 - Accept/reject participation through `POST /api/provider/bookings/:id/accept` and `POST /api/provider/bookings/:id/reject`
 - Request screen state for online status, open job refresh, joined jobs, and customer-selection waiting state
+- Socket listeners for `booking.opened`, `booking.matched`, and `booking.expired`
+
+## Realtime MVP Behavior
+
+- Provider sockets join a shared `providers:online` room after JWT authentication.
+- When a booking opens, the backend emits `booking.opened` to the booking room and the provider broadcast room.
+- Customer app refreshes the active booking when a provider joins or the booking status changes.
+- Provider app refreshes open jobs when a new booking opens or a matching job changes state.
 
 ## Current Limitations
 

@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'src/app_state.dart';
+import 'src/core/realtime_socket.dart';
 
 void main() {
   runApp(const ProviderScope(child: ProviderApp()));
@@ -68,12 +71,59 @@ class RequestsScreen extends ConsumerStatefulWidget {
 }
 
 class _RequestsScreenState extends ConsumerState<RequestsScreen> {
+  late final RealtimeSocket _socket;
   List<dynamic> openBookings = [];
   Set<String> joinedBookingIds = {};
   bool isOnline = false;
   bool loading = false;
   String? statusMessage;
   String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    _socket = ref.read(realtimeSocketProvider);
+  }
+
+  @override
+  void dispose() {
+    detachRealtimeListeners();
+    super.dispose();
+  }
+
+  void attachRealtimeListeners() {
+    detachRealtimeListeners();
+
+    _socket.onEvent('booking.opened', (payload) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => statusMessage = 'New open matching job received.');
+      unawaited(loadOpenBookings(showLoading: false));
+    });
+
+    _socket.onEvent('booking.matched', (payload) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => statusMessage = 'Booking matched. Check selected provider state.');
+      unawaited(loadOpenBookings(showLoading: false));
+    });
+
+    _socket.onEvent('booking.expired', (payload) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => statusMessage = 'A matching job expired.');
+      unawaited(loadOpenBookings(showLoading: false));
+    });
+  }
+
+  void detachRealtimeListeners() {
+    for (final event in ['booking.opened', 'booking.matched', 'booking.expired']) {
+      _socket.offEvent(event);
+    }
+  }
 
   Future<void> signInAndLoad() async {
     setState(() {
@@ -83,6 +133,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
     });
     try {
       await ref.read(authControllerProvider.notifier).signInDemoProvider();
+      attachRealtimeListeners();
       await goOnline();
       await loadOpenBookings();
     } catch (exception) {
@@ -102,18 +153,20 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
     });
   }
 
-  Future<void> loadOpenBookings() async {
-    setState(() {
-      loading = true;
-      error = null;
-    });
+  Future<void> loadOpenBookings({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        loading = true;
+        error = null;
+      });
+    }
     try {
       final bookings = await ref.read(providerRepositoryProvider).openBookings();
       setState(() => openBookings = bookings);
     } catch (exception) {
       setState(() => error = '$exception');
     } finally {
-      if (mounted) {
+      if (mounted && showLoading) {
         setState(() => loading = false);
       }
     }
@@ -183,7 +236,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: auth == null ? signInAndLoad : loadOpenBookings,
+            onPressed: auth == null ? signInAndLoad : () => loadOpenBookings(),
             icon: const Icon(Icons.login),
             label: Text(auth == null ? 'Demo provider login' : 'Refresh open jobs'),
           ),

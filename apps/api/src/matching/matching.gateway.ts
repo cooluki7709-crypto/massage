@@ -25,6 +25,9 @@ export class MatchingGateway implements OnGatewayConnection {
     try {
       const user = this.socketAuth.authenticate(client);
       await client.join(SOCKET_ROOMS.user(user.id));
+      if (user.roles.includes(Role.PROVIDER)) {
+        await client.join(SOCKET_ROOMS.providers());
+      }
     } catch {
       client.disconnect(true);
     }
@@ -48,6 +51,7 @@ export class MatchingGateway implements OnGatewayConnection {
 
   emitBookingOpened(bookingId: string, payload: unknown) {
     this.server.to(SOCKET_ROOMS.booking(bookingId)).emit('booking.opened', payload);
+    this.server.to(SOCKET_ROOMS.providers()).emit('booking.opened', payload);
   }
 
   emitBookingMatched(bookingId: string, payload: unknown) {

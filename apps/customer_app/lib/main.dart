@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'src/app_state.dart';
+import 'src/core/realtime_socket.dart';
 
 void main() {
   runApp(const ProviderScope(child: CustomerApp()));
@@ -68,12 +71,77 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  late final RealtimeSocket _socket;
   List<dynamic> services = [];
   List<dynamic> providers = [];
   Map<String, dynamic>? selectedService;
   Map<String, dynamic>? activeBooking;
   bool loading = false;
   String? error;
+  String? realtimeMessage;
+  String? providerLocationMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _socket = ref.read(realtimeSocketProvider);
+  }
+
+  @override
+  void dispose() {
+    detachRealtimeListeners();
+    super.dispose();
+  }
+
+  void attachRealtimeListeners() {
+    detachRealtimeListeners();
+
+    _socket.onEvent('provider.joined', (payload) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => realtimeMessage = 'Provider joined. Refreshing matching list.');
+      unawaited(refreshBooking(showLoading: false));
+    });
+
+    _socket.onEvent('booking.matched', (payload) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => realtimeMessage = 'Provider selected. Chat and trip tracking are ready.');
+      unawaited(refreshBooking(showLoading: false));
+    });
+
+    _socket.onEvent('booking.expired', (payload) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => realtimeMessage = 'Booking expired before final selection.');
+      unawaited(refreshBooking(showLoading: false));
+    });
+
+    _socket.onEvent('provider.location.updated', (payload) {
+      if (!mounted) {
+        return;
+      }
+      if (payload is Map) {
+        setState(() {
+          providerLocationMessage = 'Provider location: ${payload['lat']}, ${payload['lng']}';
+        });
+      }
+    });
+  }
+
+  void detachRealtimeListeners() {
+    for (final event in [
+      'provider.joined',
+      'booking.matched',
+      'booking.expired',
+      'provider.location.updated',
+    ]) {
+      _socket.offEvent(event);
+    }
+  }
 
   Future<void> loadCatalog() async {
     setState(() {
@@ -111,7 +179,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
     try {
       final booking = await ref.read(customerRepositoryProvider).createBooking(service['id'] as String);
-      setState(() => activeBooking = booking);
+      attachRealtimeListeners();
+      setState(() {
+        activeBooking = booking;
+        realtimeMessage = 'Matching opened. Listening for providers in realtime.';
+      });
     } catch (exception) {
       setState(() => error = '$exception');
     } finally {
@@ -121,23 +193,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Future<void> refreshBooking() async {
+  Future<void> refreshBooking({bool showLoading = true}) async {
     final bookingId = activeBooking?['id'] as String?;
     if (bookingId == null) {
       return;
     }
 
-    setState(() {
-      loading = true;
-      error = null;
-    });
+    if (showLoading) {
+      setState(() {
+        loading = true;
+        error = null;
+      });
+    }
     try {
       final booking = await ref.read(customerRepositoryProvider).getBooking(bookingId);
       setState(() => activeBooking = booking);
     } catch (exception) {
       setState(() => error = '$exception');
     } finally {
-      if (mounted) {
+      if (mounted && showLoading) {
         setState(() => loading = false);
       }
     }
@@ -156,7 +230,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
     try {
       final result = await ref.read(customerRepositoryProvider).selectProvider(bookingId, providerId);
-      setState(() => activeBooking = result);
+      setState(() {
+        activeBooking = result;
+        realtimeMessage = 'Final provider selected. Matching moved to active booking.';
+      });
     } catch (exception) {
       setState(() => error = '$exception');
     } finally {
@@ -187,6 +264,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onPressed: auth == null
                 ? () async {
                     await ref.read(authControllerProvider.notifier).signInDemoCustomer();
+                    attachRealtimeListeners();
                     await loadCatalog();
                   }
                 : loadCatalog,
@@ -203,6 +281,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 16),
             if (loading) const LinearProgressIndicator(),
             if (error != null) ErrorPanel(text: error!),
+            if (realtimeMessage != null) EmptyPanel(text: realtimeMessage!),
+            if (providerLocationMessage != null) EmptyPanel(text: providerLocationMessage!),
             const SizedBox(height: 12),
             Text('Services', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
@@ -241,7 +321,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               activeBooking: booking,
               participants: participants,
               onOpenBooking: loading ? null : openBooking,
-              onRefreshBooking: loading ? null : refreshBooking,
+              onRefreshBooking: loading ? null : () => refreshBooking(),
               onSelectProvider: loading ? null : selectProvider,
             ),
           ],

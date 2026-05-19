@@ -6,6 +6,8 @@ class RealtimeSocket {
   final String baseUrl;
   io.Socket? _socket;
 
+  bool get connected => _socket?.connected ?? false;
+
   void connect(String accessToken) {
     _socket?.dispose();
     _socket = io.io(
@@ -31,8 +33,15 @@ class RealtimeSocket {
     });
   }
 
+  void onEvent(String event, void Function(dynamic payload) handler) {
+    _socket?.on(event, handler);
+  }
+
+  void offEvent(String event) {
+    _socket?.off(event);
+  }
+
   void dispose() {
     _socket?.dispose();
   }
 }
-
