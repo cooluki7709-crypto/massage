@@ -164,7 +164,8 @@ if (Test-CommandExists "git") {
   if (-not (Test-Path (Join-Path $root ".git"))) {
     Add-Result "git status" "SKIP" "Git is installed, but this folder is not initialized as a Git repository."
   } else {
-  Invoke-Check "git status" "git status --short"
+    $safeGitRoot = $root.Path.Replace("\", "/")
+    Invoke-Check "git status" "git -c safe.directory=`"$safeGitRoot`" status --short"
   }
 } else {
   Add-Result "git status" "SKIP" "Git is not installed or not on PATH."
