@@ -85,6 +85,16 @@ class ProviderRepository {
     return result;
   }
 
+  Future<Map<String, dynamic>> acceptBooking(String bookingId) async {
+    final result = await _api.postJson('/provider/bookings/$bookingId/accept', {});
+    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> rejectBooking(String bookingId) async {
+    final result = await _api.postJson('/provider/bookings/$bookingId/reject', {});
+    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+  }
+
   Future<void> registerPushToken(String token) async {
     await _api.postJson('/notifications/device-token/register', {
       'token': token,

@@ -31,6 +31,8 @@ The provider Flutter app now includes:
 - REST and realtime location update calls
 - Open booking loading from `GET /api/provider/bookings/open`
 - Join booking through `POST /api/provider/bookings/:id/join`
+- Accept/reject participation through `POST /api/provider/bookings/:id/accept` and `POST /api/provider/bookings/:id/reject`
+- Request screen state for online status, open job refresh, joined jobs, and customer-selection waiting state
 
 ## Current Limitations
 

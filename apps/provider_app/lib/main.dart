@@ -60,11 +60,115 @@ class _ProviderShellState extends ConsumerState<ProviderShell> {
   }
 }
 
-class RequestsScreen extends ConsumerWidget {
+class RequestsScreen extends ConsumerStatefulWidget {
   const RequestsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RequestsScreen> createState() => _RequestsScreenState();
+}
+
+class _RequestsScreenState extends ConsumerState<RequestsScreen> {
+  List<dynamic> openBookings = [];
+  Set<String> joinedBookingIds = {};
+  bool isOnline = false;
+  bool loading = false;
+  String? statusMessage;
+  String? error;
+
+  Future<void> signInAndLoad() async {
+    setState(() {
+      loading = true;
+      error = null;
+      statusMessage = null;
+    });
+    try {
+      await ref.read(authControllerProvider.notifier).signInDemoProvider();
+      await goOnline();
+      await loadOpenBookings();
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> goOnline() async {
+    await ref.read(providerRepositoryProvider).goOnline();
+    setState(() {
+      isOnline = true;
+      statusMessage = 'Online and location shared.';
+    });
+  }
+
+  Future<void> loadOpenBookings() async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final bookings = await ref.read(providerRepositoryProvider).openBookings();
+      setState(() => openBookings = bookings);
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> joinBooking(Map<String, dynamic> booking) async {
+    final bookingId = booking['id'] as String;
+    setState(() {
+      loading = true;
+      error = null;
+      statusMessage = null;
+    });
+    try {
+      await ref.read(providerRepositoryProvider).joinBooking(bookingId);
+      setState(() {
+        joinedBookingIds = {...joinedBookingIds, bookingId};
+        statusMessage = 'Joined booking. Waiting for customer selection.';
+      });
+      await loadOpenBookings();
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> respondToBooking(Map<String, dynamic> booking, bool accepted) async {
+    final bookingId = booking['id'] as String;
+    setState(() {
+      loading = true;
+      error = null;
+      statusMessage = null;
+    });
+    try {
+      if (accepted) {
+        await ref.read(providerRepositoryProvider).acceptBooking(bookingId);
+      } else {
+        await ref.read(providerRepositoryProvider).rejectBooking(bookingId);
+        joinedBookingIds = joinedBookingIds.where((id) => id != bookingId).toSet();
+      }
+      setState(() => statusMessage = accepted ? 'Accepted participation.' : 'Rejected participation.');
+      await loadOpenBookings();
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
 
     return SafeArea(
@@ -79,53 +183,238 @@ class RequestsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: auth == null ? () => ref.read(authControllerProvider.notifier).signInDemoProvider() : null,
+            onPressed: auth == null ? signInAndLoad : loadOpenBookings,
             icon: const Icon(Icons.login),
-            label: const Text('Demo provider login'),
+            label: Text(auth == null ? 'Demo provider login' : 'Refresh open jobs'),
           ),
           const SizedBox(height: 12),
-          FilledButton.tonalIcon(
-            onPressed: auth == null ? null : () => ref.read(providerRepositoryProvider).goOnline(),
-            icon: const Icon(Icons.power_settings_new),
-            label: const Text('Go online and send location'),
+          ProviderStatusPanel(
+            isSignedIn: auth != null,
+            isOnline: isOnline,
+            loading: loading,
+            onGoOnline: auth == null
+                ? null
+                : () async {
+                    setState(() {
+                      loading = true;
+                      error = null;
+                    });
+                    try {
+                      await goOnline();
+                      await loadOpenBookings();
+                    } catch (exception) {
+                      setState(() => error = '$exception');
+                    } finally {
+                      if (mounted) {
+                        setState(() => loading = false);
+                      }
+                    }
+                  },
           ),
+          if (loading) ...[
+            const SizedBox(height: 12),
+            const LinearProgressIndicator(),
+          ],
+          if (statusMessage != null) ...[
+            const SizedBox(height: 12),
+            InfoCard(text: statusMessage!),
+          ],
+          if (error != null) ...[
+            const SizedBox(height: 12),
+            ErrorCard(text: error!),
+          ],
           const SizedBox(height: 20),
           if (auth == null)
             const InfoCard(text: 'Login first to load open bookings from the API.')
-          else
-            FutureBuilder<List<dynamic>>(
-              future: ref.read(providerRepositoryProvider).openBookings(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final bookings = snapshot.data ?? [];
-                if (bookings.isEmpty) {
-                  return const InfoCard(text: 'No open matching jobs yet.');
-                }
-                return Column(
-                  children: [
-                    for (final booking in bookings)
-                      Card(
-                        child: ListTile(
-                          title: Text('Booking ${booking['id']}'),
-                          subtitle: Text('${booking['status']}'),
-                          trailing: const Icon(Icons.add_circle_outline),
-                          onTap: () async {
-                            await ref.read(providerRepositoryProvider).joinBooking(booking['id'] as String);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Joined booking ${booking['id']}')),
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                  ],
-                );
-              },
+          else ...[
+            RequestFlowBar(
+              activeStep: !isOnline ? 0 : (openBookings.isEmpty ? 1 : (joinedBookingIds.isEmpty ? 2 : 3)),
             ),
+            const SizedBox(height: 16),
+            if (openBookings.isEmpty)
+              const InfoCard(text: 'No open matching jobs yet. Create a booking in the Customer app, then refresh.')
+            else
+              for (final booking in openBookings)
+                OpenBookingCard(
+                  booking: booking as Map<String, dynamic>,
+                  joined: joinedBookingIds.contains(booking['id']),
+                  loading: loading,
+                  onJoin: () => joinBooking(booking),
+                  onAccept: () => respondToBooking(booking, true),
+                  onReject: () => respondToBooking(booking, false),
+                ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class ProviderStatusPanel extends StatelessWidget {
+  const ProviderStatusPanel({
+    super.key,
+    required this.isSignedIn,
+    required this.isOnline,
+    required this.loading,
+    required this.onGoOnline,
+  });
+
+  final bool isSignedIn;
+  final bool isOnline;
+  final bool loading;
+  final VoidCallback? onGoOnline;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: isOnline
+                  ? Theme.of(context).colorScheme.primaryContainer
+                  : Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: Icon(isOnline ? Icons.radar_outlined : Icons.power_settings_new),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(isOnline ? 'Online available' : 'Offline', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    isOnline ? 'Location is shared for matching.' : 'Go online to receive open matching jobs.',
+                  ),
+                ],
+              ),
+            ),
+            FilledButton.tonal(
+              onPressed: !isSignedIn || loading || isOnline ? null : onGoOnline,
+              child: const Text('Go online'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class RequestFlowBar extends StatelessWidget {
+  const RequestFlowBar({super.key, required this.activeStep});
+
+  final int activeStep;
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = ['Online', 'Listen', 'Join', 'Selected'];
+    return Row(
+      children: [
+        for (var index = 0; index < steps.length; index++)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: index == steps.length - 1 ? 0 : 6),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: index <= activeStep
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(steps[index], textAlign: TextAlign.center),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class OpenBookingCard extends StatelessWidget {
+  const OpenBookingCard({
+    super.key,
+    required this.booking,
+    required this.joined,
+    required this.loading,
+    required this.onJoin,
+    required this.onAccept,
+    required this.onReject,
+  });
+
+  final Map<String, dynamic> booking;
+  final bool joined;
+  final bool loading;
+  final VoidCallback onJoin;
+  final VoidCallback onAccept;
+  final VoidCallback onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    final services = booking['services'] is List<dynamic> ? booking['services'] as List<dynamic> : [];
+    final firstService = services.isNotEmpty ? services.first as Map<String, dynamic> : <String, dynamic>{};
+    final service = firstService['service'] as Map<String, dynamic>?;
+    final participants = booking['participants'] is List<dynamic> ? booking['participants'] as List<dynamic> : [];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const CircleAvatar(child: Icon(Icons.spa_outlined)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(service?['name'] as String? ?? 'Massage booking', style: Theme.of(context).textTheme.titleLarge),
+                      Text('${booking['status']} - ${participants.length} provider(s) joined'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text('Booking ${booking['id']}'),
+            Text('Scheduled: ${booking['scheduledStartAt'] ?? 'soon'}'),
+            Text('Payment opens as authorization, customer selects final provider.'),
+            const SizedBox(height: 12),
+            if (!joined)
+              FilledButton.icon(
+                onPressed: loading ? null : onJoin,
+                icon: const Icon(Icons.add_circle_outline),
+                label: const Text('Join open matching'),
+              )
+            else ...[
+              const InfoCard(text: 'Joined. The customer can now select you as final provider.'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: loading ? null : onReject,
+                      icon: const Icon(Icons.close),
+                      label: const Text('Reject'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: loading ? null : onAccept,
+                      icon: const Icon(Icons.check),
+                      label: const Text('Accept'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -351,6 +640,23 @@ class InfoCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Text(text),
+      ),
+    );
+  }
+}
+
+class ErrorCard extends StatelessWidget {
+  const ErrorCard({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(text, style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)),
       ),
     );
   }
