@@ -71,27 +71,37 @@ Manifest-level deep links include:
 
 For our MVP, reuse only the pattern: app links for booking, auth callback, provider/customer routing, and notification landing. Do not reuse proprietary hosts, keys, branding, or route copy.
 
-## Dynamic Analysis Status
+## Dynamic Analysis
 
-Dynamic analysis setup was attempted after Android Studio, Android SDK, and Android Emulator became available.
+Dynamic analysis was performed first on local emulators and then on an owned physical Android phone.
 
-Results:
+Emulator results:
 
 - XAPK extracted successfully into a local analysis workspace.
 - Target XAPK split set contains `base`, `config.arm64_v8a`, `config.en`, and `config.xhdpi`.
-- Current working emulator ABI is `x86_64` on Android API 33.
-- Installing base, language, and density splits without the ABI split fails with `INSTALL_FAILED_MISSING_SPLIT`.
-- Installing all splits on the `x86_64` emulator fails with `INSTALL_FAILED_NO_MATCHING_ABIS`.
+- Working emulator ABI was `x86_64` on Android API 33.
+- Installing base, language, and density splits without the ABI split failed with `INSTALL_FAILED_MISSING_SPLIT`.
+- Installing all splits on the `x86_64` emulator failed with `INSTALL_FAILED_NO_MATCHING_ABIS`.
 - Attempted ARM64 AVD boot did not become available through ADB in the current Windows environment.
 
-Conclusion: dynamic navigation requires either a working ARM64 Android emulator image on this machine or a physical ARM64 Android test device. No authentication, payment, certificate pinning, or app security control was bypassed.
+Physical device results:
 
-A lawful dynamic test plan remains:
+- Device: Samsung `SM-S901E`
+- Android API: `36`
+- ABI list: `arm64-v8a, armeabi-v7a, armeabi`
+- `adb install-multiple -r` succeeded with the provided XAPK splits: base, `config.arm64_v8a`, `config.en`, `config.xhdpi`.
+- Installed package confirmed as `com.glow.mobileApp`, version `3.11.4`, version code `534`.
+- Foreground launch succeeded: `com.glow.mobileApp/com.glow.MainActivity`.
+- Runtime log confirms ARM64 native libraries loaded from the provided split APKs.
+- Runtime log confirms Firebase, Firebase Crashlytics, Firebase Sessions, Branch SDK, React Native, Hermes, CodePush bundle loading, WorkManager, SoLoader, and React Native Maps component initialization.
+- AppOps/package checks show location and camera are foreground-scoped permissions on the device; notification permission is runtime-controlled.
 
-1. Install the XAPK on a clean owned ARM64 test device.
-2. Navigate as a normal user without bypassing auth or payments.
-3. Capture logcat, screen flow notes, loading states, permission prompts, and high-level network host categories only.
-4. Avoid private accounts, protected user data, protected APIs, or payment circumvention.
+Captured local artifacts:
+
+- `logs/apk-dynamic/glow-logcat-launch.txt`
+- `logs/apk-dynamic/glow-logcat-xapk-phone-launch.txt`
+
+The dynamic pass did not bypass authentication, certificate pinning, payment controls, or app security controls. Existing app data on the physical phone was not read or extracted. Screen capture/UI hierarchy capture is intentionally deferred until the app is confirmed to be on a logged-out, test-account, or otherwise non-private screen.
 
 ## Legal Reuse Boundary
 
