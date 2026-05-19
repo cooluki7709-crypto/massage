@@ -123,6 +123,7 @@ function Invoke-SmokeWithApi {
 
     Invoke-Check "api readiness against local services" "Invoke-RestMethod http://localhost:3000/api/health/ready | ConvertTo-Json -Depth 5"
     Invoke-Check "api smoke against local services" "node infra\scripts\api-smoke.mjs"
+    Invoke-Check "realtime smoke against local services" "node infra\scripts\realtime-smoke.mjs"
   } finally {
     Stop-Job $job -ErrorAction SilentlyContinue
     Remove-Job $job -Force -ErrorAction SilentlyContinue
@@ -145,6 +146,7 @@ try {
 $global:LASTEXITCODE = 0
 
 Invoke-Check "script syntax: api smoke" "node --check infra\scripts\api-smoke.mjs"
+Invoke-Check "script syntax: realtime smoke" "node --check infra\scripts\realtime-smoke.mjs"
 Invoke-Check "script syntax: env check" "node --check infra\scripts\check-env.mjs"
 Invoke-Check "script syntax: seed" "node --check apps\api\prisma\seed.js"
 Invoke-Check "env example" "node infra\scripts\check-env.mjs .env.example"

@@ -17,6 +17,12 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md,css,prisma}\""
   },
   "devDependencies": {
-    "prettier": "^3.6.2"
+    "postcss": "^8.5.10",
+    "prettier": "^3.6.2",
+    "socket.io-client": "^4.8.1"
+  },
+  "overrides": {
+    "postcss": "$postcss",
+    "ws": "^8.20.0"
   }
 }

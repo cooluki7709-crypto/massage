@@ -1,5 +1,6 @@
 import {
   ConnectedSocket,
+  MessageBody,
   OnGatewayConnection,
   SubscribeMessage,
   WebSocketGateway,
@@ -34,7 +35,7 @@ export class MatchingGateway implements OnGatewayConnection {
   }
 
   @SubscribeMessage('booking.join_room')
-  async joinBookingRoom(@ConnectedSocket() client: Socket, payload: { bookingId: string }) {
+  async joinBookingRoom(@ConnectedSocket() client: Socket, @MessageBody() payload: { bookingId: string }) {
     const user = this.socketAuth.requireUser(client);
     const allowed = await this.canAccessBookingRoom(payload.bookingId, user.id, user.roles);
     if (!allowed) {

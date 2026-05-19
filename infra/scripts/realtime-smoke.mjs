@@ -1,0 +1,149 @@
+import { io } from 'socket.io-client';
+
+const apiBaseUrl = process.env.API_BASE_URL ?? 'http://localhost:3000/api';
+const socketBaseUrl = process.env.SOCKET_BASE_URL ?? apiBaseUrl.replace(/\/api$/, '');
+
+async function request(path, options = {}) {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...options,
+    headers: { 'content-type': 'application/json', ...(options.headers ?? {}) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`${options.method ?? 'GET'} ${path} failed: ${response.status} ${JSON.stringify(body)}`);
+  }
+  return body;
+}
+
+const postJson = (path, accessToken, body = {}) =>
+  request(path, {
+    method: 'POST',
+    headers: accessToken ? { authorization: `Bearer ${accessToken}` } : {},
+    body: JSON.stringify(body),
+  });
+
+const getJson = (path, accessToken) =>
+  request(path, {
+    headers: accessToken ? { authorization: `Bearer ${accessToken}` } : {},
+  });
+
+function connectSocket(accessToken) {
+  return new Promise((resolve, reject) => {
+    const socket = io(socketBaseUrl, {
+      auth: { token: accessToken },
+      forceNew: true,
+      timeout: 5000,
+      transports: ['websocket'],
+    });
+    const timer = setTimeout(() => reject(new Error('Socket connection timed out')), 7000);
+    socket.once('connect', () => {
+      clearTimeout(timer);
+      resolve(socket);
+    });
+    socket.once('connect_error', (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+  });
+}
+
+function waitForEvent(socket, event, predicate = () => true, timeoutMs = 7000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      socket.off(event, handler);
+      reject(new Error(`Timed out waiting for ${event}`));
+    }, timeoutMs);
+
+    function handler(payload) {
+      if (!predicate(payload)) {
+        return;
+      }
+      clearTimeout(timer);
+      socket.off(event, handler);
+      resolve(payload);
+    }
+
+    socket.on(event, handler);
+  });
+}
+
+function emitAndWait(socket, event, payload, delayMs = 500) {
+  socket.emit(event, payload);
+  return new Promise((resolve) => {
+    setTimeout(resolve, delayMs);
+  });
+}
+
+const health = await request('/health/ready');
+if (!health.ok) {
+  throw new Error(`API is not ready: ${JSON.stringify(health)}`);
+}
+
+const customerAuth = await postJson('/auth/verify-otp', null, {
+  phone: '+84900000001',
+  otp: '123456',
+  role: 'CUSTOMER',
+});
+const providerAuth = await postJson('/auth/verify-otp', null, {
+  phone: '+84900000002',
+  otp: '123456',
+  role: 'PROVIDER',
+});
+const adminAuth = await postJson('/auth/verify-otp', null, {
+  phone: '+84900000099',
+  otp: '123456',
+  role: 'ADMIN',
+});
+
+await postJson(`/admin/providers/${providerAuth.user.providerProfile.id}/approve`, adminAuth.accessToken);
+await postJson('/provider/online', providerAuth.accessToken);
+await postJson('/provider/location', providerAuth.accessToken, { lat: 10.7769, lng: 106.7009 });
+
+const providerSocket = await connectSocket(providerAuth.accessToken);
+const customerSocket = await connectSocket(customerAuth.accessToken);
+
+try {
+  const services = await getJson('/services');
+  const service = services[0];
+
+  const bookingOpened = waitForEvent(providerSocket, 'booking.opened');
+  const booking = await postJson('/customer/bookings', customerAuth.accessToken, {
+    serviceId: service.id,
+    scheduledStartAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+    address: { line1: 'District 1, Ho Chi Minh City' },
+    lat: 10.7769,
+    lng: 106.7009,
+    paymentMethod: 'CASH',
+  });
+
+  const openedPayload = await bookingOpened;
+  if (openedPayload.id !== booking.id) {
+    throw new Error(`Provider received booking.opened for ${openedPayload.id}, expected ${booking.id}`);
+  }
+
+  await emitAndWait(customerSocket, 'booking.join_room', { bookingId: booking.id });
+
+  const providerJoined = waitForEvent(customerSocket, 'provider.joined', (payload) => payload.bookingId === booking.id);
+  await postJson(`/provider/bookings/${booking.id}/join`, providerAuth.accessToken);
+  await providerJoined;
+
+  await emitAndWait(providerSocket, 'booking.join_room', { bookingId: booking.id });
+
+  const bookingMatched = waitForEvent(customerSocket, 'booking.matched', (payload) => payload.bookingId === booking.id);
+  await postJson(`/customer/bookings/${booking.id}/select-provider`, customerAuth.accessToken, {
+    providerId: providerAuth.user.providerProfile.id,
+  });
+  const matchedPayload = await bookingMatched;
+
+  console.log({
+    ok: true,
+    bookingId: booking.id,
+    openedEvent: openedPayload.status,
+    joinedEvent: 'provider.joined',
+    matchedEvent: matchedPayload.status,
+    providerRoomBroadcast: true,
+  });
+} finally {
+  providerSocket.disconnect();
+  customerSocket.disconnect();
+}
