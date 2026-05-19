@@ -27,10 +27,24 @@ export type AdminProvider = {
 export type AdminBooking = {
   id: string;
   status: string;
-  participants?: unknown[];
+  createdAt?: string;
+  scheduledStartAt?: string;
+  expiresAt?: string | null;
+  participants?: Array<{
+    id: string;
+    status: string;
+    providerProfile?: {
+      id: string;
+      displayName?: string | null;
+      status?: string;
+      user?: { fullName?: string | null; phone?: string };
+    };
+  }>;
+  services?: Array<{ service?: { name?: string; durationMin?: number; basePrice?: number } }>;
   payment?: { status: string; amount: number; method: string } | null;
   customerProfile?: { user?: { fullName?: string | null; phone?: string } };
-  selectedProvider?: { displayName?: string | null };
+  selectedProvider?: { displayName?: string | null; status?: string; user?: { phone?: string; fullName?: string | null } };
+  chatRoom?: { id: string } | null;
 };
 
 export type AdminPayment = {

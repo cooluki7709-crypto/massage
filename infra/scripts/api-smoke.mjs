@@ -123,6 +123,11 @@ const payoutBatch = await postJson('/admin/payout-batches', adminAuth.accessToke
   notes: 'Created by smoke test',
 });
 const adminPayoutBatches = await getJson('/admin/payout-batches', adminAuth.accessToken);
+const adminBookings = await getJson('/admin/bookings', adminAuth.accessToken);
+const adminBooking = adminBookings.find((item) => item.id === booking.id);
+if (!adminBooking?.chatRoom?.id || !adminBooking?.services?.length || !adminBooking?.participants?.length) {
+  throw new Error(`Admin booking monitor payload is incomplete: ${JSON.stringify(adminBooking)}`);
+}
 const payment = await getJson('/admin/payments', adminAuth.accessToken).then((payments) =>
   payments.find((item) => item.bookingId === booking.id),
 );
@@ -142,6 +147,7 @@ console.log({
   providerNetAmount: providerEarningsSummary.netAmount,
   payoutBatchId: payoutBatch.id,
   payoutBatchCount: adminPayoutBatches.length,
+  adminBookingMonitorReady: true,
   refundId: refund?.refunds?.at(-1)?.id ?? null,
   refundCount: adminRefunds.length,
   verificationFileId: verificationUpload.file.id,

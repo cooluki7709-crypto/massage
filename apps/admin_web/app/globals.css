@@ -69,6 +69,86 @@ a {
   align-items: center;
 }
 
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.monitor-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.status-badge,
+.signal,
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-badge {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.status-open_matching {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-matched,
+.status-provider_on_the_way,
+.status-arrived,
+.status-in_service {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-cancelled,
+.status-expired,
+.status-refunded {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.signal-ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.signal-info {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.signal-warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.participant-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.pill {
+  background: #f1f5f9;
+  color: #334155;
+}
+
 button,
 input {
   border: 1px solid #cbd5e1;
@@ -106,5 +186,10 @@ button:disabled {
 
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .toolbar,
+  .monitor-meta {
+    display: grid;
   }
 }

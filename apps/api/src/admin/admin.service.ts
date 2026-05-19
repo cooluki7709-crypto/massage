@@ -69,7 +69,14 @@ export class AdminService {
     return this.prisma.booking.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
-      include: { customerProfile: { include: { user: true } }, selectedProvider: true, participants: true, payment: true },
+      include: {
+        customerProfile: { include: { user: true } },
+        selectedProvider: { include: { user: true } },
+        participants: { include: { providerProfile: { include: { user: true } } } },
+        services: { include: { service: true } },
+        payment: true,
+        chatRoom: true,
+      },
     });
   }
 
