@@ -73,12 +73,25 @@ For our MVP, reuse only the pattern: app links for booking, auth callback, provi
 
 ## Dynamic Analysis Status
 
-Dynamic analysis is not completed yet because Android Studio/emulator execution has not been set up in this project environment. A lawful dynamic test plan is:
+Dynamic analysis setup was attempted after Android Studio, Android SDK, and Android Emulator became available.
 
-1. Install the XAPK on a clean emulator or owned test device.
+Results:
+
+- XAPK extracted successfully into a local analysis workspace.
+- Target XAPK split set contains `base`, `config.arm64_v8a`, `config.en`, and `config.xhdpi`.
+- Current working emulator ABI is `x86_64` on Android API 33.
+- Installing base, language, and density splits without the ABI split fails with `INSTALL_FAILED_MISSING_SPLIT`.
+- Installing all splits on the `x86_64` emulator fails with `INSTALL_FAILED_NO_MATCHING_ABIS`.
+- Attempted ARM64 AVD boot did not become available through ADB in the current Windows environment.
+
+Conclusion: dynamic navigation requires either a working ARM64 Android emulator image on this machine or a physical ARM64 Android test device. No authentication, payment, certificate pinning, or app security control was bypassed.
+
+A lawful dynamic test plan remains:
+
+1. Install the XAPK on a clean owned ARM64 test device.
 2. Navigate as a normal user without bypassing auth or payments.
-3. Capture logcat, screen flow notes, and high-level network host categories only.
-4. Avoid private accounts, protected user data, or payment circumvention.
+3. Capture logcat, screen flow notes, loading states, permission prompts, and high-level network host categories only.
+4. Avoid private accounts, protected user data, protected APIs, or payment circumvention.
 
 ## Legal Reuse Boundary
 

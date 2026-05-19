@@ -60,12 +60,117 @@ class _CustomerShellState extends ConsumerState<CustomerShell> {
   }
 }
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  List<dynamic> services = [];
+  List<dynamic> providers = [];
+  Map<String, dynamic>? selectedService;
+  Map<String, dynamic>? activeBooking;
+  bool loading = false;
+  String? error;
+
+  Future<void> loadCatalog() async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final repository = ref.read(customerRepositoryProvider);
+      final results = await Future.wait([
+        repository.listServices(),
+        repository.nearbyProviders(),
+      ]);
+      setState(() {
+        services = results[0];
+        providers = results[1];
+      });
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> openBooking() async {
+    final service = selectedService;
+    if (service == null) {
+      return;
+    }
+
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final booking = await ref.read(customerRepositoryProvider).createBooking(service['id'] as String);
+      setState(() => activeBooking = booking);
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> refreshBooking() async {
+    final bookingId = activeBooking?['id'] as String?;
+    if (bookingId == null) {
+      return;
+    }
+
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final booking = await ref.read(customerRepositoryProvider).getBooking(bookingId);
+      setState(() => activeBooking = booking);
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> selectProvider(Map<String, dynamic> participant) async {
+    final bookingId = activeBooking?['id'] as String?;
+    final providerId = participant['providerProfileId'] as String?;
+    if (bookingId == null || providerId == null) {
+      return;
+    }
+
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final result = await ref.read(customerRepositoryProvider).selectProvider(bookingId, providerId);
+      setState(() => activeBooking = result);
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
+    final booking = activeBooking;
+    final participants = booking?['participants'] is List<dynamic> ? booking!['participants'] as List<dynamic> : [];
 
     return SafeArea(
       child: ListView(
@@ -74,51 +179,217 @@ class HomeScreen extends ConsumerWidget {
           Text('Choose a service', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            auth == null ? 'Sign in to start booking.' : 'Signed in. Pick a service and open matching.',
+            auth == null ? 'Sign in to start booking.' : 'Service, provider preview, matching, and final selection.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: auth == null ? () => ref.read(authControllerProvider.notifier).signInDemoCustomer() : null,
+            onPressed: auth == null
+                ? () async {
+                    await ref.read(authControllerProvider.notifier).signInDemoCustomer();
+                    await loadCatalog();
+                  }
+                : loadCatalog,
             icon: const Icon(Icons.login),
-            label: const Text('Demo customer login'),
+            label: Text(auth == null ? 'Demo customer login' : 'Refresh services'),
           ),
           const SizedBox(height: 16),
-          FutureBuilder<List<dynamic>>(
-            future: auth == null ? Future.value([]) : ref.read(customerRepositoryProvider).listServices(),
-            builder: (context, snapshot) {
-              final services = snapshot.data ?? [];
-              if (auth == null) {
-                return const EmptyPanel(text: 'Login loads service catalog from the API.');
-              }
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              return Column(
-                children: [
-                  for (final service in services)
-                    Card(
-                      child: ListTile(
-                        title: Text(service['name'] as String? ?? 'Service'),
-                        subtitle: Text('${service['durationMin']} min - ${service['basePrice']} VND'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () async {
-                          final booking = await ref
-                              .read(customerRepositoryProvider)
-                              .createBooking(service['id'] as String);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Booking opened: ${booking['id']}')),
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
+          if (auth == null)
+            const EmptyPanel(text: 'Login loads service catalog, nearby providers, and booking actions from the API.')
+          else ...[
+            FlowStatusBar(
+              activeStep: booking == null ? (selectedService == null ? 0 : 1) : (participants.isEmpty ? 2 : 3),
+            ),
+            const SizedBox(height: 16),
+            if (loading) const LinearProgressIndicator(),
+            if (error != null) ErrorPanel(text: error!),
+            const SizedBox(height: 12),
+            Text('Services', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            if (services.isEmpty)
+              const EmptyPanel(text: 'Tap refresh services to load the API catalog.')
+            else
+              for (final service in services)
+                Card(
+                  child: ListTile(
+                    selected: selectedService?['id'] == service['id'],
+                    title: Text(service['name'] as String? ?? 'Service'),
+                    subtitle: Text('${service['durationMin']} min - ${service['basePrice']} VND'),
+                    trailing: selectedService?['id'] == service['id']
+                        ? const Icon(Icons.check_circle)
+                        : const Icon(Icons.chevron_right),
+                    onTap: booking == null ? () => setState(() => selectedService = service as Map<String, dynamic>) : null,
+                  ),
+                ),
+            const SizedBox(height: 16),
+            Text('Nearby providers', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            if (providers.isEmpty)
+              const EmptyPanel(text: 'Nearby verified providers will appear before booking confirmation.')
+            else
+              for (final provider in providers.take(3))
+                Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(child: Icon(Icons.spa_outlined)),
+                    title: Text(provider['displayName'] as String? ?? 'Provider'),
+                    subtitle: Text('${provider['distanceMeters'] ?? '?'} m - ${provider['status'] ?? 'UNKNOWN'}'),
+                  ),
+                ),
+            const SizedBox(height: 16),
+            BookingActionPanel(
+              selectedService: selectedService,
+              activeBooking: booking,
+              participants: participants,
+              onOpenBooking: loading ? null : openBooking,
+              onRefreshBooking: loading ? null : refreshBooking,
+              onSelectProvider: loading ? null : selectProvider,
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class FlowStatusBar extends StatelessWidget {
+  const FlowStatusBar({super.key, required this.activeStep});
+
+  final int activeStep;
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = ['Service', 'Confirm', 'Matching', 'Select'];
+    return Row(
+      children: [
+        for (var index = 0; index < steps.length; index++)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: index == steps.length - 1 ? 0 : 6),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: index <= activeStep
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(
+                    steps[index],
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class BookingActionPanel extends StatelessWidget {
+  const BookingActionPanel({
+    super.key,
+    required this.selectedService,
+    required this.activeBooking,
+    required this.participants,
+    required this.onOpenBooking,
+    required this.onRefreshBooking,
+    required this.onSelectProvider,
+  });
+
+  final Map<String, dynamic>? selectedService;
+  final Map<String, dynamic>? activeBooking;
+  final List<dynamic> participants;
+  final VoidCallback? onOpenBooking;
+  final VoidCallback? onRefreshBooking;
+  final void Function(Map<String, dynamic> participant)? onSelectProvider;
+
+  @override
+  Widget build(BuildContext context) {
+    final booking = activeBooking;
+    if (booking == null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Confirm booking', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              Text(
+                selectedService == null
+                    ? 'Pick one service to open a realtime matching job.'
+                    : '${selectedService!['name']} will open as a cash booking in District 1.',
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: selectedService == null ? null : onOpenBooking,
+                icon: const Icon(Icons.radar_outlined),
+                label: const Text('Open realtime matching'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final status = booking['status'] ?? 'OPEN_MATCHING';
+    final chatRoom = booking['chatRoom'] as Map<String, dynamic>?;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Matching status', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text('Booking ${booking['id']}'),
+            Text('Status: $status'),
+            if (chatRoom != null) Text('Chat room ready: ${chatRoom['id']}'),
+            const SizedBox(height: 12),
+            FilledButton.tonalIcon(
+              onPressed: onRefreshBooking,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh joined providers'),
+            ),
+            const SizedBox(height: 12),
+            if (participants.isEmpty)
+              const EmptyPanel(text: 'Waiting for providers to join. Open the Provider app and join this booking.')
+            else
+              for (final item in participants)
+                ProviderParticipantTile(
+                  participant: item as Map<String, dynamic>,
+                  onSelect: status == 'OPEN_MATCHING' && onSelectProvider != null
+                      ? () => onSelectProvider!(item)
+                      : null,
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProviderParticipantTile extends StatelessWidget {
+  const ProviderParticipantTile({super.key, required this.participant, required this.onSelect});
+
+  final Map<String, dynamic> participant;
+  final VoidCallback? onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = participant['providerProfile'] as Map<String, dynamic>?;
+    return Card(
+      child: ListTile(
+        leading: const CircleAvatar(child: Icon(Icons.person_pin_circle_outlined)),
+        title: Text(provider?['displayName'] as String? ?? 'Joined provider'),
+        subtitle: Text('${participant['status'] ?? 'JOINED'}'),
+        trailing: FilledButton(
+          onPressed: onSelect,
+          child: const Text('Select'),
+        ),
       ),
     );
   }
@@ -289,3 +560,19 @@ class EmptyPanel extends StatelessWidget {
   }
 }
 
+class ErrorPanel extends StatelessWidget {
+  const ErrorPanel({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(text, style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)),
+      ),
+    );
+  }
+}

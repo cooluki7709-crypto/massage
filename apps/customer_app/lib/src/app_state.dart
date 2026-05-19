@@ -70,6 +70,11 @@ class CustomerRepository {
     return result is List<dynamic> ? result : [];
   }
 
+  Future<Map<String, dynamic>> getBooking(String bookingId) async {
+    final result = await _api.getJson('/customer/bookings/$bookingId');
+    return result as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> createBooking(String serviceId) async {
     final result = await _api.postJson('/customer/bookings', {
       'serviceId': serviceId,
