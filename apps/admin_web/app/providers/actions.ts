@@ -16,3 +16,9 @@ export async function rejectProvider(formData: FormData) {
   revalidatePath('/providers');
 }
 
+export async function enablePushDevice(formData: FormData) {
+  const pushDeviceId = String(formData.get('pushDeviceId'));
+  await adminPost(`/admin/push-devices/${pushDeviceId}/enable`, {}, null);
+  revalidatePath('/providers');
+  revalidatePath('/notifications');
+}

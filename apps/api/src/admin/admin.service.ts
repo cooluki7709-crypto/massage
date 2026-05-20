@@ -24,11 +24,38 @@ export class AdminService {
     return this.prisma.providerProfile.findMany({
       orderBy: { id: 'desc' },
       include: {
-        user: { include: { pushDevices: { orderBy: { createdAt: 'desc' } } } },
+        user: {
+          include: {
+            pushDevices: {
+              orderBy: { createdAt: 'desc' },
+              include: {
+                deliveries: {
+                  orderBy: { attemptedAt: 'desc' },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
         verification: { include: { files: true } },
         services: { include: { service: true } },
       },
     });
+  }
+
+  async enablePushDevice(actorId: string, pushDeviceId: string) {
+    const device = await this.prisma.pushDevice.update({
+      where: { id: pushDeviceId },
+      data: { enabled: true },
+    });
+
+    await this.writeAudit(actorId, 'push_device.enable', `push_device:${pushDeviceId}`, {
+      pushDeviceId,
+      userId: device.userId,
+      platform: device.platform,
+    });
+
+    return { ok: true, pushDeviceId: device.id };
   }
 
   async reviewProvider(actorId: string, providerProfileId: string, status: VerificationStatus, reason?: string) {

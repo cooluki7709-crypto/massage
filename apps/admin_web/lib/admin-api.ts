@@ -30,6 +30,22 @@ export type AdminProvider = {
       enabled: boolean;
       token: string;
       createdAt?: string;
+      deliveries?: Array<{
+        id: string;
+        status: string;
+        attemptedAt: string;
+        provider: string;
+        response?: {
+          statusCode?: number;
+          body?: {
+            error?: {
+              details?: Array<{
+                errorCode?: string;
+              }>;
+            };
+          };
+        } | null;
+      }>;
     }>;
   };
 };

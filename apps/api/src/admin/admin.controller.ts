@@ -23,6 +23,11 @@ export class AdminController {
     return this.admin.listProviders();
   }
 
+  @Post('push-devices/:id/enable')
+  enablePushDevice(@CurrentUser() user: AuthenticatedUser, @Param('id') pushDeviceId: string) {
+    return this.admin.enablePushDevice(user.id, pushDeviceId);
+  }
+
   @Post('providers/:id/approve')
   approveProvider(@CurrentUser() user: AuthenticatedUser, @Param('id') providerProfileId: string) {
     return this.admin.reviewProvider(user.id, providerProfileId, VerificationStatus.APPROVED);

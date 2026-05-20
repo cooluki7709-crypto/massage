@@ -1,5 +1,7 @@
 import { AdminProvider, adminGet } from '../../lib/admin-api';
-import { approveProvider, rejectProvider } from './actions';
+import { approveProvider, enablePushDevice, rejectProvider } from './actions';
+
+type AdminPushDevice = NonNullable<NonNullable<AdminProvider['user']>['pushDevices']>[number];
 
 export default async function ProvidersPage() {
   const providers = await adminGet<AdminProvider[]>('/admin/providers', []);
@@ -43,9 +45,27 @@ export default async function ProvidersPage() {
                 <td>
                   {provider.user?.pushDevices?.length ? (
                     provider.user.pushDevices.map((device) => (
-                      <p key={device.id} className="muted">
-                        {device.platform} / {device.enabled ? 'enabled' : 'disabled'} / {maskToken(device.token)}
-                      </p>
+                      <div key={device.id} style={{ marginBottom: 8 }}>
+                        <p className="muted" style={{ marginBottom: 4 }}>
+                          {device.platform} / {device.enabled ? 'enabled' : 'disabled'} / {maskToken(device.token)}
+                        </p>
+                        {!device.enabled ? (
+                          <p className="muted" style={{ marginBottom: 4 }}>
+                            Last failure: {readFailureCode(device) ?? 'Unknown'} / {readFailureStatus(device) ?? 'FAILED'}
+                          </p>
+                        ) : null}
+                        {readLastAttempt(device) ? (
+                          <p className="muted" style={{ marginBottom: 4 }}>
+                            Last attempt: {new Date(readLastAttempt(device) as string).toLocaleString()}
+                          </p>
+                        ) : null}
+                        {!device.enabled ? (
+                          <form action={enablePushDevice}>
+                            <input type="hidden" name="pushDeviceId" value={device.id} />
+                            <button type="submit">Re-enable</button>
+                          </form>
+                        ) : null}
+                      </div>
                     ))
                   ) : (
                     'None'
@@ -102,4 +122,16 @@ function maskToken(token: string) {
     return token;
   }
   return `${token.slice(0, 6)}...${token.slice(-4)}`;
+}
+
+function readFailureCode(device: AdminPushDevice) {
+  return device.deliveries?.[0]?.response?.body?.error?.details?.[0]?.errorCode;
+}
+
+function readFailureStatus(device: AdminPushDevice) {
+  return device.deliveries?.[0]?.status;
+}
+
+function readLastAttempt(device: AdminPushDevice) {
+  return device.deliveries?.[0]?.attemptedAt;
 }
