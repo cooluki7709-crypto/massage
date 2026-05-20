@@ -75,11 +75,27 @@ Full local verification:
 npm run verify:local
 ```
 
+Mobile Firebase readiness check:
+
+```powershell
+node infra/scripts/check-mobile-firebase.mjs
+```
+
 After Docker Desktop is installed and running:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\infra\scripts\verify-local.ps1 -WithServices
 ```
+
+For real Android push delivery, add Firebase Android app configs here:
+
+- `apps/customer_app/android/app/google-services.json`
+- `apps/provider_app/android/app/google-services.json`
+
+Package names must match:
+
+- `com.massagevn.customer.customer_app`
+- `com.massagevn.provider.provider_app`
 
 If Git, Docker, or Flutter are missing, open PowerShell as Administrator and run:
 

@@ -26,7 +26,7 @@ Content-Type: application/json
 }
 ```
 
-Tokens are stored in `PushDevice` and can be used by a future Firebase adapter.
+Tokens are stored in `PushDevice` and are now wired to the Android Firebase setup path used by both Flutter apps.
 
 ## FCM Adapter
 
@@ -38,6 +38,24 @@ FCM_ACCESS_TOKEN=
 ```
 
 Without those values, the worker records `FCM_DISABLED:SKIPPED` delivery attempts. This keeps local development safe and makes missing credentials visible in Admin Web.
+
+## Android App Setup
+
+Both Flutter Android apps now apply the Google Services Gradle plugin:
+
+- `apps/customer_app/android/app/google-services.json`
+- `apps/provider_app/android/app/google-services.json`
+
+Expected Android package names:
+
+- `com.massagevn.customer.customer_app`
+- `com.massagevn.provider.provider_app`
+
+The repository includes `node infra/scripts/check-mobile-firebase.mjs` and the full local verifier runs it automatically. The check fails when:
+
+- `google-services.json` is missing
+- the Google Services Gradle plugin is not applied
+- the Firebase package name does not match the app `applicationId`
 
 ## Next Adapter Step
 

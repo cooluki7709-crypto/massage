@@ -20,3 +20,5 @@ pubspec.lock
 !apps/provider_app/pubspec.lock
 android/.gradle/
 ios/Pods/
+**/google-services.json
+**/GoogleService-Info.plist
