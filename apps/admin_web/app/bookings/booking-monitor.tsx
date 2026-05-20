@@ -21,11 +21,13 @@ export function BookingMonitor({ bookings }: Props) {
     const matched = bookings.filter((booking) => booking.status === 'MATCHED');
     const active = bookings.filter((booking) => activeStatuses.has(booking.status));
     const noParticipants = open.filter((booking) => (booking.participants?.length ?? 0) === 0);
+    const waitingSelection = open.filter((booking) => (booking.participants?.length ?? 0) > 0);
     return [
       ['Active bookings', active.length.toString()],
       ['Open matching', open.length.toString()],
       ['Matched', matched.length.toString()],
       ['No providers yet', noParticipants.length.toString()],
+      ['Waiting selection', waitingSelection.length.toString()],
     ];
   }, [bookings]);
 
@@ -106,6 +108,7 @@ export function BookingMonitor({ bookings }: Props) {
                 <td>
                   <StatusBadge status={booking.status} />
                   <div className="muted">Chat {booking.chatRoom ? 'ready' : 'not ready'}</div>
+                  <div className="muted">{booking.expiresAt ? `Expires ${formatDate(booking.expiresAt)}` : 'No expiry set'}</div>
                 </td>
                 <td>
                   {booking.customerProfile?.user?.fullName ?? 'Customer'}
@@ -114,6 +117,9 @@ export function BookingMonitor({ bookings }: Props) {
                 <td>
                   <strong>{booking.participants?.length ?? 0} joined</strong>
                   <div className="muted">Selected {booking.selectedProvider?.displayName ?? 'none'}</div>
+                  <div className="muted">
+                    {booking.selectedProvider?.user?.phone ? `Provider phone ${booking.selectedProvider.user.phone}` : 'Provider not selected'}
+                  </div>
                   <div className="participant-list">
                     {(booking.participants ?? []).slice(0, 3).map((participant) => (
                       <span className="pill" key={participant.id}>
@@ -128,7 +134,12 @@ export function BookingMonitor({ bookings }: Props) {
                     {booking.payment ? `${booking.payment.amount} VND - ${booking.payment.method}` : 'No payment'}
                   </div>
                 </td>
-                <td>{opsSignal(booking)}</td>
+                <td>
+                  <div>{opsSignal(booking)}</div>
+                  <div className="muted" style={{ marginTop: 8 }}>
+                    {nextAction(booking)}
+                  </div>
+                </td>
               </tr>
             ))}
             {bookings.length === 0 && (
@@ -162,6 +173,29 @@ function opsSignal(booking: AdminBooking) {
     return <span className="signal signal-warn">Refunded</span>;
   }
   return <span className="signal signal-ok">Normal</span>;
+}
+
+function nextAction(booking: AdminBooking) {
+  const participantCount = booking.participants?.length ?? 0;
+  if (booking.status === 'OPEN_MATCHING' && participantCount === 0) {
+    return 'Watch provider supply and notification response.';
+  }
+  if (booking.status === 'OPEN_MATCHING' && participantCount > 0) {
+    return 'Customer can choose one provider now.';
+  }
+  if (booking.status === 'MATCHED') {
+    return 'Check chat creation, route tracking, and provider departure.';
+  }
+  if (booking.status === 'PROVIDER_ON_THE_WAY') {
+    return 'Monitor live location and arrival progress.';
+  }
+  if (booking.status === 'IN_SERVICE') {
+    return 'Watch completion and payment capture.';
+  }
+  if (booking.status === 'COMPLETED') {
+    return 'Review payment, tip, and follow-up review.';
+  }
+  return 'Normal operating state.';
 }
 
 function shortId(id: string) {

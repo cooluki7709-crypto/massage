@@ -227,6 +227,17 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
+    final hasJoinedRequest = joinedBookingIds.isNotEmpty;
+    final hasSelection = openBookings.any((booking) => booking is Map<String, dynamic> && booking['status'] == 'MATCHED');
+    final activeStep = !isOnline
+        ? 0
+        : openBookings.isEmpty
+            ? 1
+            : hasSelection
+                ? 3
+                : hasJoinedRequest
+                    ? 2
+                    : 1;
 
     return SafeArea(
       child: ListView(
@@ -284,9 +295,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
           if (auth == null)
             const InfoCard(text: 'Login first to load open bookings from the API.')
           else ...[
-            RequestFlowBar(
-              activeStep: !isOnline ? 0 : (openBookings.isEmpty ? 1 : (joinedBookingIds.isEmpty ? 2 : 3)),
-            ),
+            RequestFlowBar(activeStep: activeStep),
             const SizedBox(height: 16),
             if (openBookings.isEmpty)
               const InfoCard(text: 'No open matching jobs yet. Create a booking in the Customer app, then refresh.')
@@ -414,6 +423,13 @@ class OpenBookingCard extends StatelessWidget {
     final firstService = services.isNotEmpty ? services.first as Map<String, dynamic> : <String, dynamic>{};
     final service = firstService['service'] as Map<String, dynamic>?;
     final participants = booking['participants'] is List<dynamic> ? booking['participants'] as List<dynamic> : [];
+    final selectedProvider = booking['selectedProvider'] as Map<String, dynamic>?;
+    final isMatched = booking['status'] == 'MATCHED';
+    final nextStep = !joined
+        ? 'Join this job to enter the customer shortlist.'
+        : isMatched
+            ? 'Customer already selected a provider. Review the final state.'
+            : 'You are in the shortlist. Wait for the customer to pick one provider.';
 
     return Card(
       child: Padding(
@@ -440,6 +456,29 @@ class OpenBookingCard extends StatelessWidget {
             Text('Booking ${booking['id']}'),
             Text('Scheduled: ${booking['scheduledStartAt'] ?? 'soon'}'),
             Text('Payment opens as authorization, customer selects final provider.'),
+            const SizedBox(height: 8),
+            InfoCard(text: nextStep),
+            const SizedBox(height: 8),
+            BookingOpsRow(
+              items: [
+                ProviderSummaryItem(label: 'Joined now', value: '${participants.length} provider(s)'),
+                ProviderSummaryItem(
+                  label: 'Final provider',
+                  value: selectedProvider?['displayName'] as String? ?? (isMatched ? 'Assigned' : 'Waiting'),
+                ),
+              ],
+            ),
+            if (selectedProvider != null) ...[
+              const SizedBox(height: 8),
+              Card(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.assignment_turned_in_outlined)),
+                  title: Text(selectedProvider['displayName'] as String? ?? 'Selected provider'),
+                  subtitle: Text(isMatched ? 'Booking is matched and moving into service delivery.' : 'Customer selection pending.'),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             if (!joined)
               FilledButton.icon(
@@ -475,6 +514,47 @@ class OpenBookingCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class BookingOpsRow extends StatelessWidget {
+  const BookingOpsRow({super.key, required this.items});
+
+  final List<ProviderSummaryItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var index = 0; index < items.length; index++)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: index == items.length - 1 ? 0 : 8),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(items[index].label, style: Theme.of(context).textTheme.labelMedium),
+                      const SizedBox(height: 4),
+                      Text(items[index].value, style: Theme.of(context).textTheme.titleMedium),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class ProviderSummaryItem {
+  const ProviderSummaryItem({required this.label, required this.value});
+
+  final String label;
+  final String value;
 }
 
 class EarningsScreen extends ConsumerWidget {

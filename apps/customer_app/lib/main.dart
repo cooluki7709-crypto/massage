@@ -249,6 +249,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final auth = ref.watch(authControllerProvider);
     final booking = activeBooking;
     final participants = booking?['participants'] is List<dynamic> ? booking!['participants'] as List<dynamic> : [];
+    final selectedProvider = booking?['selectedProvider'] as Map<String, dynamic>?;
+    final activeStep = booking == null
+        ? (selectedService == null ? 0 : 1)
+        : selectedProvider != null || booking['status'] == 'MATCHED'
+            ? 3
+            : 2;
 
     return SafeArea(
       child: ListView(
@@ -280,9 +286,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           if (auth == null)
             const EmptyPanel(text: 'Login loads service catalog, nearby providers, and booking actions from the API.')
           else ...[
-            FlowStatusBar(
-              activeStep: booking == null ? (selectedService == null ? 0 : 1) : (participants.isEmpty ? 2 : 3),
-            ),
+            FlowStatusBar(activeStep: activeStep),
             const SizedBox(height: 16),
             if (loading) const LinearProgressIndicator(),
             if (error != null) ErrorPanel(text: error!),
@@ -325,6 +329,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               selectedService: selectedService,
               activeBooking: booking,
               participants: participants,
+              selectedProvider: selectedProvider,
               onOpenBooking: loading ? null : openBooking,
               onRefreshBooking: loading ? null : () => refreshBooking(),
               onSelectProvider: loading ? null : selectProvider,
@@ -400,6 +405,7 @@ class BookingActionPanel extends StatelessWidget {
     required this.selectedService,
     required this.activeBooking,
     required this.participants,
+    required this.selectedProvider,
     required this.onOpenBooking,
     required this.onRefreshBooking,
     required this.onSelectProvider,
@@ -408,6 +414,7 @@ class BookingActionPanel extends StatelessWidget {
   final Map<String, dynamic>? selectedService;
   final Map<String, dynamic>? activeBooking;
   final List<dynamic> participants;
+  final Map<String, dynamic>? selectedProvider;
   final VoidCallback? onOpenBooking;
   final VoidCallback? onRefreshBooking;
   final void Function(Map<String, dynamic> participant)? onSelectProvider;
@@ -443,6 +450,9 @@ class BookingActionPanel extends StatelessWidget {
 
     final status = booking['status'] ?? 'OPEN_MATCHING';
     final chatRoom = booking['chatRoom'] as Map<String, dynamic>?;
+    final provider = selectedProvider;
+    final joinedCount = participants.length;
+    final waitingForSelection = status == 'OPEN_MATCHING' && provider == null;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -453,6 +463,35 @@ class BookingActionPanel extends StatelessWidget {
             const SizedBox(height: 8),
             Text('Booking ${booking['id']}'),
             Text('Status: $status'),
+            const SizedBox(height: 8),
+            BookingSummaryRow(
+              items: [
+                SummaryItem(label: 'Joined', value: '$joinedCount provider(s)'),
+                SummaryItem(
+                  label: 'Customer step',
+                  value: waitingForSelection ? 'Select final provider' : (provider == null ? 'Waiting' : 'Provider chosen'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            EmptyPanel(
+              text: waitingForSelection
+                  ? (joinedCount == 0
+                      ? 'The booking is live. Wait for providers to join, then choose one provider.'
+                      : 'Providers have joined. Review them below and pick the final provider.')
+                  : 'Final provider selected. Chat and arrival tracking can continue from here.',
+            ),
+            if (provider != null) ...[
+              const SizedBox(height: 8),
+              Card(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.check_circle_outline)),
+                  title: Text(provider['displayName'] as String? ?? 'Selected provider'),
+                  subtitle: Text(chatRoom == null ? 'Waiting for chat room sync.' : 'Chat room ${chatRoom['id']} is ready.'),
+                ),
+              ),
+            ],
             if (chatRoom != null) Text('Chat room ready: ${chatRoom['id']}'),
             const SizedBox(height: 12),
             FilledButton.tonalIcon(
@@ -465,11 +504,17 @@ class BookingActionPanel extends StatelessWidget {
               const EmptyPanel(text: 'Waiting for providers to join. Open the Provider app and join this booking.')
             else
               for (final item in participants)
-                ProviderParticipantTile(
-                  participant: item as Map<String, dynamic>,
-                  onSelect: status == 'OPEN_MATCHING' && onSelectProvider != null
-                      ? () => onSelectProvider!(item)
-                      : null,
+                Builder(
+                  builder: (context) {
+                    final participant = item as Map<String, dynamic>;
+                    return ProviderParticipantTile(
+                      participant: participant,
+                      isSelected: provider?['id'] == participant['providerProfileId'],
+                      onSelect: status == 'OPEN_MATCHING' && provider == null && onSelectProvider != null
+                          ? () => onSelectProvider!(participant)
+                          : null,
+                    );
+                  },
                 ),
           ],
         ),
@@ -479,26 +524,79 @@ class BookingActionPanel extends StatelessWidget {
 }
 
 class ProviderParticipantTile extends StatelessWidget {
-  const ProviderParticipantTile({super.key, required this.participant, required this.onSelect});
+  const ProviderParticipantTile({
+    super.key,
+    required this.participant,
+    required this.onSelect,
+    required this.isSelected,
+  });
 
   final Map<String, dynamic> participant;
   final VoidCallback? onSelect;
+  final bool isSelected;
 
   @override
   Widget build(BuildContext context) {
     final provider = participant['providerProfile'] as Map<String, dynamic>?;
+    final status = participant['status'] ?? 'JOINED';
     return Card(
       child: ListTile(
         leading: const CircleAvatar(child: Icon(Icons.person_pin_circle_outlined)),
         title: Text(provider?['displayName'] as String? ?? 'Joined provider'),
-        subtitle: Text('${participant['status'] ?? 'JOINED'}'),
-        trailing: FilledButton(
-          onPressed: onSelect,
-          child: const Text('Select'),
-        ),
+        subtitle: Text('$status${isSelected ? ' - final provider' : ''}'),
+        trailing: isSelected
+            ? const Chip(
+                avatar: Icon(Icons.check, size: 16),
+                label: Text('Selected'),
+              )
+            : FilledButton(
+                onPressed: onSelect,
+                child: const Text('Select'),
+              ),
       ),
     );
   }
+}
+
+class BookingSummaryRow extends StatelessWidget {
+  const BookingSummaryRow({super.key, required this.items});
+
+  final List<SummaryItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var index = 0; index < items.length; index++)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: index == items.length - 1 ? 0 : 8),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(items[index].label, style: Theme.of(context).textTheme.labelMedium),
+                      const SizedBox(height: 4),
+                      Text(items[index].value, style: Theme.of(context).textTheme.titleMedium),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class SummaryItem {
+  const SummaryItem({required this.label, required this.value});
+
+  final String label;
+  final String value;
 }
 
 class ProvidersScreen extends ConsumerWidget {
