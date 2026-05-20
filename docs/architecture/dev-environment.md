@@ -93,10 +93,11 @@ powershell -ExecutionPolicy Bypass -File .\infra\scripts\verify-local.ps1 -WithS
 
 The Codex shell may not have Administrator privileges. If Chocolatey fails with an access error under `C:\ProgramData\chocolatey`, rerun the install command from an Administrator PowerShell window.
 
-Android builds on Windows should be run from an ASCII-only project path. If the repo is under a path such as `C:\Users\laboy\Downloads\느시`, mirror or move it to a path such as `C:\dev\massage-on-demand-vn` before running:
+Android builds on Windows should be run from an ASCII-only project path. If the repo is under a path such as `C:\Users\laboy\Downloads\느시`, mirror or move it to a path such as `C:\dev\massage-vn-workspace\repo` before running:
 
 ```powershell
-flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:3000/api --dart-define=SOCKET_BASE_URL=http://10.0.2.2:3000
+cd C:\dev\massage-vn-workspace\repo\apps\customer_app
+flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:3100/api --dart-define=SOCKET_BASE_URL=http://10.0.2.2:3100
 ```
 
 For the organized HANDS workspace, prefer:
@@ -105,3 +106,10 @@ For the organized HANDS workspace, prefer:
 - secrets: `C:\dev\massage-vn-workspace\secrets`
 - local API: `http://localhost:3100`
 - local Admin: `http://localhost:3101`
+
+For a physical Android device over USB, use the helper script from the original repository:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-mobile-device.ps1 -App customer
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-mobile-device.ps1 -App provider
+```

@@ -17,7 +17,8 @@ The customer Flutter app now includes:
 Run with custom endpoints:
 
 ```powershell
-flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:3000/api --dart-define=SOCKET_BASE_URL=http://10.0.2.2:3000
+cd C:\dev\massage-vn-workspace\repo\apps\customer_app
+flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:3100/api --dart-define=SOCKET_BASE_URL=http://10.0.2.2:3100
 ```
 
 ## Provider App
@@ -73,3 +74,20 @@ node infra/scripts/check-mobile-firebase.mjs
 ```
 
 This command is also included in `powershell -ExecutionPolicy Bypass -File .\infra\scripts\verify-local.ps1 -WithServices`.
+
+## Physical Device Run
+
+For a real Android phone connected by USB, prefer the helper script from the original repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-mobile-device.ps1 -App customer
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-mobile-device.ps1 -App provider
+```
+
+The script:
+
+- checks that exactly one Android device is connected, or requires `-DeviceId`
+- runs `adb reverse tcp:3100 tcp:3100`
+- launches Flutter with:
+  - `API_BASE_URL=http://127.0.0.1:3100/api`
+  - `SOCKET_BASE_URL=http://127.0.0.1:3100`
