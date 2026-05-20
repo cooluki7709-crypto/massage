@@ -188,7 +188,17 @@ export type AdminNotification = {
     provider: string;
     status: string;
     attemptedAt: string;
-    pushDevice?: { platform?: string; token?: string };
+    response?: {
+      statusCode?: number;
+      body?: {
+        error?: {
+          details?: Array<{
+            errorCode?: string;
+          }>;
+        };
+      };
+    } | null;
+    pushDevice?: { platform?: string; token?: string; enabled?: boolean };
   }>;
 };
 

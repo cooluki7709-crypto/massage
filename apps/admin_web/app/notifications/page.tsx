@@ -46,9 +46,21 @@ export default async function NotificationsPage() {
                 <td>{notification.title}</td>
                 <td>
                   {notification.deliveries && notification.deliveries.length > 0
-                    ? notification.deliveries
-                        .map((delivery) => `${delivery.provider}:${delivery.status}:${delivery.pushDevice?.platform ?? 'device'}`)
-                        .join(', ')
+                    ? notification.deliveries.map((delivery) => (
+                        <div key={delivery.id ?? `${notification.id}-${delivery.attemptedAt}`} style={{ marginBottom: 8 }}>
+                          <p className="muted" style={{ marginBottom: 4 }}>
+                            {delivery.provider}:{delivery.status}:{delivery.pushDevice?.platform ?? 'device'} /{' '}
+                            {delivery.pushDevice?.enabled === false ? 'device-disabled' : 'device-enabled'}
+                          </p>
+                          <p className="muted" style={{ marginBottom: 4 }}>
+                            Failure: {readFailureCode(delivery) ?? '-'} / HTTP {delivery.response?.statusCode ?? '-'}
+                          </p>
+                          <p className="muted" style={{ marginBottom: 4 }}>
+                            Token: {delivery.pushDevice?.token ? maskToken(delivery.pushDevice.token) : '-'}
+                          </p>
+                          <p className="muted">Attempted: {new Date(delivery.attemptedAt).toLocaleString()}</p>
+                        </div>
+                      ))
                     : 'No devices / not attempted'}
                 </td>
                 <td>
@@ -76,4 +88,15 @@ function countDeliveries(notifications: AdminNotification[], status: string) {
     (total, notification) => total + (notification.deliveries ?? []).filter((delivery) => delivery.status === status).length,
     0,
   );
+}
+
+function readFailureCode(delivery: NonNullable<AdminNotification['deliveries']>[number]) {
+  return delivery.response?.body?.error?.details?.[0]?.errorCode;
+}
+
+function maskToken(token: string) {
+  if (token.length <= 10) {
+    return token;
+  }
+  return `${token.slice(0, 6)}...${token.slice(-4)}`;
 }
