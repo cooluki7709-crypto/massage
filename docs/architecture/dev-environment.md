@@ -1,5 +1,7 @@
 # Development Environment
 
+This project is currently branded as `HANDS` and targets nationwide service coverage across Vietnam.
+
 Run the local tool check before starting a new phase:
 
 ```powershell
@@ -96,3 +98,10 @@ Android builds on Windows should be run from an ASCII-only project path. If the 
 ```powershell
 flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:3000/api --dart-define=SOCKET_BASE_URL=http://10.0.2.2:3000
 ```
+
+For the organized HANDS workspace, prefer:
+
+- repo: `C:\dev\massage-vn-workspace\repo`
+- secrets: `C:\dev\massage-vn-workspace\secrets`
+- local API: `http://localhost:3100`
+- local Admin: `http://localhost:3101`

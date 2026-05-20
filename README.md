@@ -1,6 +1,6 @@
-# Massage On-Demand Vietnam MVP
+# HANDS Vietnam MVP
 
-Original MVP for a realtime on-demand massage marketplace in Vietnam.
+Original MVP for HANDS, a realtime on-demand massage marketplace serving all of Vietnam.
 
 ## Apps
 
@@ -94,6 +94,30 @@ powershell -ExecutionPolicy Bypass -File .\infra\scripts\sync-ascii-workspace.ps
 ```
 
 The default target is `C:\dev\massage-on-demand-vn`. Use that path for Flutter Android builds on Windows when the original workspace path contains Korean or other non-ASCII characters.
+
+Dedicated HANDS local workspace organizer:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\organize-c-drive-workspace.ps1
+```
+
+This creates:
+
+- `C:\dev\massage-vn-workspace\repo`
+- `C:\dev\massage-vn-workspace\secrets`
+- `C:\dev\massage-vn-workspace\references\apk`
+- `C:\dev\massage-vn-workspace\references\analysis`
+
+HANDS local API/Admin startup on non-conflicting ports:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\start-hands-local.ps1
+```
+
+Default local URLs:
+
+- API: `http://localhost:3100/api/health`
+- Admin: `http://localhost:3101`
 
 For real Android push delivery, add Firebase Android app configs here:
 

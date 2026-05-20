@@ -21,13 +21,13 @@ New-Item -ItemType Directory -Force -Path $apkTarget | Out-Null
 New-Item -ItemType Directory -Force -Path $analysisTarget | Out-Null
 
 $excludeDirs = @(
-  "node_modules",
   "build",
   ".dart_tool",
   ".next",
   "dist",
   "coverage",
-  "logs"
+  "logs",
+  "node_modules"
 )
 
 $repoArguments = @(
@@ -73,8 +73,12 @@ if (Test-Path $blackboxSource) {
 $envPath = Join-Path $repoTarget ".env"
 if (Test-Path $envPath) {
   $envText = Get-Content -Raw $envPath
-  $escapedRoot = [Regex]::Escape($serviceAccountSource)
-  $updated = $envText -replace $escapedRoot, "C:\dev\massage-vn-workspace\secrets\massage-vn-firebase-adminsdk.json"
+  $targetSecretPath = "C:\dev\massage-vn-workspace\secrets\massage-vn-firebase-adminsdk.json"
+  $updated = [Regex]::Replace(
+    $envText,
+    '(?m)^FCM_SERVICE_ACCOUNT_FILE=.*$',
+    "FCM_SERVICE_ACCOUNT_FILE=$targetSecretPath"
+  )
   if ($updated -ne $envText) {
     Set-Content -Path $envPath -Value $updated -Encoding utf8
   }
