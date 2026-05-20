@@ -32,9 +32,7 @@ export class FcmPushService {
 
   async send(message: PushMessage): Promise<PushSendResult> {
     const projectId = this.config.get<string>('FCM_PROJECT_ID');
-    const accessToken = await this.getAccessToken();
-
-    if (!projectId || !accessToken) {
+    if (!projectId || !this.hasCredentialsConfigured()) {
       return {
         provider: 'FCM_DISABLED',
         status: 'SKIPPED',
@@ -43,38 +41,76 @@ export class FcmPushService {
       };
     }
 
-    const response = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: {
-          token: message.token,
-          notification: {
-            title: message.title,
-            body: message.body,
-          },
-          data: message.data,
+    let accessToken: string | null;
+    try {
+      accessToken = await this.getAccessToken();
+    } catch (error) {
+      return {
+        provider: 'FCM_HTTP_V1',
+        status: 'FAILED',
+        disableDevice: false,
+        response: {
+          phase: 'token',
+          error: error instanceof Error ? error.message : 'Unknown token error',
         },
-      }),
-    });
+      };
+    }
 
-    const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!accessToken) {
+      return {
+        provider: 'FCM_HTTP_V1',
+        status: 'FAILED',
+        disableDevice: false,
+        response: {
+          phase: 'token',
+          error: 'Unable to acquire FCM access token',
+        },
+      };
+    }
 
-    const failureCode = readFcmFailureCode(body);
+    try {
+      const response = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: {
+            token: message.token,
+            notification: {
+              title: message.title,
+              body: message.body,
+            },
+            data: message.data,
+          },
+        }),
+      });
 
-    return {
-      provider: 'FCM_HTTP_V1',
-      status: response.ok ? 'SENT' : 'FAILED',
-      disableDevice: isPermanentTokenFailure(response.status, failureCode),
-      failureCode,
-      response: {
-        statusCode: response.status,
-        body,
-      },
-    };
+      const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+      const failureCode = readFcmFailureCode(body);
+
+      return {
+        provider: 'FCM_HTTP_V1',
+        status: response.ok ? 'SENT' : 'FAILED',
+        disableDevice: isPermanentTokenFailure(response.status, failureCode),
+        failureCode,
+        response: {
+          statusCode: response.status,
+          body,
+        },
+      };
+    } catch (error) {
+      return {
+        provider: 'FCM_HTTP_V1',
+        status: 'FAILED',
+        disableDevice: false,
+        response: {
+          phase: 'send',
+          error: error instanceof Error ? error.message : 'Unknown send error',
+        },
+      };
+    }
   }
 
   private async getAccessToken() {
@@ -140,6 +176,15 @@ export class FcmPushService {
     }
 
     return null;
+  }
+
+  private hasCredentialsConfigured() {
+    return Boolean(
+      this.config.get<string>('FCM_ACCESS_TOKEN') ||
+        this.config.get<string>('FCM_SERVICE_ACCOUNT_FILE') ||
+        this.config.get<string>('FCM_SERVICE_ACCOUNT_JSON') ||
+        this.config.get<string>('FCM_SERVICE_ACCOUNT_JSON_BASE64'),
+    );
   }
 }
 
