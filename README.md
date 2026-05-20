@@ -154,6 +154,13 @@ This repository is structured for small, commit-ready phases. Phase 1 includes r
 Customer and provider apps now have runtime API clients, demo OTP login, Bearer-token REST calls, and Socket.IO JWT handshake setup. See:
 
 - `docs/architecture/mobile-api-integration.md`
+- `docs/architecture/localization-strategy.md`
+
+## Product Direction
+
+The current MVP intentionally follows the reference app's flow order while keeping the implementation original. See:
+
+- `docs/architecture/product-intent.md`
 
 ## Admin MVP
 
