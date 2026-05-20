@@ -7,15 +7,14 @@ class ApiClient {
 
   final String baseUrl;
   String? accessToken;
+  String? refreshToken;
 
   Future<dynamic> getJson(String path) async {
-    final response = await http.get(_uri(path), headers: _headers());
-    return _decode(response);
+    return _sendWithRefresh(() => http.get(_uri(path), headers: _headers()));
   }
 
   Future<dynamic> postJson(String path, Map<String, dynamic> body) async {
-    final response = await http.post(_uri(path), headers: _headers(), body: jsonEncode(body));
-    return _decode(response);
+    return _sendWithRefresh(() => http.post(_uri(path), headers: _headers(), body: jsonEncode(body)));
   }
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
@@ -34,6 +33,70 @@ class ApiClient {
     }
     return decoded;
   }
+
+  Future<dynamic> _sendWithRefresh(Future<http.Response> Function() request) async {
+    final firstResponse = await request();
+    if (!_shouldRefresh(firstResponse)) {
+      return _decode(firstResponse);
+    }
+
+    final refreshed = await _refreshAccessToken();
+    if (!refreshed) {
+      return _decode(firstResponse);
+    }
+
+    final retryResponse = await request();
+    return _decode(retryResponse);
+  }
+
+  bool _shouldRefresh(http.Response response) {
+    if (refreshToken == null || refreshToken!.isEmpty) {
+      return false;
+    }
+    if (response.statusCode == 401) {
+      return true;
+    }
+    final body = _parseBody(response);
+    final message = body['message'];
+    return message is String && message.toLowerCase().contains('jwt expired');
+  }
+
+  Map<String, dynamic> _parseBody(http.Response response) {
+    if (response.body.isEmpty) {
+      return <String, dynamic>{};
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{'error': decoded};
+  }
+
+  Future<bool> _refreshAccessToken() async {
+    final token = refreshToken;
+    if (token == null || token.isEmpty) {
+      return false;
+    }
+    final response = await http.post(
+      _uri('/auth/refresh'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({'refreshToken': token}),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      return false;
+    }
+
+    final decoded = _parseBody(response);
+    final nextAccessToken = decoded['accessToken'];
+    final nextRefreshToken = decoded['refreshToken'];
+    if (nextAccessToken is! String || nextAccessToken.isEmpty) {
+      return false;
+    }
+
+    accessToken = nextAccessToken;
+    if (nextRefreshToken is String && nextRefreshToken.isNotEmpty) {
+      refreshToken = nextRefreshToken;
+    }
+    return true;
+  }
 }
 
 class ApiException implements Exception {
@@ -45,4 +108,3 @@ class ApiException implements Exception {
   @override
   String toString() => 'ApiException($statusCode, $body)';
 }
-

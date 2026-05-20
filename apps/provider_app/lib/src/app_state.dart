@@ -30,11 +30,13 @@ class AuthSession {
   const AuthSession({
     required this.userId,
     required this.accessToken,
+    required this.refreshToken,
     required this.user,
   });
 
   final String userId;
   final String accessToken;
+  final String refreshToken;
   final Map<String, dynamic> user;
 }
 
@@ -51,10 +53,17 @@ class AuthController extends StateNotifier<AuthSession?> {
       'role': 'PROVIDER',
     }) as Map<String, dynamic>;
     final accessToken = result['accessToken'] as String;
+    final refreshToken = result['refreshToken'] as String;
     final user = result['user'] as Map<String, dynamic>;
     _api.accessToken = accessToken;
+    _api.refreshToken = refreshToken;
     _socket.connect(accessToken);
-    state = AuthSession(userId: user['id'] as String, accessToken: accessToken, user: user);
+    state = AuthSession(
+      userId: user['id'] as String,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      user: user,
+    );
   }
 }
 
