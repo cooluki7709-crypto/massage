@@ -24,8 +24,13 @@ Original MVP for HANDS, a realtime on-demand massage marketplace serving all of 
 
 ## Development
 
+Primary local workspace:
+
 ```powershell
-cd massage-on-demand-vn
+cd C:\dev\massage-vn-workspace\repo
+```
+
+```powershell
 npm install
 npm run lint
 npm run typecheck
@@ -47,8 +52,8 @@ node infra/scripts/api-smoke.mjs
 Health checks:
 
 ```powershell
-Invoke-RestMethod http://localhost:3000/api/health
-Invoke-RestMethod http://localhost:3000/api/health/ready
+Invoke-RestMethod http://localhost:3100/api/health
+Invoke-RestMethod http://localhost:3100/api/health/ready
 ```
 
 Environment check:
@@ -87,14 +92,6 @@ After Docker Desktop is installed and running:
 powershell -ExecutionPolicy Bypass -File .\infra\scripts\verify-local.ps1 -WithServices
 ```
 
-ASCII-only Android build workspace sync:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\infra\scripts\sync-ascii-workspace.ps1
-```
-
-The default target is `C:\dev\massage-on-demand-vn`. Use that path for Flutter Android builds on Windows when the original workspace path contains Korean or other non-ASCII characters.
-
 Dedicated HANDS local workspace organizer:
 
 ```powershell
@@ -118,6 +115,13 @@ Default local URLs:
 
 - API: `http://localhost:3100/api/health`
 - Admin: `http://localhost:3101`
+
+Android Emulator run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-emulator.ps1 -App customer
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-emulator.ps1 -App provider
+```
 
 For real Android push delivery, add Firebase Android app configs here:
 

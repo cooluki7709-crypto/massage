@@ -30,7 +30,7 @@ Current local status after setup:
 
 - Git, Docker Desktop, Flutter, Dart, Node.js, npm, Java, Android Studio, Android SDK, and Android Emulator are available.
 - `verify-local.ps1 -WithServices` passes Docker, Prisma, API smoke, Admin build, and Flutter analyze checks.
-- Customer and Provider apps build, install, and launch on the Android emulator from an ASCII-only path such as `C:\dev\massage-on-demand-vn`.
+- Customer and Provider apps build, install, and launch on the Android emulator from an ASCII-only path such as `C:\dev\massage-vn-workspace\repo`.
 - The source workspace path contains Korean characters. Flutter analyze/test works there, but Android Gradle builds can fail on Windows unless the project is run from an ASCII-only path.
 
 If required tools are missing and Chocolatey is available, open PowerShell as Administrator and run:
@@ -107,7 +107,7 @@ For the organized HANDS workspace, prefer:
 - local API: `http://localhost:3100`
 - local Admin: `http://localhost:3101`
 
-For a physical Android device over USB, use the helper script from the original repository:
+For a physical Android device over USB, use the helper script from the workspace root:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-mobile-device.ps1 -App customer

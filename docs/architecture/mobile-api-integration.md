@@ -53,7 +53,7 @@ The provider Flutter app now includes:
 - `flutter pub get`, `flutter analyze`, and widget smoke tests pass for both customer and provider apps in the local Windows environment.
 - Android platform folders are generated for both Flutter apps.
 - Customer and Provider apps have been build-installed-launched on `emulator-5554` from an ASCII-only path.
-- Windows Android builds should run from an ASCII-only path such as `C:\dev\massage-on-demand-vn`; the original workspace path contains Korean characters and can trigger Android/Flutter toolchain failures.
+- Windows Android builds should run from an ASCII-only path such as `C:\dev\massage-vn-workspace\repo`; the original workspace path contains Korean characters and can trigger Android/Flutter toolchain failures.
 
 ## Firebase Android Setup
 
@@ -77,7 +77,7 @@ This command is also included in `powershell -ExecutionPolicy Bypass -File .\inf
 
 ## Physical Device Run
 
-For a real Android phone connected by USB, prefer the helper script from the original repository root:
+For a real Android phone connected by USB, prefer the helper script from the workspace root:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-mobile-device.ps1 -App customer

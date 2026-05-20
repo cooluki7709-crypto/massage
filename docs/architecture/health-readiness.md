@@ -16,8 +16,8 @@ Storage can be in `placeholder` mode for local MVP flows. Readiness only fails f
 ## Usage
 
 ```powershell
-Invoke-RestMethod http://localhost:3000/api/health
-Invoke-RestMethod http://localhost:3000/api/health/ready
+Invoke-RestMethod http://localhost:3100/api/health
+Invoke-RestMethod http://localhost:3100/api/health/ready
 ```
 
 The E2E smoke script calls both checks before exercising product flows.
