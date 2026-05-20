@@ -91,3 +91,21 @@ The script:
 - launches Flutter with:
   - `API_BASE_URL=http://127.0.0.1:3100/api`
   - `SOCKET_BASE_URL=http://127.0.0.1:3100`
+
+## Emulator Run
+
+For local Android Emulator testing, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-emulator.ps1 -App customer
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-emulator.ps1 -App provider
+```
+
+The script:
+
+- checks that the HANDS API is already running on `localhost:3100`
+- starts `Pixel_6_API_33` if no emulator is already connected
+- waits for Android boot completion
+- launches Flutter with:
+  - `API_BASE_URL=http://10.0.2.2:3100/api`
+  - `SOCKET_BASE_URL=http://10.0.2.2:3100`
