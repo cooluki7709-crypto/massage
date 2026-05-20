@@ -31,11 +31,18 @@ for (const app of apps) {
   const hasConfig = existsSync(configFile);
   let packageName = null;
   let packageMatches = false;
+  let matchedMobileSdkAppId = null;
 
   if (hasConfig) {
     const config = JSON.parse(readFileSync(configFile, 'utf8'));
-    packageName = config?.client?.[0]?.client_info?.android_client_info?.package_name ?? null;
-    packageMatches = packageName === app.expectedApplicationId;
+    const clients = Array.isArray(config?.client) ? config.client : [];
+    const matchedClient =
+      clients.find(
+        (client) => client?.client_info?.android_client_info?.package_name === app.expectedApplicationId,
+      ) ?? null;
+    packageName = matchedClient?.client_info?.android_client_info?.package_name ?? null;
+    matchedMobileSdkAppId = matchedClient?.client_info?.mobilesdk_app_id ?? null;
+    packageMatches = matchedClient !== null;
   }
 
   const appResult = {
@@ -44,6 +51,7 @@ for (const app of apps) {
     hasConfig,
     expectedApplicationId: app.expectedApplicationId,
     packageName,
+    matchedMobileSdkAppId,
     packageMatches: hasConfig ? packageMatches : false,
   };
 

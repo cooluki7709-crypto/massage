@@ -87,6 +87,14 @@ After Docker Desktop is installed and running:
 powershell -ExecutionPolicy Bypass -File .\infra\scripts\verify-local.ps1 -WithServices
 ```
 
+ASCII-only Android build workspace sync:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\sync-ascii-workspace.ps1
+```
+
+The default target is `C:\dev\massage-on-demand-vn`. Use that path for Flutter Android builds on Windows when the original workspace path contains Korean or other non-ASCII characters.
+
 For real Android push delivery, add Firebase Android app configs here:
 
 - `apps/customer_app/android/app/google-services.json`
