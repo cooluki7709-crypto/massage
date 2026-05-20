@@ -71,7 +71,7 @@ For `provider-verification` uploads, providers may omit `providerVerificationId`
 - `PATCH /notifications/device-token/register`
 - `POST /notifications/device-token/register`
 
-The retry queue stores DB notifications first. FCM delivery should use registered `PushDevice` rows in the next provider adapter step.
+The retry queue stores DB notifications first. Delivery attempts are recorded in `NotificationDelivery`, and permanent FCM token failures automatically disable the affected `PushDevice` until the app registers it again.
 
 ## Admin
 

@@ -51,6 +51,8 @@ When a service account is provided, the API mints a short-lived OAuth 2.0 access
 
 Without `FCM_PROJECT_ID` and one of the credentials above, the worker records `FCM_DISABLED:SKIPPED` delivery attempts. This keeps local development safe and makes missing credentials visible in Admin Web.
 
+For permanent FCM token failures such as `UNREGISTERED` and token-specific `INVALID_ARGUMENT`, the retry worker now disables that `PushDevice` so the same dead token stops consuming future retry jobs. Re-registering the token from the app enables it again.
+
 ## Android App Setup
 
 Both Flutter Android apps now apply the Google Services Gradle plugin:
@@ -71,5 +73,4 @@ The repository includes `node infra/scripts/check-mobile-firebase.mjs` and the f
 
 ## Next Adapter Step
 
-- Disable invalid device tokens when FCM reports permanent token errors.
 - Add notification templates per locale.

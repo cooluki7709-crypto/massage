@@ -43,17 +43,32 @@ export class NotificationRetryProcessor extends WorkerHost {
         data,
       });
 
-      await this.prisma.notificationDelivery.create({
-        data: {
-          notificationId: notification.id,
-          pushDeviceId: device.id,
-          provider: result.provider,
-          status: result.status,
-          response: toJson(result.response),
-        },
+      await this.prisma.$transaction(async (tx) => {
+        await tx.notificationDelivery.create({
+          data: {
+            notificationId: notification.id,
+            pushDeviceId: device.id,
+            provider: result.provider,
+            status: result.status,
+            response: toJson(result.response),
+          },
+        });
+
+        if (result.disableDevice) {
+          await tx.pushDevice.update({
+            where: { id: device.id },
+            data: { enabled: false },
+          });
+        }
       });
 
-      results.push({ deviceId: device.id, status: result.status, provider: result.provider });
+      results.push({
+        deviceId: device.id,
+        status: result.status,
+        provider: result.provider,
+        disableDevice: result.disableDevice,
+        failureCode: result.failureCode,
+      });
     }
 
     return {

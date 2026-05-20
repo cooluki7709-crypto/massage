@@ -13,6 +13,8 @@ export type PushMessage = {
 export type PushSendResult = {
   provider: 'FCM_HTTP_V1' | 'FCM_DISABLED';
   status: 'SENT' | 'SKIPPED' | 'FAILED';
+  disableDevice: boolean;
+  failureCode?: string;
   response: Record<string, unknown>;
 };
 
@@ -36,6 +38,7 @@ export class FcmPushService {
       return {
         provider: 'FCM_DISABLED',
         status: 'SKIPPED',
+        disableDevice: false,
         response: { reason: 'FCM_PROJECT_ID and either FCM_ACCESS_TOKEN or service account credentials are required' },
       };
     }
@@ -60,9 +63,13 @@ export class FcmPushService {
 
     const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
 
+    const failureCode = readFcmFailureCode(body);
+
     return {
       provider: 'FCM_HTTP_V1',
       status: response.ok ? 'SENT' : 'FAILED',
+      disableDevice: isPermanentTokenFailure(response.status, failureCode),
+      failureCode,
       response: {
         statusCode: response.status,
         body,
@@ -155,4 +162,41 @@ function signJwt(serviceAccount: ServiceAccount, issuedAt: number, expiresAt: nu
 
 function encodeBase64Url(value: unknown) {
   return Buffer.from(JSON.stringify(value)).toString('base64url');
+}
+
+function readFcmFailureCode(body: Record<string, unknown>) {
+  const error = body.error;
+  if (!error || typeof error !== 'object' || Array.isArray(error)) {
+    return undefined;
+  }
+
+  const details = (error as { details?: unknown }).details;
+  if (!Array.isArray(details)) {
+    return undefined;
+  }
+
+  for (const detail of details) {
+    if (!detail || typeof detail !== 'object' || Array.isArray(detail)) {
+      continue;
+    }
+
+    const errorCode = (detail as { errorCode?: unknown }).errorCode;
+    if (typeof errorCode === 'string' && errorCode.length > 0) {
+      return errorCode;
+    }
+  }
+
+  return undefined;
+}
+
+function isPermanentTokenFailure(statusCode: number, failureCode?: string) {
+  if (!failureCode) {
+    return false;
+  }
+
+  if (failureCode === 'UNREGISTERED') {
+    return true;
+  }
+
+  return statusCode === 400 && failureCode === 'INVALID_ARGUMENT';
 }
