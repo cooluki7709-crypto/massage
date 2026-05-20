@@ -133,9 +133,13 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
     });
     try {
       await ref.read(authControllerProvider.notifier).signInDemoProvider();
+      final pushResult = await ref.read(pushTokenRegistrarProvider).registerCurrentDevice();
       attachRealtimeListeners();
       await goOnline();
       await loadOpenBookings();
+      if (mounted) {
+        setState(() => statusMessage = pushResult.message);
+      }
     } catch (exception) {
       setState(() => error = '$exception');
     } finally {

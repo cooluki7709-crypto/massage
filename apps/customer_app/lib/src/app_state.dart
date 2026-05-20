@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/api_client.dart';
@@ -16,6 +20,10 @@ final realtimeSocketProvider = Provider<RealtimeSocket>((ref) {
 
 final authControllerProvider = StateNotifierProvider<AuthController, AuthSession?>((ref) {
   return AuthController(ref.read(apiClientProvider), ref.read(realtimeSocketProvider));
+});
+
+final pushTokenRegistrarProvider = Provider<PushTokenRegistrar>((ref) {
+  return PushTokenRegistrar(ref.read(apiClientProvider));
 });
 
 class AuthSession {
@@ -116,5 +124,47 @@ class CustomerRepository {
       'token': token,
       'platform': 'android',
     });
+  }
+}
+
+class PushTokenRegistrationResult {
+  const PushTokenRegistrationResult({required this.registered, required this.message});
+
+  final bool registered;
+  final String message;
+}
+
+class PushTokenRegistrar {
+  PushTokenRegistrar(this._api);
+
+  final ApiClient _api;
+
+  Future<PushTokenRegistrationResult> registerCurrentDevice() async {
+    try {
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp();
+      }
+
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission();
+      final token = await messaging.getToken();
+      if (token == null || token.isEmpty) {
+        return const PushTokenRegistrationResult(
+          registered: false,
+          message: 'Push token not available on this device yet.',
+        );
+      }
+
+      await _api.postJson('/notifications/device-token/register', {
+        'token': token,
+        'platform': Platform.isIOS ? 'ios' : 'android',
+      });
+      return const PushTokenRegistrationResult(registered: true, message: 'Push token registered.');
+    } catch (exception) {
+      return PushTokenRegistrationResult(
+        registered: false,
+        message: 'Push setup pending: $exception',
+      );
+    }
   }
 }

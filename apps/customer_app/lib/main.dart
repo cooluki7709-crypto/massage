@@ -265,8 +265,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onPressed: auth == null
                 ? () async {
                     await ref.read(authControllerProvider.notifier).signInDemoCustomer();
+                    final pushResult = await ref.read(pushTokenRegistrarProvider).registerCurrentDevice();
                     attachRealtimeListeners();
                     await loadCatalog();
+                    if (mounted) {
+                      setState(() => realtimeMessage = pushResult.message);
+                    }
                   }
                 : loadCatalog,
             icon: const Icon(Icons.login),
