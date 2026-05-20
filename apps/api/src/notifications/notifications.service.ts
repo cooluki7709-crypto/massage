@@ -43,6 +43,21 @@ export class NotificationsService {
     return notification;
   }
 
+  async retry(notificationId: string) {
+    const notification = await this.prisma.notification.findUniqueOrThrow({ where: { id: notificationId } });
+    await this.notificationQueue.add(
+      'notification-send',
+      { notificationId: notification.id },
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5_000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    );
+    return { ok: true, notificationId: notification.id };
+  }
+
   listForUser(userId: string) {
     return this.prisma.notification.findMany({
       where: { userId },

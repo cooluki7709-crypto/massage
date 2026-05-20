@@ -140,4 +140,9 @@ export class AdminController {
   notifications() {
     return this.admin.listNotifications();
   }
+
+  @Post('notifications/:id/retry')
+  retryNotification(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.admin.retryNotification(user.id, id);
+  }
 }

@@ -31,6 +31,8 @@ const getJson = (path, accessToken) =>
     headers: { authorization: `Bearer ${accessToken}` },
   });
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const health = await request('/health');
 const readiness = await request('/health/ready');
 if (!health.ok || !readiness.ok) {
@@ -153,6 +155,28 @@ const capturedCash = payment ? await postJson(`/admin/payments/${payment.id}/cap
 const refund = payment ? await postJson(`/admin/payments/${payment.id}/refund`, adminAuth.accessToken) : null;
 const adminRefunds = await getJson('/admin/refunds', adminAuth.accessToken);
 const notifications = await getJson('/notifications', customerAuth.accessToken);
+const notificationToRetry = notifications[0];
+let retryBeforeDeliveryCount = 0;
+if (notificationToRetry) {
+  const adminNotificationsBeforeRetry = await getJson('/admin/notifications', adminAuth.accessToken);
+  const adminNotificationBeforeRetry = adminNotificationsBeforeRetry.find(
+    (item) => item.id === notificationToRetry.id,
+  );
+  retryBeforeDeliveryCount = adminNotificationBeforeRetry?.deliveries?.length ?? 0;
+  await postJson(`/admin/notifications/${notificationToRetry.id}/retry`, adminAuth.accessToken);
+}
+let retriedNotification = null;
+for (let attempt = 0; attempt < 10 && notificationToRetry; attempt++) {
+  await sleep(500);
+  const adminNotifications = await getJson('/admin/notifications', adminAuth.accessToken);
+  retriedNotification = adminNotifications.find((item) => item.id === notificationToRetry.id);
+  if ((retriedNotification?.deliveries?.length ?? 0) > retryBeforeDeliveryCount) {
+    break;
+  }
+}
+if (notificationToRetry && !((retriedNotification?.deliveries?.length ?? 0) > retryBeforeDeliveryCount)) {
+  throw new Error(`Notification retry did not create a delivery: ${notificationToRetry.id}`);
+}
 
 console.log({
   ok: true,
@@ -176,5 +200,7 @@ console.log({
   verificationFileId: verificationUpload.file.id,
   verificationReadStorageMode: verificationReadUrl.storageMode,
   customerNotifications: notifications.length,
+  retryBeforeDeliveryCount,
+  retriedNotificationDeliveryCount: retriedNotification?.deliveries?.length ?? 0,
   readiness,
 });

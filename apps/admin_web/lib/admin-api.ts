@@ -157,7 +157,13 @@ export type AdminNotification = {
   body: string;
   createdAt: string;
   user?: { phone?: string; fullName?: string | null };
-  deliveries?: Array<{ provider: string; status: string; attemptedAt: string }>;
+  deliveries?: Array<{
+    id?: string;
+    provider: string;
+    status: string;
+    attemptedAt: string;
+    pushDevice?: { platform?: string; token?: string };
+  }>;
 };
 
 export async function adminGet<T>(path: string, fallback: T): Promise<T> {

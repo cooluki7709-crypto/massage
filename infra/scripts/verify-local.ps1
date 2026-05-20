@@ -106,7 +106,7 @@ function Invoke-SmokeWithApi {
 
   try {
     $ready = $false
-    for ($i = 0; $i -lt 20; $i++) {
+    for ($i = 0; $i -lt 60; $i++) {
       Start-Sleep -Seconds 1
       try {
         Invoke-RestMethod http://localhost:3000/api/health | Out-Null
@@ -117,7 +117,7 @@ function Invoke-SmokeWithApi {
 
     if (-not $ready) {
       Receive-Job $job -Keep
-      Add-Result "api smoke against local services" "FAIL" "API did not become healthy."
+      Add-Result "api smoke against local services" "FAIL" "API did not become healthy within 60 seconds."
       return
     }
 

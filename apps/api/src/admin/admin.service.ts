@@ -262,6 +262,14 @@ export class AdminService {
     });
   }
 
+  async retryNotification(actorId: string, notificationId: string) {
+    const result = await this.notifications.retry(notificationId);
+    await this.writeAudit(actorId, 'notification.retry', `notification:${notificationId}`, {
+      notificationId,
+    });
+    return result;
+  }
+
   writeAudit(actorId: string, action: string, target: string, metadata?: Prisma.InputJsonValue) {
     return this.prisma.adminAuditLog.create({
       data: {
