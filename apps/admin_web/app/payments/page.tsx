@@ -96,7 +96,7 @@ function PaymentAction({
   label,
   disabled,
 }: {
-  action: (formData: FormData) => Promise<void>;
+  action: (...args: [FormData]) => Promise<void>;
   paymentId: string;
   label: string;
   disabled?: boolean;

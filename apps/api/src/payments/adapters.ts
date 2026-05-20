@@ -28,11 +28,13 @@ abstract class PlaceholderRedirectAdapter implements PaymentAdapter {
     };
   }
 
-  checkStatus(_providerRef: string) {
+  checkStatus(providerRef: string) {
+    void providerRef;
     return PaymentStatus.AUTHORIZED;
   }
 
-  release(_providerRef: string | null) {
+  release(providerRef: string | null) {
+    void providerRef;
     return PaymentStatus.RELEASED;
   }
 }
@@ -90,4 +92,3 @@ function normalizeStatus(value: unknown) {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
-
