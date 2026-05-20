@@ -24,6 +24,7 @@ export default async function ProvidersPage() {
             <tr>
               <th>Provider</th>
               <th>Status</th>
+              <th>Push Devices</th>
               <th>Files</th>
               <th>Services</th>
               <th>Action</th>
@@ -38,6 +39,17 @@ export default async function ProvidersPage() {
                   {provider.verification?.rejectionReason ? (
                     <p className="muted">{provider.verification.rejectionReason}</p>
                   ) : null}
+                </td>
+                <td>
+                  {provider.user?.pushDevices?.length ? (
+                    provider.user.pushDevices.map((device) => (
+                      <p key={device.id} className="muted">
+                        {device.platform} / {device.enabled ? 'enabled' : 'disabled'} / {maskToken(device.token)}
+                      </p>
+                    ))
+                  ) : (
+                    'None'
+                  )}
                 </td>
                 <td>
                   {provider.verification?.files?.length ? (
@@ -75,7 +87,7 @@ export default async function ProvidersPage() {
             ))}
             {providers.length === 0 && (
               <tr>
-                <td colSpan={5}>No providers loaded. Start the API and seed data to populate this table.</td>
+                <td colSpan={6}>No providers loaded. Start the API and seed data to populate this table.</td>
               </tr>
             )}
           </tbody>
@@ -83,4 +95,11 @@ export default async function ProvidersPage() {
       </div>
     </>
   );
+}
+
+function maskToken(token: string) {
+  if (token.length <= 10) {
+    return token;
+  }
+  return `${token.slice(0, 6)}...${token.slice(-4)}`;
 }

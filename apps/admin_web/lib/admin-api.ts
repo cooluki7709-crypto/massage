@@ -21,7 +21,17 @@ export type AdminProvider = {
     files?: Array<{ id: string; key: string; contentType: string; visibility: string; url?: string | null }>;
   } | null;
   services?: Array<{ service?: { name: string } }>;
-  user?: { fullName?: string | null; phone?: string };
+  user?: {
+    fullName?: string | null;
+    phone?: string;
+    pushDevices?: Array<{
+      id: string;
+      platform: string;
+      enabled: boolean;
+      token: string;
+      createdAt?: string;
+    }>;
+  };
 };
 
 export type AdminBooking = {

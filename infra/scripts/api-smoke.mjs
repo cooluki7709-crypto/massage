@@ -139,6 +139,11 @@ const adminBooking = adminBookings.find((item) => item.id === booking.id);
 if (!adminBooking?.chatRoom?.id || !adminBooking?.services?.length || !adminBooking?.participants?.length) {
   throw new Error(`Admin booking monitor payload is incomplete: ${JSON.stringify(adminBooking)}`);
 }
+const adminProviders = await getJson('/admin/providers', adminAuth.accessToken);
+const adminProvider = adminProviders.find((item) => item.id === providerAuth.user.providerProfile.id);
+if (!adminProvider?.user?.pushDevices?.some((device) => device.token === 'demo-provider-device-token')) {
+  throw new Error(`Admin provider payload is missing registered push device: ${JSON.stringify(adminProvider)}`);
+}
 const payment = await getJson('/admin/payments', adminAuth.accessToken).then((payments) =>
   payments.find((item) => item.bookingId === booking.id),
 );
@@ -191,6 +196,7 @@ console.log({
   payoutBatchId: payoutBatch.id,
   payoutBatchCount: adminPayoutBatches.length,
   adminBookingMonitorReady: true,
+  adminProviderPushDeviceCount: adminProvider?.user?.pushDevices?.length ?? 0,
   momoPaymentStatus: momoPayment?.status ?? null,
   syncedMomoStatus: syncedMomo?.status ?? null,
   releasedMomoStatus: releasedMomo?.status ?? null,

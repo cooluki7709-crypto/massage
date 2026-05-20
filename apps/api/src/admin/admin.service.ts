@@ -23,7 +23,11 @@ export class AdminService {
   listProviders() {
     return this.prisma.providerProfile.findMany({
       orderBy: { id: 'desc' },
-      include: { user: true, verification: { include: { files: true } }, services: { include: { service: true } } },
+      include: {
+        user: { include: { pushDevices: { orderBy: { createdAt: 'desc' } } } },
+        verification: { include: { files: true } },
+        services: { include: { service: true } },
+      },
     });
   }
 
