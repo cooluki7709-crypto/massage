@@ -80,7 +80,15 @@ export type AdminBooking = {
     };
   }>;
   services?: Array<{ price?: number; quantity?: number; service?: { name?: string; durationMin?: number; basePrice?: number } }>;
-  payment?: { id?: string; status: string; amount: number; method: string; currency?: string; refunds?: Array<{ id: string; amount: number; status: string; createdAt?: string }> } | null;
+  payment?: {
+    id?: string;
+    status: string;
+    amount: number;
+    method: string;
+    currency?: string;
+    providerRef?: string | null;
+    refunds?: Array<{ id: string; amount: number; status: string; createdAt?: string }>;
+  } | null;
   customerProfile?: { user?: { fullName?: string | null; phone?: string } };
   selectedProvider?: {
     id?: string;

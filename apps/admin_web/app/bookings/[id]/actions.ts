@@ -1,0 +1,34 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { adminPost } from '../../../lib/admin-api';
+
+export async function syncBookingPayment(formData: FormData) {
+  await runPaymentAction(formData, 'sync');
+}
+
+export async function captureBookingPayment(formData: FormData) {
+  await runPaymentAction(formData, 'capture');
+}
+
+export async function releaseBookingPayment(formData: FormData) {
+  await runPaymentAction(formData, 'release');
+}
+
+export async function refundBookingPayment(formData: FormData) {
+  await runPaymentAction(formData, 'refund');
+}
+
+async function runPaymentAction(formData: FormData, action: 'sync' | 'capture' | 'release' | 'refund') {
+  const bookingId = String(formData.get('bookingId'));
+  const paymentId = String(formData.get('paymentId'));
+  if (!bookingId || !paymentId) {
+    return;
+  }
+
+  await adminPost(`/admin/payments/${paymentId}/${action}`, {}, null);
+  revalidatePath(`/bookings/${bookingId}`);
+  revalidatePath('/bookings');
+  revalidatePath('/payments');
+  revalidatePath('/refunds');
+}

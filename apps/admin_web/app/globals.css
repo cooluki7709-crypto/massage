@@ -101,6 +101,17 @@ a {
   gap: 16px;
 }
 
+.ops-command-center {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ops-command-center .actions {
+  justify-content: flex-end;
+}
+
 .stack {
   display: grid;
   gap: 10px;
@@ -331,7 +342,12 @@ button:disabled {
   }
 
   .toolbar,
-  .monitor-meta {
+  .monitor-meta,
+  .ops-command-center {
     display: grid;
+  }
+
+  .ops-command-center .actions {
+    justify-content: flex-start;
   }
 }

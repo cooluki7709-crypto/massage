@@ -1,13 +1,19 @@
 const apiBaseUrl = process.env.API_BASE_URL ?? 'http://localhost:3000/api';
 
 async function request(path, options = {}) {
+  const { retryRateLimit = true, ...fetchOptions } = options;
   const response = await fetch(`${apiBaseUrl}${path}`, {
-    ...options,
-    headers: { 'content-type': 'application/json', ...(options.headers ?? {}) },
+    ...fetchOptions,
+    headers: { 'content-type': 'application/json', ...(fetchOptions.headers ?? {}) },
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(`${options.method ?? 'GET'} ${path} failed: ${response.status} ${JSON.stringify(body)}`);
+    if (response.status === 429 && retryRateLimit) {
+      const retryAfterSeconds = Number(body.retryAfterSeconds ?? response.headers.get('retry-after') ?? 30);
+      await sleep(Math.max(1, retryAfterSeconds) * 1000);
+      return request(path, { ...options, retryRateLimit: false });
+    }
+    throw new Error(`${fetchOptions.method ?? 'GET'} ${path} failed: ${response.status} ${JSON.stringify(body)}`);
   }
   return body;
 }

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AdminBookingDetail, AdminChatMessage, AdminLocationSnapshot, adminGet } from '../../../lib/admin-api';
+import { captureBookingPayment, refundBookingPayment, releaseBookingPayment, syncBookingPayment } from './actions';
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -55,6 +56,56 @@ export default async function BookingDetailPage({ params }: PageProps) {
         <MetricCard label="Payment" value={booking.payment?.status ?? 'NONE'} helper={paymentHint(booking)} />
         <MetricCard label="Providers" value={`${booking.participants?.length ?? 0} joined`} helper={providerHint(booking)} />
         <MetricCard label="Chat" value={booking.chatRoom ? 'Ready' : 'Not ready'} helper={`${messages.length} message(s)`} />
+      </section>
+
+      <section className="card ops-command-center" style={{ marginBottom: 16 }}>
+        <div>
+          <h2>Operations command center</h2>
+          <p className="muted">{primaryOpsInstruction(booking)}</p>
+          <div className="participant-list" style={{ marginTop: 10 }}>
+            {opsBadges(booking).map((badge) => (
+              <span className={`pill ${badge.tone}`} key={badge.label}>
+                {badge.label}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="actions">
+          {booking.payment?.id ? (
+            <>
+              <PaymentAction
+                action={syncBookingPayment}
+                bookingId={booking.id}
+                paymentId={booking.payment.id}
+                label="Sync payment"
+                disabled={!booking.payment.providerRef || isTerminalPayment(booking.payment.status)}
+              />
+              <PaymentAction
+                action={captureBookingPayment}
+                bookingId={booking.id}
+                paymentId={booking.payment.id}
+                label="Capture"
+                disabled={booking.payment.status === 'CAPTURED' || booking.payment.status === 'REFUNDED' || booking.payment.status === 'RELEASED'}
+              />
+              <PaymentAction
+                action={releaseBookingPayment}
+                bookingId={booking.id}
+                paymentId={booking.payment.id}
+                label="Release"
+                disabled={booking.payment.status === 'CAPTURED' || booking.payment.status === 'REFUNDED' || booking.payment.status === 'RELEASED'}
+              />
+              <PaymentAction
+                action={refundBookingPayment}
+                bookingId={booking.id}
+                paymentId={booking.payment.id}
+                label="Refund"
+                disabled={booking.payment.status === 'REFUNDED' || booking.payment.status === 'RELEASED'}
+              />
+            </>
+          ) : (
+            <span className="muted">No payment action available.</span>
+          )}
+        </div>
       </section>
 
       <section className="detail-grid">
@@ -198,6 +249,87 @@ function ChatBubble({ message }: { message: AdminChatMessage }) {
       </div>
     </div>
   );
+}
+
+function PaymentAction({
+  action,
+  bookingId,
+  paymentId,
+  label,
+  disabled,
+}: {
+  action: (...args: [FormData]) => Promise<void>;
+  bookingId: string;
+  paymentId: string;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <form action={action}>
+      <input type="hidden" name="bookingId" value={bookingId} />
+      <input type="hidden" name="paymentId" value={paymentId} />
+      <button type="submit" disabled={disabled}>
+        {label}
+      </button>
+    </form>
+  );
+}
+
+function primaryOpsInstruction(booking: AdminBookingDetail) {
+  if (booking.status === 'CANCELLED') {
+    return booking.payment?.status === 'RELEASED'
+      ? 'Booking is cancelled and the payment hold is already released. Confirm customer messaging only.'
+      : 'Booking is cancelled, but payment still needs operator review. Release or refund before closing.';
+  }
+  if (booking.payment?.status === 'AUTHORIZED' && booking.status === 'COMPLETED') {
+    return 'Service is complete. Capture the authorized payment or refund if there was a dispute.';
+  }
+  if (booking.payment?.status === 'AUTHORIZED') {
+    return 'Payment hold is live. Keep it authorized until service completion or cancellation.';
+  }
+  if (booking.status === 'OPEN_MATCHING') {
+    return 'Monitor provider response speed and fallback supply. Customer is still waiting.';
+  }
+  if (booking.status === 'MATCHED') {
+    return 'Provider is selected. Watch chat readiness, location sharing, and arrival progression.';
+  }
+  if (booking.chatRoom && booking.status === 'IN_SERVICE') {
+    return 'Service is live. Keep chat and location visible until completion.';
+  }
+  return 'No urgent action is required. Continue monitoring this booking from the timeline.';
+}
+
+function opsBadges(booking: AdminBookingDetail) {
+  const badges = [];
+  if (booking.payment?.status === 'AUTHORIZED') {
+    badges.push({ label: 'Hold active', tone: 'pill-warn' });
+  }
+  if (booking.payment?.status === 'RELEASED') {
+    badges.push({ label: 'Hold released', tone: 'pill-success' });
+  }
+  if (booking.payment?.status === 'CAPTURED') {
+    badges.push({ label: 'Captured', tone: 'pill-success' });
+  }
+  if (booking.payment?.status === 'REFUNDED') {
+    badges.push({ label: 'Refunded', tone: 'pill-warn' });
+  }
+  if (booking.selectedProvider) {
+    badges.push({ label: 'Provider selected', tone: 'pill-success' });
+  }
+  if (booking.chatRoom) {
+    badges.push({ label: 'Chat ready', tone: 'pill-info' });
+  }
+  if (latestProviderLocation(booking)) {
+    badges.push({ label: 'Location signal', tone: 'pill-info' });
+  }
+  if (badges.length === 0) {
+    badges.push({ label: 'Monitor', tone: 'pill-neutral' });
+  }
+  return badges;
+}
+
+function isTerminalPayment(status?: string) {
+  return status === 'CAPTURED' || status === 'REFUNDED' || status === 'RELEASED';
 }
 
 function flowStages(booking: AdminBookingDetail) {
