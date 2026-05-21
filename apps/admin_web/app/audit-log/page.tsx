@@ -1,33 +1,98 @@
 import { AdminAuditLog, adminGet } from '../../lib/admin-api';
 
 export default async function AuditLogPage() {
-  const logs = await adminGet<AdminAuditLog[]>('/admin/audit-logs', []);
+  const logs = sortLogs(await adminGet<AdminAuditLog[]>('/admin/audit-logs', []));
+  const summary = buildSummary(logs);
 
   return (
     <>
       <h1>Audit Log</h1>
+      <section className="grid" style={{ marginBottom: 16 }}>
+        <div className="card">
+          <p>Total events</p>
+          <h2>{summary.total}</h2>
+        </div>
+        <div className="card">
+          <p>Dispatch actions</p>
+          <h2>{summary.dispatch}</h2>
+        </div>
+        <div className="card">
+          <p>Payment actions</p>
+          <h2>{summary.payments}</h2>
+        </div>
+        <div className="card">
+          <p>Notification actions</p>
+          <h2>{summary.notifications}</h2>
+        </div>
+        <div className="card">
+          <p>Recent hour</p>
+          <h2>{summary.recentHour}</h2>
+        </div>
+      </section>
+
       <div className="card">
+        <div className="toolbar">
+          <div>
+            <p className="muted">Recent operational trail for bookings, payments, refunds, provider review, and alerts.</p>
+          </div>
+          <div className="participant-list">
+            <span className="pill pill-success">Newest first</span>
+            <span className="pill pill-info">Action grouped</span>
+            <span className="pill pill-warn">Metadata preview</span>
+          </div>
+        </div>
+
         <table className="table">
           <thead>
             <tr>
-              <th>Time</th>
-              <th>Actor</th>
+              <th>When</th>
               <th>Action</th>
+              <th>Actor</th>
               <th>Target</th>
+              <th>Ops signal</th>
+              <th>Metadata</th>
             </tr>
           </thead>
           <tbody>
             {logs.map((log) => (
               <tr key={log.id}>
-                <td>{new Date(log.createdAt).toLocaleString()}</td>
-                <td>{log.actor?.fullName ?? log.actor?.phone ?? '-'}</td>
-                <td>{log.action}</td>
-                <td>{log.target}</td>
+                <td>
+                  <div>{new Date(log.createdAt).toLocaleString()}</div>
+                  <div className="muted">{relativeTime(log.createdAt)}</div>
+                </td>
+                <td>
+                  <div style={{ marginBottom: 6 }}>{humanizeAction(log.action)}</div>
+                  <span className={signalClass(log.action)}>{actionBucketLabel(log.action)}</span>
+                </td>
+                <td>{log.actor?.fullName ?? log.actor?.phone ?? 'System'}</td>
+                <td>
+                  <div>{shortTarget(log.target)}</div>
+                  <div className="muted">{log.target}</div>
+                </td>
+                <td>
+                  <div>{opsHint(log.action, log.target)}</div>
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    {opsDetail(log.action)}
+                  </div>
+                </td>
+                <td>
+                  <pre
+                    style={{
+                      margin: 0,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      fontSize: 12,
+                      color: '#475569',
+                    }}
+                  >
+                    {metadataPreview(log.metadata)}
+                  </pre>
+                </td>
               </tr>
             ))}
             {logs.length === 0 && (
               <tr>
-                <td colSpan={4}>No audit logs loaded.</td>
+                <td colSpan={6}>No audit logs loaded.</td>
               </tr>
             )}
           </tbody>
@@ -35,4 +100,146 @@ export default async function AuditLogPage() {
       </div>
     </>
   );
+}
+
+function sortLogs(logs: AdminAuditLog[]) {
+  return [...logs].sort((left, right) => {
+    const leftTime = Date.parse(left.createdAt);
+    const rightTime = Date.parse(right.createdAt);
+    return rightTime - leftTime;
+  });
+}
+
+function buildSummary(logs: AdminAuditLog[]) {
+  const now = Date.now();
+  return {
+    total: logs.length,
+    dispatch: logs.filter((log) => isDispatchAction(log.action)).length,
+    payments: logs.filter((log) => isPaymentAction(log.action)).length,
+    notifications: logs.filter((log) => isNotificationAction(log.action)).length,
+    recentHour: logs.filter((log) => now - Date.parse(log.createdAt) <= 60 * 60 * 1000).length,
+  };
+}
+
+function isDispatchAction(action: string) {
+  return action.startsWith('booking.') || action.startsWith('provider.');
+}
+
+function isPaymentAction(action: string) {
+  return action.startsWith('payment.') || action.startsWith('refund.');
+}
+
+function isNotificationAction(action: string) {
+  return action.startsWith('notification.');
+}
+
+function actionBucketLabel(action: string) {
+  if (isDispatchAction(action)) {
+    return 'Dispatch';
+  }
+  if (isPaymentAction(action)) {
+    return 'Payment';
+  }
+  if (isNotificationAction(action)) {
+    return 'Notification';
+  }
+  if (action.startsWith('provider-verification.') || action.startsWith('provider.')) {
+    return 'Provider';
+  }
+  return 'System';
+}
+
+function signalClass(action: string) {
+  if (isDispatchAction(action)) {
+    return 'signal signal-info';
+  }
+  if (isPaymentAction(action)) {
+    return 'signal signal-warn';
+  }
+  if (isNotificationAction(action)) {
+    return 'signal signal-ok';
+  }
+  return 'signal';
+}
+
+function humanizeAction(action: string) {
+  return action
+    .split('.')
+    .map((part) => part.replace(/[-_]/g, ' '))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' / ');
+}
+
+function shortTarget(target: string) {
+  if (!target) {
+    return '-';
+  }
+  const [scope, id] = target.split(':');
+  if (!id) {
+    return target;
+  }
+  return `${scope}:${id.slice(0, 8)}`;
+}
+
+function metadataPreview(metadata: unknown) {
+  if (!metadata) {
+    return 'No metadata';
+  }
+  try {
+    return JSON.stringify(metadata, null, 2);
+  } catch {
+    return 'Metadata could not be rendered';
+  }
+}
+
+function relativeTime(value: string) {
+  const diffMs = Date.now() - Date.parse(value);
+  if (!Number.isFinite(diffMs)) {
+    return 'Unknown time';
+  }
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) {
+    return 'Updated just now';
+  }
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function opsHint(action: string, target: string) {
+  if (action.startsWith('booking.')) {
+    return 'Trace booking state changes and verify customer/provider handoff.';
+  }
+  if (action.startsWith('payment.')) {
+    return 'Confirm the money state matches the booking state before closing the loop.';
+  }
+  if (action.startsWith('notification.')) {
+    return 'Check retry or delivery health if the customer or therapist missed an alert.';
+  }
+  if (action.startsWith('provider.')) {
+    return 'Review therapist readiness, moderation, or queue movement.';
+  }
+  return `Audit trail for ${target || 'system'} activity.`;
+}
+
+function opsDetail(action: string) {
+  if (action.endsWith('.refund')) {
+    return 'Refund actions should line up with booking cancellation or service failure notes.';
+  }
+  if (action.endsWith('.capture')) {
+    return 'Capture should only happen once service completion is confirmed.';
+  }
+  if (action.endsWith('.retry')) {
+    return 'Retry events are useful when push, SMS, or webhook delivery needed another pass.';
+  }
+  if (action.endsWith('.approve') || action.endsWith('.reject')) {
+    return 'Provider review actions should match verification evidence and moderation notes.';
+  }
+  return 'Use this row to confirm who acted, when they acted, and what object changed.';
 }
