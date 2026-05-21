@@ -1036,6 +1036,10 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
   final couponController = TextEditingController();
   double? customerLat;
   double? customerLng;
+  int couponDiscountAmount = 0;
+  String? appliedCouponCode;
+  String? couponMessage;
+  bool applyingCoupon = false;
   bool submitting = false;
   bool loadingLocation = false;
   String? error;
@@ -1091,13 +1095,16 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
       error = null;
     });
     try {
-      final booking = await widget.onConfirm(
-        customerName: nameController.text.trim(),
-        customerPhone: phoneController.text.trim(),
-        addressLine: addressController.text.trim(),
-        lat: customerLat ?? demoCustomerLat,
-        lng: customerLng ?? demoCustomerLng,
-      );
+      final booking = await ref.read(customerRepositoryProvider).createBooking(
+            widget.selectedService['id'] as String,
+            providerId: widget.providerDetail['id'] as String?,
+            couponCode: appliedCouponCode,
+            customerName: nameController.text.trim(),
+            customerPhone: phoneController.text.trim(),
+            addressLine: addressController.text.trim(),
+            lat: customerLat ?? demoCustomerLat,
+            lng: customerLng ?? demoCustomerLng,
+          );
       if (mounted) {
         Navigator.of(context).pop(booking);
       }
@@ -1110,6 +1117,59 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
     }
   }
 
+  Future<void> applyCoupon() async {
+    final code = couponController.text.trim();
+    final basePrice = asNum(widget.selectedService['basePrice'])?.toInt() ?? 0;
+    if (code.isEmpty) {
+      setState(() {
+        appliedCouponCode = null;
+        couponDiscountAmount = 0;
+        couponMessage = 'Enter a coupon code first.';
+      });
+      return;
+    }
+
+    setState(() {
+      applyingCoupon = true;
+      error = null;
+      couponMessage = null;
+    });
+
+    try {
+      final preview = await ref.read(customerRepositoryProvider).previewCoupon(
+            code: code,
+            serviceId: widget.selectedService['id'] as String,
+            subtotal: basePrice,
+          );
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        appliedCouponCode = preview['code'] as String?;
+        couponDiscountAmount = asNum(preview['discountAmount'])?.toInt() ?? 0;
+        final description = preview['description'] as String?;
+        couponMessage = description == null || description.isEmpty
+            ? 'Coupon applied successfully.'
+            : '${preview['code']} applied. $description';
+      });
+    } catch (exception) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        appliedCouponCode = null;
+        couponDiscountAmount = 0;
+        couponMessage = '$exception';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => applyingCoupon = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final service = widget.selectedService;
@@ -1118,7 +1178,7 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
     final basePrice = asNum(service['basePrice'])?.toInt() ?? 0;
     final platformFee = 0;
     final serviceCount = 1;
-    final totalAmount = basePrice + platformFee;
+    final totalAmount = basePrice + platformFee - couponDiscountAmount;
     final customerPoint = customerLat == null || customerLng == null ? null : LatLng(customerLat!, customerLng!);
     final providerPoint = deriveProviderLatLng(provider);
     return Scaffold(
@@ -1291,16 +1351,35 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
             const SizedBox(height: 14),
             BookingSectionCard(
               title: 'Discount code',
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: couponController,
-                      decoration: const InputDecoration(hintText: 'Enter coupon code'),
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: couponController,
+                          decoration: const InputDecoration(hintText: 'Enter coupon code'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      TextButton(
+                        onPressed: applyingCoupon ? null : applyCoupon,
+                        child: Text(applyingCoupon ? 'Checking...' : 'Apply'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  TextButton(onPressed: () {}, child: const Text('Apply')),
+                  if (couponMessage != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      couponMessage!,
+                      style: TextStyle(
+                        color: appliedCouponCode != null ? const Color(0xFF5E8E4A) : const Color(0xFFB3261E),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1326,8 +1405,10 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                   const SizedBox(height: 10),
                   BookingSummaryRow(
                     label: 'Coupon',
-                    value: couponController.text.trim().isEmpty ? 'Not applied' : couponController.text.trim(),
-                    highlighted: couponController.text.trim().isNotEmpty,
+                    value: appliedCouponCode == null
+                        ? 'Not applied'
+                        : '-${formatCurrency(couponDiscountAmount)} VND ($appliedCouponCode)',
+                    highlighted: appliedCouponCode != null,
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 14),
@@ -1991,6 +2072,7 @@ class TherapistRoleTag extends StatelessWidget {
     );
   }
 }
+
 class WaitingStatCard extends StatelessWidget {
   const WaitingStatCard({
     super.key,

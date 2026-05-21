@@ -20,6 +20,7 @@ export class BookingsController {
     body: {
       serviceId: string;
       providerId?: string;
+      couponCode?: string;
       scheduledStartAt: string;
       address: Prisma.InputJsonValue;
       lat: number;

@@ -118,6 +118,7 @@ class CustomerRepository {
   Future<Map<String, dynamic>> createBooking(
     String serviceId, {
     String? providerId,
+    String? couponCode,
     required String customerName,
     required String customerPhone,
     required String addressLine,
@@ -127,6 +128,7 @@ class CustomerRepository {
     final result = await _api.postJson('/customer/bookings', {
       'serviceId': serviceId,
       if (providerId != null) 'providerId': providerId,
+      if (couponCode != null && couponCode.trim().isNotEmpty) 'couponCode': couponCode.trim().toUpperCase(),
       'scheduledStartAt': DateTime.now().add(const Duration(hours: 1)).toIso8601String(),
       'address': {
         'name': customerName,
@@ -165,6 +167,19 @@ class CustomerRepository {
       'token': token,
       'platform': 'android',
     });
+  }
+
+  Future<Map<String, dynamic>> previewCoupon({
+    required String code,
+    required String serviceId,
+    required int subtotal,
+  }) async {
+    final result = await _api.postJson('/customer/coupons/preview', {
+      'code': code.trim().toUpperCase(),
+      'serviceId': serviceId,
+      'subtotal': subtotal,
+    });
+    return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
 }
 

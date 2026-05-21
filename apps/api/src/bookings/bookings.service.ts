@@ -30,6 +30,7 @@ export class BookingsService {
     input: {
       serviceId: string;
       providerId?: string;
+      couponCode?: string;
       scheduledStartAt: string;
       address: Prisma.InputJsonValue;
       lat: number;
@@ -54,9 +55,12 @@ export class BookingsService {
           include: { user: true },
         })
       : null;
+    const coupon = input.couponCode ? await this.resolveCoupon(input.couponCode) : null;
     const scheduledStartAt = new Date(input.scheduledStartAt);
     const scheduledEndAt = new Date(scheduledStartAt.getTime() + service.durationMin * 60_000);
     const expiresAt = new Date(Date.now() + 15 * 60_000);
+    const discountAmount = coupon ? this.calculateCouponDiscount(coupon.discount, service.basePrice) : 0;
+    const finalAmount = Math.max(0, service.basePrice - discountAmount);
 
     let booking = await this.prisma.booking.create({
       data: {
@@ -78,7 +82,12 @@ export class BookingsService {
           },
         },
         payment: {
-          create: this.payments.buildAuthorization(input.paymentMethod, service.basePrice),
+          create: this.payments.buildAuthorization(input.paymentMethod, finalAmount, 'pending-booking', {
+            originalAmount: service.basePrice,
+            discountAmount,
+            couponCode: coupon?.code,
+            couponId: coupon?.id,
+          }),
         },
         participants: preferredProvider
           ? {
@@ -117,7 +126,12 @@ export class BookingsService {
       body: preferredProvider
         ? `${preferredProvider.displayName} received your booking request.`
         : 'We are looking for nearby providers.',
-      data: { bookingId: booking.id, providerProfileId: preferredProvider?.id },
+      data: {
+        bookingId: booking.id,
+        providerProfileId: preferredProvider?.id,
+        couponCode: coupon?.code,
+        discountAmount,
+      },
     });
     if (preferredProvider?.userId) {
       await this.notifications.create({
@@ -132,6 +146,45 @@ export class BookingsService {
       this.matchingGateway.emitBookingOpened(booking.id, result);
     }
     return result;
+  }
+
+  private async resolveCoupon(code: string) {
+    const coupon = await this.prisma.coupon.findUnique({
+      where: { code: code.trim().toUpperCase() },
+    });
+    if (!coupon || !coupon.active) {
+      throw new BadRequestException('Coupon is not available');
+    }
+
+    const now = Date.now();
+    if (coupon.startsAt && coupon.startsAt.getTime() > now) {
+      throw new BadRequestException('Coupon is not active yet');
+    }
+    if (coupon.endsAt && coupon.endsAt.getTime() < now) {
+      throw new BadRequestException('Coupon has expired');
+    }
+    return coupon;
+  }
+
+  private calculateCouponDiscount(discount: Prisma.JsonValue, subtotal: number) {
+    if (!discount || typeof discount !== 'object' || Array.isArray(discount)) {
+      return 0;
+    }
+
+    const input = discount as { type?: unknown; value?: unknown };
+    const type = typeof input.type === 'string' ? input.type : null;
+    const value =
+      typeof input.value === 'number'
+        ? input.value
+        : typeof input.value === 'string'
+          ? Number(input.value)
+          : NaN;
+
+    if (type !== 'percent' || !Number.isFinite(value) || value <= 0) {
+      return 0;
+    }
+
+    return Math.min(subtotal, Math.round((subtotal * value) / 100));
   }
 
   getBooking(id: string) {

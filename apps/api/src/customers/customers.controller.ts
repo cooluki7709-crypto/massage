@@ -11,6 +11,15 @@ import { CustomersService } from './customers.service';
 export class CustomersController {
   constructor(private readonly customers: CustomersService) {}
 
+  @Post('coupons/preview')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CUSTOMER)
+  previewCoupon(
+    @Body() body: { code: string; serviceId: string; subtotal: number },
+  ) {
+    return this.customers.previewCoupon(body);
+  }
+
   @Post('reviews')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CUSTOMER)

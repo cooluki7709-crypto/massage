@@ -20,14 +20,21 @@ export class PaymentsService {
     @InjectQueue('payment-status-check') private readonly paymentStatusQueue: Queue,
   ) {}
 
-  buildAuthorization(method: PaymentMethod, amount: number, bookingId = 'pending-booking') {
+  buildAuthorization(
+    method: PaymentMethod,
+    amount: number,
+    bookingId = 'pending-booking',
+    extraRawMeta?: Prisma.InputJsonValue,
+  ) {
     const authorization = this.adapterFor(method).authorize({ bookingId, amount, currency: 'VND' });
+    const authorizationMeta = asJsonObject(authorization.rawMeta);
+    const extraMeta = asJsonObject(extraRawMeta);
     return {
       method: authorization.method,
       amount,
       status: authorization.status,
       providerRef: authorization.providerRef,
-      rawMeta: toJsonOrUndefined(authorization.rawMeta),
+      rawMeta: toJsonOrUndefined({ ...authorizationMeta, ...extraMeta }),
     };
   }
 
@@ -180,4 +187,11 @@ function toJsonOrUndefined(value: unknown): Prisma.InputJsonValue | undefined {
     return undefined;
   }
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function asJsonObject(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
 }

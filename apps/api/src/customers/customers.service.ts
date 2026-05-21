@@ -52,6 +52,73 @@ export class CustomersService {
     await this.earnings.applyTip(booking.id, input.tipAmount ?? 0);
     return review;
   }
+
+  async previewCoupon(
+    input: { code: string; serviceId: string; subtotal: number },
+  ): Promise<{
+    valid: boolean;
+    code: string;
+    discountAmount: number;
+    finalAmount: number;
+    description?: string | null;
+  }> {
+    const code = input.code.trim().toUpperCase();
+    if (!code) {
+      throw new BadRequestException('Coupon code is required');
+    }
+
+    const coupon = await this.prisma.coupon.findUnique({ where: { code } });
+    if (!coupon || !coupon.active) {
+      throw new BadRequestException('Coupon is not available');
+    }
+
+    const now = Date.now();
+    if (coupon.startsAt && coupon.startsAt.getTime() > now) {
+      throw new BadRequestException('Coupon is not active yet');
+    }
+    if (coupon.endsAt && coupon.endsAt.getTime() < now) {
+      throw new BadRequestException('Coupon has expired');
+    }
+
+    const service = await this.prisma.massageService.findUniqueOrThrow({ where: { id: input.serviceId } });
+    const subtotal = input.subtotal > 0 ? input.subtotal : service.basePrice;
+    const discount = normalizePercentDiscount(coupon.discount);
+    if (!discount) {
+      throw new BadRequestException('Coupon format is not supported');
+    }
+
+    const discountAmount = Math.min(subtotal, Math.round((subtotal * discount.value) / 100));
+    const finalAmount = Math.max(0, subtotal - discountAmount);
+
+    return {
+      valid: true,
+      code: coupon.code,
+      description: coupon.description,
+      discountAmount,
+      finalAmount,
+    };
+  }
+}
+
+function normalizePercentDiscount(discount: Prisma.JsonValue): { type: 'percent'; value: number } | null {
+  if (!discount || typeof discount !== 'object' || Array.isArray(discount)) {
+    return null;
+  }
+
+  const input = discount as { type?: unknown; value?: unknown };
+  const type = typeof input.type === 'string' ? input.type : null;
+  const value =
+    typeof input.value === 'number'
+      ? input.value
+      : typeof input.value === 'string'
+        ? Number(input.value)
+        : NaN;
+
+  if (type !== 'percent' || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+
+  return { type: 'percent', value };
 }
 
 async function recalculateProviderRating(tx: Prisma.TransactionClient, providerProfileId: string) {
