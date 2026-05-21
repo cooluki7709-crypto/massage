@@ -12,6 +12,11 @@ void main() {
   runApp(const ProviderScope(child: CustomerApp()));
 }
 
+const double demoCustomerLat = 10.7769;
+const double demoCustomerLng = 106.7009;
+const String demoCustomerCity = 'Ho Chi Minh City';
+const String demoCustomerAddress = 'District 1, Ho Chi Minh City, Vietnam';
+
 class CustomerApp extends StatelessWidget {
   const CustomerApp({super.key});
 
@@ -99,9 +104,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
     try {
       final repository = ref.read(customerRepositoryProvider);
-      final position = await ref.read(customerLocationProvider).currentPosition();
-      final activeLat = position?.latitude ?? 11.9582;
-      final activeLng = position?.longitude ?? 108.4420;
+      final location = await resolveCustomerLocation(ref);
+      final activeLat = location.latitude;
+      final activeLng = location.longitude;
       final results = await Future.wait([
         repository.nearbyProviders(lat: activeLat, lng: activeLng),
         repository.listBookings(),
@@ -240,7 +245,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               const Icon(Icons.arrow_back_outlined),
               const SizedBox(width: 10),
-              Text('Ho Chi Minh City', style: Theme.of(context).textTheme.titleLarge),
+              Text(demoCustomerCity, style: Theme.of(context).textTheme.titleLarge),
               const Spacer(),
               const Icon(Icons.favorite_border),
             ],
@@ -1024,7 +1029,7 @@ class BookingConfirmationPage extends ConsumerStatefulWidget {
 class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPage> {
   final nameController = TextEditingController(text: 'Demo Customer');
   final phoneController = TextEditingController(text: '0865907184');
-  final addressController = TextEditingController(text: 'Royal Villa Da Lat, Ward 7, Da Lat, Lam Dong');
+  final addressController = TextEditingController(text: demoCustomerAddress);
   final couponController = TextEditingController();
   double? customerLat;
   double? customerLng;
@@ -1054,21 +1059,21 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
   Future<void> loadCustomerLocation() async {
     setState(() => loadingLocation = true);
     try {
-      final position = await ref.read(customerLocationProvider).currentPosition();
+      final location = await resolveCustomerLocation(ref);
       if (!mounted) {
         return;
       }
       setState(() {
-        customerLat = position?.latitude ?? 11.9582;
-        customerLng = position?.longitude ?? 108.4420;
+        customerLat = location.latitude;
+        customerLng = location.longitude;
       });
     } catch (_) {
       if (!mounted) {
         return;
       }
       setState(() {
-        customerLat = 11.9582;
-        customerLng = 108.4420;
+        customerLat = demoCustomerLat;
+        customerLng = demoCustomerLng;
       });
     } finally {
       if (mounted) {
@@ -1087,8 +1092,8 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
         customerName: nameController.text.trim(),
         customerPhone: phoneController.text.trim(),
         addressLine: addressController.text.trim(),
-        lat: customerLat ?? 11.9582,
-        lng: customerLng ?? 108.4420,
+        lat: customerLat ?? demoCustomerLat,
+        lng: customerLng ?? demoCustomerLng,
       );
       if (mounted) {
         Navigator.of(context).pop(booking);
@@ -2379,27 +2384,199 @@ class ProviderThumbnail extends StatelessWidget {
   }
 }
 
-class ProvidersScreen extends ConsumerWidget {
+class ProvidersScreen extends ConsumerStatefulWidget {
   const ProvidersScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProvidersScreen> createState() => _ProvidersScreenState();
+}
+
+class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
+  List<dynamic> providers = [];
+  double? customerLat;
+  double? customerLng;
+  bool loading = false;
+  String? error;
+  String? notice;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = ref.read(authControllerProvider);
+      if (auth != null) {
+        unawaited(loadProviders());
+      }
+    });
+  }
+
+  Future<void> loadProviders() async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final location = await resolveCustomerLocation(ref);
+      final items = await ref.read(customerRepositoryProvider).nearbyProviders(
+            lat: location.latitude,
+            lng: location.longitude,
+          );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        providers = items;
+        customerLat = location.latitude;
+        customerLng = location.longitude;
+        notice = location.isDemoLocation
+            ? 'Using demo Ho Chi Minh City location for nearby provider discovery.'
+            : null;
+      });
+    } catch (exception) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> signInAndLoad() async {
+    setState(() {
+      loading = true;
+      error = null;
+      notice = null;
+    });
+    try {
+      await ref.read(authControllerProvider.notifier).signInDemoCustomer();
+      final pushResult = await ref.read(pushTokenRegistrarProvider).registerCurrentDevice();
+      await loadProviders();
+      if (mounted) {
+        setState(() => notice = pushResult.message);
+      }
+    } catch (exception) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> openProviderDetail(Map<String, dynamic> provider) async {
+    final providerId = provider['id'] as String?;
+    if (providerId == null) {
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => ProviderDetailPage(
+          providerPreview: provider,
+          loader: () => ref.read(customerRepositoryProvider).getProviderDetail(providerId),
+          onBookService: (detail, service) async {
+            final navigator = Navigator.of(context);
+            final booked = await navigator.push<Map<String, dynamic>>(
+              MaterialPageRoute(
+                builder: (context) => BookingConfirmationPage(
+                  providerDetail: detail,
+                  selectedService: service,
+                  initialCustomerLat: customerLat,
+                  initialCustomerLng: customerLng,
+                  onConfirm: ({
+                    required customerName,
+                    required customerPhone,
+                    required addressLine,
+                    required lat,
+                    required lng,
+                  }) =>
+                      ref.read(customerRepositoryProvider).createBooking(
+                            service['id'] as String,
+                            providerId: detail['id'] as String,
+                            customerName: customerName,
+                            customerPhone: customerPhone,
+                            addressLine: addressLine,
+                            lat: lat,
+                            lng: lng,
+                          ),
+                ),
+              ),
+            );
+
+            if (!mounted || booked == null) {
+              return;
+            }
+
+            await navigator.push<void>(
+              MaterialPageRoute(
+                builder: (context) => BookingWaitingPage(
+                  initialBooking: booked,
+                  onBookingUpdated: (_) {},
+                ),
+              ),
+            );
+            await loadProviders();
+          },
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
-    return MvpAsyncList(
-      title: 'Providers',
-      subtitle: 'Full provider list sorted by distance.',
-      enabled: auth != null,
-      disabledText: 'Login first to load nearby providers.',
-      loader: () async {
-        final position = await ref.read(customerLocationProvider).currentPosition();
-        final lat = position?.latitude ?? 11.9582;
-        final lng = position?.longitude ?? 108.4420;
-        return ref.read(customerRepositoryProvider).nearbyProviders(lat: lat, lng: lng);
-      },
-      labelBuilder: (provider) {
-        final item = provider as Map<String, dynamic>;
-        return '${item['displayName'] ?? 'Provider'} - ${formatDistance(item['distanceMeters'] as num?)}';
-      },
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        children: [
+          Text('Providers', style: Theme.of(context).textTheme.displaySmall),
+          const SizedBox(height: 8),
+          Text(
+            'Nearby therapists sorted by distance and availability.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: auth == null ? signInAndLoad : loadProviders,
+            icon: const Icon(Icons.search),
+            label: Text(auth == null ? 'Demo customer login' : 'Refresh providers'),
+          ),
+          if (loading) ...[
+            const SizedBox(height: 12),
+            const LinearProgressIndicator(),
+          ],
+          if (error != null) ...[
+            const SizedBox(height: 12),
+            ErrorPanel(text: error!),
+          ],
+          if (notice != null) ...[
+            const SizedBox(height: 12),
+            InfoBanner(text: notice!),
+          ],
+          const SizedBox(height: 16),
+          if (auth == null)
+            const EmptyPanel(text: 'Login first to load nearby provider cards.')
+          else if (providers.isEmpty)
+            const EmptyPanel(text: 'No nearby therapists loaded yet. Refresh to fetch the latest queue.')
+          else
+            for (final item in providers)
+              Builder(
+                builder: (context) {
+                  final provider = item as Map<String, dynamic>;
+                  return ProviderListCard(
+                    provider: provider,
+                    onTap: () => openProviderDetail(provider),
+                  );
+                },
+              ),
+        ],
+      ),
     );
   }
 }
@@ -2856,6 +3033,24 @@ int providerReviewCount(Map<String, dynamic> provider) {
   return 0;
 }
 
+Future<CustomerLocationSnapshot> resolveCustomerLocation(WidgetRef ref) async {
+  final position = await ref.read(customerLocationProvider).currentPosition();
+  final lat = position?.latitude;
+  final lng = position?.longitude;
+  if (lat != null && lng != null && isVietnamCoordinate(lat, lng)) {
+    return CustomerLocationSnapshot(latitude: lat, longitude: lng);
+  }
+  return const CustomerLocationSnapshot(
+    latitude: demoCustomerLat,
+    longitude: demoCustomerLng,
+    isDemoLocation: true,
+  );
+}
+
+bool isVietnamCoordinate(double lat, double lng) {
+  return lat >= 8.0 && lat <= 24.0 && lng >= 102.0 && lng <= 110.0;
+}
+
 String formatDistance(num? meters) {
   if (meters == null) {
     return '?';
@@ -2873,6 +3068,18 @@ LatLng? deriveProviderLatLng(Map<String, dynamic>? provider) {
     return null;
   }
   return LatLng(lat, lng);
+}
+
+class CustomerLocationSnapshot {
+  const CustomerLocationSnapshot({
+    required this.latitude,
+    required this.longitude,
+    this.isDemoLocation = false,
+  });
+
+  final double latitude;
+  final double longitude;
+  final bool isDemoLocation;
 }
 
 LatLng? deriveBookingLatLng(Map<String, dynamic>? booking) {
