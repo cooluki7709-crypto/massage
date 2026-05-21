@@ -25,6 +25,10 @@ export default async function AuditLogPage() {
           <h2>{summary.notifications}</h2>
         </div>
         <div className="card">
+          <p>Needs review</p>
+          <h2>{summary.needsReview}</h2>
+        </div>
+        <div className="card">
           <p>Recent hour</p>
           <h2>{summary.recentHour}</h2>
         </div>
@@ -49,6 +53,7 @@ export default async function AuditLogPage() {
               <th>Action</th>
               <th>Actor</th>
               <th>Target</th>
+              <th>Related board</th>
               <th>Ops signal</th>
               <th>Metadata</th>
             </tr>
@@ -68,6 +73,14 @@ export default async function AuditLogPage() {
                 <td>
                   <div>{shortTarget(log.target)}</div>
                   <div className="muted">{log.target}</div>
+                </td>
+                <td>
+                  <a className="pill pill-info" href={relatedBoardHref(log.action)}>
+                    {relatedBoardLabel(log.action)}
+                  </a>
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    {reviewPriorityLabel(log.action)}
+                  </div>
                 </td>
                 <td>
                   <div>{opsHint(log.action, log.target)}</div>
@@ -92,7 +105,7 @@ export default async function AuditLogPage() {
             ))}
             {logs.length === 0 && (
               <tr>
-                <td colSpan={6}>No audit logs loaded.</td>
+                <td colSpan={7}>No audit logs loaded.</td>
               </tr>
             )}
           </tbody>
@@ -104,6 +117,10 @@ export default async function AuditLogPage() {
 
 function sortLogs(logs: AdminAuditLog[]) {
   return [...logs].sort((left, right) => {
+    const priorityDiff = auditPriority(right.action) - auditPriority(left.action);
+    if (priorityDiff !== 0) {
+      return priorityDiff;
+    }
     const leftTime = Date.parse(left.createdAt);
     const rightTime = Date.parse(right.createdAt);
     return rightTime - leftTime;
@@ -117,8 +134,22 @@ function buildSummary(logs: AdminAuditLog[]) {
     dispatch: logs.filter((log) => isDispatchAction(log.action)).length,
     payments: logs.filter((log) => isPaymentAction(log.action)).length,
     notifications: logs.filter((log) => isNotificationAction(log.action)).length,
+    needsReview: logs.filter((log) => auditPriority(log.action) >= 3).length,
     recentHour: logs.filter((log) => now - Date.parse(log.createdAt) <= 60 * 60 * 1000).length,
   };
+}
+
+function auditPriority(action: string) {
+  if (action.endsWith('.refund') || action.includes('reject') || action.endsWith('.retry')) {
+    return 4;
+  }
+  if (action.startsWith('payment.') || action.startsWith('refund.')) {
+    return 3;
+  }
+  if (action.startsWith('booking.') || action.startsWith('notification.')) {
+    return 2;
+  }
+  return 1;
 }
 
 function isDispatchAction(action: string) {
@@ -190,6 +221,50 @@ function metadataPreview(metadata: unknown) {
   } catch {
     return 'Metadata could not be rendered';
   }
+}
+
+function relatedBoardHref(action: string) {
+  if (action.startsWith('booking.')) {
+    return '/bookings';
+  }
+  if (action.startsWith('payment.')) {
+    return '/payments';
+  }
+  if (action.startsWith('refund.')) {
+    return '/refunds';
+  }
+  if (action.startsWith('notification.')) {
+    return '/notifications';
+  }
+  if (action.startsWith('provider-verification.') || action.startsWith('provider.')) {
+    return '/providers';
+  }
+  if (action.startsWith('coupon.')) {
+    return '/coupons';
+  }
+  return '/audit-log';
+}
+
+function relatedBoardLabel(action: string) {
+  const href = relatedBoardHref(action);
+  if (href === '/audit-log') {
+    return 'Audit';
+  }
+  return href.slice(1).replace('-', ' ');
+}
+
+function reviewPriorityLabel(action: string) {
+  const priority = auditPriority(action);
+  if (priority >= 4) {
+    return 'Review this first';
+  }
+  if (priority >= 3) {
+    return 'Check before close';
+  }
+  if (priority >= 2) {
+    return 'Trace related flow';
+  }
+  return 'Reference event';
 }
 
 function relativeTime(value: string) {

@@ -86,10 +86,10 @@ export default async function NotificationsPage() {
                     ? notification.deliveries.map((delivery) => (
                         <div key={delivery.id ?? `${notification.id}-${delivery.attemptedAt}`} style={{ marginBottom: 10 }}>
                           <div>
-                            <strong>{delivery.provider}</strong> · {delivery.status} · {delivery.pushDevice?.platform ?? 'device'}
+                            <strong>{delivery.provider}</strong> - {delivery.status} - {delivery.pushDevice?.platform ?? 'device'}
                           </div>
                           <div className="muted" style={{ marginTop: 4 }}>
-                            {delivery.pushDevice?.enabled === false ? 'Device disabled' : 'Device enabled'} · Attempted{' '}
+                            {delivery.pushDevice?.enabled === false ? 'Device disabled' : 'Device enabled'} - Attempted{' '}
                             {new Date(delivery.attemptedAt).toLocaleString()}
                           </div>
                           <div className="muted" style={{ marginTop: 4 }}>
