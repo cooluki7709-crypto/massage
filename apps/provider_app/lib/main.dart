@@ -460,6 +460,11 @@ class OpenBookingCard extends StatelessWidget {
     final isMatched = booking['status'] == 'MATCHED';
     final preferredProviderName = preferredProvider?['displayName'] as String?;
     final customerAddress = booking['address'] as Map<String, dynamic>?;
+    final requestModeLabel = isPreferredRequest
+        ? 'Direct request'
+        : hasPreferredProvider
+            ? 'Backup opportunity'
+            : 'Open shortlist';
     final nextAction = isPreferredRequest && !isMatched
         ? 'Reply now so the customer can confirm you directly.'
         : isPreferredRequest && isMatched && !hasChat
@@ -511,6 +516,7 @@ class OpenBookingCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
+                ProviderRequestTag(label: requestModeLabel),
                 ProviderRequestTag(label: 'Booking ${booking['id']}', highlighted: true),
                 ProviderRequestTag(label: '${service?['durationMin'] ?? '-'} min'),
                 ProviderRequestTag(label: '${formatCurrency(service?['basePrice'])} VND'),
@@ -555,6 +561,26 @@ class OpenBookingCard extends StatelessWidget {
                   : hasPreferredProvider
                       ? 'Another therapist was chosen first. You can still join as an alternative option.'
                       : 'This request is open to nearby therapists. The customer will pick the final provider.',
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isPreferredRequest ? const Color(0xFFF1F8EC) : const Color(0xFFF8F6EC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isPreferredRequest ? const Color(0xFFD6E9C8) : const Color(0xFFE7D9B7),
+                ),
+              ),
+              child: Text(
+                isPreferredRequest
+                    ? 'You are the first therapist this guest chose. A quick reply protects the booking.'
+                    : hasPreferredProvider
+                        ? 'The guest is still waiting on ${preferredProviderName ?? 'the preferred therapist'}. Join now to appear as a backup option.'
+                        : 'No preferred therapist was set. Nearby therapists can join and wait for the guest selection.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ),
             const SizedBox(height: 12),
             if (isPreferredRequest)

@@ -1753,7 +1753,9 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                             const SizedBox(height: 12),
                             TherapistDisplayCard(
                               provider: preferredProvider,
-                              subtitle: 'Checking availability - ${formatRemainingTime(expiresAt)}',
+                              subtitle: fallbackCount == 0
+                                  ? 'Checking availability • ${formatRemainingTime(expiresAt)} left'
+                                  : 'Checking availability • ${formatRemainingTime(expiresAt)} left before you may switch',
                             ),
                             const SizedBox(height: 16),
                           ],
@@ -1906,6 +1908,7 @@ class WaitingStagePanel extends StatelessWidget {
             ? 'Nearby therapists are being checked now.'
             : '$preferredProviderName gets the first response window before backups appear.',
         accent: const Color(0xFF5E8E4A),
+        caption: preferredProviderName == null ? 'Stage 1' : 'Stage 1 · direct request',
       ),
       WaitingStageItem(
         title: fallbackCount == 0 ? 'No backup yet' : '$fallbackCount backup option(s) ready',
@@ -1913,6 +1916,7 @@ class WaitingStagePanel extends StatelessWidget {
             ? 'If the first therapist is slow, backup therapists can join this request.'
             : 'You can switch to another available therapist below without restarting the booking.',
         accent: const Color(0xFFB9852F),
+        caption: fallbackCount == 0 ? 'Stage 2 · standby' : 'Stage 2 · alternatives ready',
       ),
       WaitingStageItem(
         title: status == 'MATCHED' ? 'Confirmed' : 'Auto-close timer',
@@ -1920,6 +1924,7 @@ class WaitingStagePanel extends StatelessWidget {
             ? 'The therapist is confirmed. Next step is service start and chat.'
             : 'This request closes automatically at ${formatExpiry(expiresAt)} if no therapist is selected.',
         accent: const Color(0xFF2563EB),
+        caption: status == 'MATCHED' ? 'Stage 3 · locked in' : 'Stage 3 · timeout protection',
       ),
     ];
 
@@ -1940,11 +1945,13 @@ class WaitingStageItem extends StatelessWidget {
     required this.title,
     required this.body,
     required this.accent,
+    required this.caption,
   });
 
   final String title;
   final String body;
   final Color accent;
+  final String caption;
 
   @override
   Widget build(BuildContext context) {
@@ -1973,6 +1980,14 @@ class WaitingStageItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  caption,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: accent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
