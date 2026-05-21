@@ -6,40 +6,43 @@ import 'features/booking/domain/repositories/customer_booking_repository.dart';
 import 'features/booking/presentation/providers/booking_providers.dart';
 import 'features/chat/domain/repositories/chat_repository.dart';
 import 'features/chat/presentation/providers/chat_providers.dart';
+import 'features/discovery/domain/repositories/customer_discovery_repository.dart';
+import 'features/discovery/presentation/providers/discovery_providers.dart';
 
 export 'core/providers.dart';
 export 'features/auth/presentation/providers/auth_providers.dart';
 export 'features/booking/presentation/providers/booking_providers.dart';
 export 'features/chat/presentation/providers/chat_providers.dart';
+export 'features/discovery/presentation/providers/discovery_providers.dart';
 export 'features/map/presentation/providers/map_providers.dart';
 
 final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
   return CustomerRepository(
     ref.read(apiClientProvider),
+    ref.read(customerDiscoveryRepositoryProvider),
     ref.read(customerBookingRepositoryProvider),
     ref.read(chatRepositoryProvider),
   );
 });
 
 class CustomerRepository {
-  CustomerRepository(this._api, this._bookingRepository, this._chatRepository);
+  CustomerRepository(this._api, this._discoveryRepository,
+      this._bookingRepository, this._chatRepository);
 
   final ApiClient _api;
+  final CustomerDiscoveryRepository _discoveryRepository;
   final CustomerBookingRepository _bookingRepository;
   final ChatRepository _chatRepository;
 
   Future<List<dynamic>> listServices() async {
-    final result = await _api.getJson('/services');
-    return result is List<dynamic> ? result : [];
+    return _discoveryRepository.listServices();
   }
 
   Future<List<dynamic>> nearbyProviders({
     required double lat,
     required double lng,
   }) async {
-    final result =
-        await _api.getJson('/customer/providers/nearby?lat=$lat&lng=$lng');
-    return result is List<dynamic> ? result : [];
+    return _discoveryRepository.nearbyProviders(lat: lat, lng: lng);
   }
 
   Future<void> saveSelectedLocation({
@@ -47,16 +50,15 @@ class CustomerRepository {
     required double lng,
     required String addressText,
   }) async {
-    await _api.postJson('/customer/locations/selected', {
-      'lat': lat,
-      'lng': lng,
-      'addressText': addressText,
-    });
+    await _discoveryRepository.saveSelectedLocation(
+      lat: lat,
+      lng: lng,
+      addressText: addressText,
+    );
   }
 
   Future<Map<String, dynamic>> getProviderDetail(String providerId) async {
-    final result = await _api.getJson('/customer/providers/$providerId');
-    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+    return _discoveryRepository.getProviderDetail(providerId);
   }
 
   Future<Map<String, dynamic>> getBooking(String bookingId) async {
