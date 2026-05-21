@@ -290,18 +290,36 @@ class ProviderListCard extends StatelessWidget {
     final rating = providerAverageRating(provider);
     final reviewCount = providerReviewCount(provider);
     final availableLabel = provider['status'] == 'ONLINE_AVAILABLE' ? 'Available now' : 'Available soon';
+    final etaLabel = provider['status'] == 'ONLINE_AVAILABLE' ? 'Start now' : 'Starts soon';
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      elevation: 0,
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              ProviderThumbnail(name: displayName, size: 108),
+              Stack(
+                children: [
+                  ProviderThumbnail(name: displayName, size: 118),
+                  Positioned(
+                    left: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7E0A3),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text('Top', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -312,13 +330,13 @@ class ProviderListCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             displayName,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Text(
-                          availableLabel,
+                          etaLabel,
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.w600,
@@ -347,17 +365,27 @@ class ProviderListCard extends StatelessWidget {
                         Text(formatDistance(distanceMeters)),
                       ],
                     ),
-                    const SizedBox(height: 14),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: FilledButton(
-                        onPressed: onTap,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF5E8E4A),
-                          foregroundColor: Colors.white,
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            availableLabel,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: const Color(0xFF5E8E4A),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
                         ),
-                        child: const Text('Reserve'),
-                      ),
+                        FilledButton(
+                          onPressed: onTap,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF5E8E4A),
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Reserve'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -482,7 +510,7 @@ class ProviderDetailPage extends StatelessWidget {
           return CustomScrollView(
             slivers: [
               SliverAppBar(
-                expandedHeight: 320,
+                expandedHeight: 360,
                 pinned: true,
                 leading: const BackButton(color: Colors.black),
                 backgroundColor: Colors.white,
@@ -496,8 +524,28 @@ class ProviderDetailPage extends StatelessWidget {
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Container(color: const Color(0xFFF2EBD9)),
-                      Center(child: ProviderThumbnail(name: displayName, size: 180)),
+                      Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFFF7E8C8), Color(0xFFE9DCC7), Color(0xFFD6E2CF)],
+                          ),
+                        ),
+                      ),
+                      Center(child: ProviderThumbnail(name: displayName, size: 210)),
+                      Positioned(
+                        right: 20,
+                        bottom: 20,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text('1 / 2', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -551,11 +599,16 @@ class ProviderDetailPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 24),
                       Text(
+                        'About me',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
                         (detail['bio'] as String?) ?? 'Experienced therapist profile ready for booking.',
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       const SizedBox(height: 28),
-                      Text('Services', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                      Text('My services', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 12),
                       for (final item in services)
                         Builder(
