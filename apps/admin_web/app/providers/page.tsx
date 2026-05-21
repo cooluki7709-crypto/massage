@@ -16,16 +16,26 @@ export default async function ProvidersPage() {
       }),
     ),
   );
+  const summary = buildProviderSummary(providers);
 
   return (
     <>
       <h1>Provider Verification</h1>
+      <div className="grid" style={{ marginBottom: 16 }}>
+        {summary.map(([label, value]) => (
+          <div className="card" key={label}>
+            <p>{label}</p>
+            <h2>{value}</h2>
+          </div>
+        ))}
+      </div>
       <div className="card">
         <table className="table">
           <thead>
             <tr>
               <th>Provider</th>
               <th>Status</th>
+              <th>Ops readiness</th>
               <th>Push Devices</th>
               <th>Files</th>
               <th>Services</th>
@@ -41,6 +51,23 @@ export default async function ProvidersPage() {
                   {provider.verification?.rejectionReason ? (
                     <p className="muted">{provider.verification.rejectionReason}</p>
                   ) : null}
+                  <p className="muted" style={{ marginTop: 4 }}>
+                    Queue status: {provider.status}
+                  </p>
+                </td>
+                <td>
+                  <div className="participant-list" style={{ marginBottom: 8 }}>
+                    <span className={`pill ${provider.verification?.status === 'APPROVED' ? 'pill-success' : 'pill-warn'}`}>
+                      {provider.verification?.status === 'APPROVED' ? 'Verified' : 'Needs review'}
+                    </span>
+                    <span className={`pill ${provider.status === 'ONLINE_AVAILABLE' ? 'pill-success' : 'pill-neutral'}`}>
+                      {provider.status === 'ONLINE_AVAILABLE' ? 'Online now' : 'Not live'}
+                    </span>
+                    <span className={`pill ${hasHealthyPush(provider) ? 'pill-success' : 'pill-info'}`}>
+                      {hasHealthyPush(provider) ? 'Push ready' : 'Push missing'}
+                    </span>
+                  </div>
+                  <p className="muted">{providerActionHint(provider)}</p>
                 </td>
                 <td>
                   {provider.user?.pushDevices?.length ? (
@@ -107,7 +134,7 @@ export default async function ProvidersPage() {
             ))}
             {providers.length === 0 && (
               <tr>
-                <td colSpan={6}>No providers loaded. Start the API and seed data to populate this table.</td>
+                <td colSpan={7}>No providers loaded. Start the API and seed data to populate this table.</td>
               </tr>
             )}
           </tbody>
@@ -134,4 +161,41 @@ function readFailureStatus(device: AdminPushDevice) {
 
 function readLastAttempt(device: AdminPushDevice) {
   return device.deliveries?.[0]?.attemptedAt;
+}
+
+function hasHealthyPush(provider: AdminProvider) {
+  return (provider.user?.pushDevices ?? []).some((device) => device.enabled);
+}
+
+function providerActionHint(provider: AdminProvider) {
+  if (provider.verification?.status !== 'APPROVED') {
+    return 'Review verification before this therapist can safely take customer requests.';
+  }
+  if (provider.status !== 'ONLINE_AVAILABLE') {
+    return 'Therapist is approved but not currently online for direct or backup requests.';
+  }
+  if (!hasHealthyPush(provider)) {
+    return 'Therapist is live, but push registration should be checked before relying on alerts.';
+  }
+  return 'Therapist is ready for direct requests and fallback matching.';
+}
+
+function buildProviderSummary(providers: AdminProvider[]) {
+  const approved = providers.filter((provider) => provider.verification?.status === 'APPROVED').length;
+  const online = providers.filter((provider) => provider.status === 'ONLINE_AVAILABLE').length;
+  const pushReady = providers.filter((provider) => hasHealthyPush(provider)).length;
+  const readyNow = providers.filter(
+    (provider) =>
+      provider.verification?.status === 'APPROVED' &&
+      provider.status === 'ONLINE_AVAILABLE' &&
+      hasHealthyPush(provider),
+  ).length;
+
+  return [
+    ['Total therapists', providers.length.toString()],
+    ['Approved', approved.toString()],
+    ['Online now', online.toString()],
+    ['Push ready', pushReady.toString()],
+    ['Ready for dispatch', readyNow.toString()],
+  ] as const;
 }
