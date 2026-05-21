@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'core/api_client.dart';
-import 'core/providers.dart';
 import 'features/booking/domain/repositories/customer_booking_repository.dart';
 import 'features/booking/presentation/providers/booking_providers.dart';
 import 'features/chat/domain/repositories/chat_repository.dart';
 import 'features/chat/presentation/providers/chat_providers.dart';
+import 'features/coupon/domain/repositories/customer_coupon_repository.dart';
+import 'features/coupon/presentation/providers/coupon_providers.dart';
 import 'features/discovery/domain/repositories/customer_discovery_repository.dart';
 import 'features/discovery/presentation/providers/discovery_providers.dart';
 import 'features/notification/domain/repositories/push_notification_repository.dart';
@@ -15,32 +15,33 @@ export 'core/providers.dart';
 export 'features/auth/presentation/providers/auth_providers.dart';
 export 'features/booking/presentation/providers/booking_providers.dart';
 export 'features/chat/presentation/providers/chat_providers.dart';
+export 'features/coupon/presentation/providers/coupon_providers.dart';
 export 'features/discovery/presentation/providers/discovery_providers.dart';
 export 'features/map/presentation/providers/map_providers.dart';
 export 'features/notification/presentation/providers/notification_providers.dart';
 
 final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
   return CustomerRepository(
-    ref.read(apiClientProvider),
     ref.read(customerDiscoveryRepositoryProvider),
     ref.read(customerBookingRepositoryProvider),
     ref.read(chatRepositoryProvider),
+    ref.read(customerCouponRepositoryProvider),
     ref.read(pushNotificationRepositoryProvider),
   );
 });
 
 class CustomerRepository {
   CustomerRepository(
-      this._api,
       this._discoveryRepository,
       this._bookingRepository,
       this._chatRepository,
+      this._couponRepository,
       this._notificationRepository);
 
-  final ApiClient _api;
   final CustomerDiscoveryRepository _discoveryRepository;
   final CustomerBookingRepository _bookingRepository;
   final ChatRepository _chatRepository;
+  final CustomerCouponRepository _couponRepository;
   final PushNotificationRepository _notificationRepository;
 
   Future<List<dynamic>> listServices() async {
@@ -134,11 +135,10 @@ class CustomerRepository {
     required String serviceId,
     required int subtotal,
   }) async {
-    final result = await _api.postJson('/customer/coupons/preview', {
-      'code': code.trim().toUpperCase(),
-      'serviceId': serviceId,
-      'subtotal': subtotal,
-    });
-    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+    return _couponRepository.previewCoupon(
+      code: code,
+      serviceId: serviceId,
+      subtotal: subtotal,
+    );
   }
 }
