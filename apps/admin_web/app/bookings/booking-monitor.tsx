@@ -253,6 +253,16 @@ function StatusBadge({ status }: { status: string }) {
 
 function opsSignal(booking: AdminBooking) {
   const participantCount = fallbackParticipants(booking).length;
+  if (booking.status === 'CANCELLED') {
+    return booking.payment?.status === 'RELEASED' ? (
+      <span className="signal signal-ok">Cancelled and released</span>
+    ) : (
+      <span className="signal signal-warn">Cancelled, check payment</span>
+    );
+  }
+  if (booking.status === 'REFUNDED') {
+    return <span className="signal signal-warn">Refunded</span>;
+  }
   if (booking.status === 'OPEN_MATCHING' && booking.preferredProvider && isPreferredAwaitingDecision(booking)) {
     return <span className="signal signal-warn">Preferred provider pending</span>;
   }
@@ -268,14 +278,19 @@ function opsSignal(booking: AdminBooking) {
   if (booking.status === 'MATCHED' && !booking.chatRoom) {
     return <span className="signal signal-warn">Chat missing</span>;
   }
-  if (booking.payment?.status === 'REFUNDED') {
-    return <span className="signal signal-warn">Refunded</span>;
-  }
   return <span className="signal signal-ok">Normal</span>;
 }
 
 function nextAction(booking: AdminBooking) {
   const participantCount = fallbackParticipants(booking).length;
+  if (booking.status === 'CANCELLED') {
+    return booking.payment?.status === 'RELEASED'
+      ? 'Customer cancelled before completion. Payment hold is released; confirm notifications were delivered.'
+      : 'Customer cancelled. Review the linked payment and release or refund before closing the case.';
+  }
+  if (booking.status === 'REFUNDED') {
+    return 'Refund is recorded. Check the refund board and customer communication.';
+  }
   if (booking.status === 'OPEN_MATCHING' && booking.preferredProvider && isPreferredAwaitingDecision(booking)) {
     return 'Wait for the preferred provider, but monitor fallback therapist supply.';
   }

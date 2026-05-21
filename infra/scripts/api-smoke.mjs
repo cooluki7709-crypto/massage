@@ -172,6 +172,22 @@ if (couponPayment?.amount !== expectedCouponTotal) {
   );
 }
 
+const cancellableMomoBooking = await postJson('/customer/bookings', customerAuth.accessToken, {
+  serviceId: service.id,
+  scheduledStartAt: new Date(Date.now() + 120 * 60_000).toISOString(),
+  address: { line1: 'Cancellation release smoke flow' },
+  lat: 10.7769,
+  lng: 106.7009,
+  paymentMethod: 'MOMO',
+});
+const cancelledMomoBooking = await postJson(
+  `/customer/bookings/${cancellableMomoBooking.id}/cancel`,
+  customerAuth.accessToken,
+);
+if (cancelledMomoBooking.status !== 'CANCELLED' || cancelledMomoBooking.payment?.status !== 'RELEASED') {
+  throw new Error(`Cancelled booking did not release payment hold: ${JSON.stringify(cancelledMomoBooking)}`);
+}
+
 await postJson(`/provider/bookings/${booking.id}/join`, providerAuth.accessToken);
 await postJson(`/provider/bookings/${hybridBooking.id}/join`, backupProviderAuth.accessToken);
 
@@ -219,6 +235,10 @@ if (!adminHybridBooking?.preferredProvider?.id || !adminHybridBooking?.selectedP
 }
 if (adminHybridBooking.preferredProvider.id === adminHybridBooking.selectedProvider.id) {
   throw new Error(`Hybrid booking did not switch from preferred to backup provider: ${JSON.stringify(adminHybridBooking)}`);
+}
+const adminCancelledBooking = adminBookings.find((item) => item.id === cancellableMomoBooking.id);
+if (adminCancelledBooking?.status !== 'CANCELLED' || adminCancelledBooking?.payment?.status !== 'RELEASED') {
+  throw new Error(`Admin booking monitor did not expose cancellation release state: ${JSON.stringify(adminCancelledBooking)}`);
 }
 const adminProviders = await getJson('/admin/providers', adminAuth.accessToken);
 const adminProvider = adminProviders.find((item) => item.id === providerAuth.user.providerProfile.id);
@@ -296,6 +316,9 @@ console.log({
   couponCode: coupon.code,
   couponDiscountAmount: couponPreview.discountAmount,
   couponBookingPaymentAmount: couponPayment?.amount ?? null,
+  cancelledBookingId: cancellableMomoBooking.id,
+  cancelledBookingStatus: cancelledMomoBooking.status,
+  cancelledPaymentStatus: cancelledMomoBooking.payment?.status ?? null,
   syncedMomoStatus: syncedMomo?.status ?? null,
   releasedMomoStatus: releasedMomo?.status ?? null,
   capturedCashStatus: capturedCash?.status ?? null,

@@ -244,6 +244,7 @@ export class BookingsService {
 
     if (
       booking.status === BookingStatus.COMPLETED ||
+      booking.status === BookingStatus.IN_SERVICE ||
       booking.status === BookingStatus.CANCELLED ||
       booking.status === BookingStatus.REFUNDED
     ) {
@@ -265,6 +266,8 @@ export class BookingsService {
         payment: true,
       },
     });
+    const releasedPayment = updated.payment ? await this.payments.release(updated.payment.id) : null;
+    const result = releasedPayment ? { ...updated, payment: releasedPayment } : updated;
 
     await this.matching.closeBooking(bookingId);
     const providerUserIds = new Set<string>();
@@ -294,11 +297,13 @@ export class BookingsService {
       userId: customerUserId,
       type: 'booking.cancelled',
       title: 'Booking cancelled',
-      body: 'Your request has been cancelled.',
+      body: releasedPayment
+        ? 'Your request has been cancelled and the payment hold was released.'
+        : 'Your request has been cancelled.',
       data: { bookingId },
     });
-    this.matchingGateway.emitBookingExpired(bookingId, updated);
-    return updated;
+    this.matchingGateway.emitBookingExpired(bookingId, result);
+    return result;
   }
 
   async getOpenBookings(providerUserId?: string) {
