@@ -166,6 +166,8 @@ export type AdminCoupon = {
   description?: string | null;
   discount: unknown;
   active: boolean;
+  startsAt?: string | null;
+  endsAt?: string | null;
 };
 
 export type AdminAuditLog = {
