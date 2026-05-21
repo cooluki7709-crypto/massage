@@ -23,6 +23,8 @@ export function BookingMonitor({ bookings }: Props) {
     const noParticipants = open.filter((booking) => (booking.participants?.length ?? 0) === 0);
     const waitingSelection = open.filter((booking) => fallbackParticipants(booking).length > 0);
     const preferredPending = open.filter((booking) => booking.preferredProvider && isPreferredAwaitingDecision(booking));
+    const backupChosen = bookings.filter((booking) => isBackupSelected(booking));
+    const chatLive = bookings.filter((booking) => Boolean(booking.chatRoom));
     return [
       ['Active bookings', active.length.toString()],
       ['Open matching', open.length.toString()],
@@ -30,6 +32,8 @@ export function BookingMonitor({ bookings }: Props) {
       ['No providers yet', noParticipants.length.toString()],
       ['Preferred pending', preferredPending.length.toString()],
       ['Fallback options', waitingSelection.length.toString()],
+      ['Backup selected', backupChosen.length.toString()],
+      ['Chat live', chatLive.length.toString()],
     ];
   }, [bookings]);
 
@@ -122,6 +126,7 @@ export function BookingMonitor({ bookings }: Props) {
                   <div className="muted">
                     {booking.preferredProvider?.user?.phone ? `Preferred phone ${booking.preferredProvider.user.phone}` : 'Preferred provider not set'}
                   </div>
+                  <div className="muted">{selectionPathLabel(booking)}</div>
                   <div className="participant-list" style={{ marginTop: 8 }}>
                     <span className={`pill ${selectionToneClass(booking)}`}>{selectionLabel(booking)}</span>
                     {booking.chatRoom && <span className="pill pill-success">Chat ready</span>}
@@ -192,6 +197,9 @@ function opsSignal(booking: AdminBooking) {
   if (booking.status === 'OPEN_MATCHING' && participantCount > 0) {
     return <span className="signal signal-info">Fallback options ready</span>;
   }
+  if (booking.status === 'MATCHED' && isBackupSelected(booking)) {
+    return <span className="signal signal-info">Backup therapist selected</span>;
+  }
   if (booking.status === 'MATCHED' && !booking.chatRoom) {
     return <span className="signal signal-warn">Chat missing</span>;
   }
@@ -211,6 +219,9 @@ function nextAction(booking: AdminBooking) {
   }
   if (booking.status === 'OPEN_MATCHING' && participantCount > 0) {
     return 'Customer can keep waiting or switch to a backup therapist.';
+  }
+  if (booking.status === 'MATCHED' && isBackupSelected(booking)) {
+    return 'Customer switched away from the preferred therapist. Confirm chat, route, and provider handoff.';
   }
   if (booking.status === 'MATCHED') {
     return 'Customer selection is locked. Check chat creation, route tracking, and provider departure.';
@@ -249,6 +260,14 @@ function isSelectedProviderParticipant(booking: AdminBooking) {
   );
 }
 
+function isBackupSelected(booking: AdminBooking) {
+  return Boolean(
+    booking.selectedProvider?.id &&
+      booking.preferredProvider?.id &&
+      booking.selectedProvider.id !== booking.preferredProvider.id,
+  );
+}
+
 function fallbackParticipants(booking: AdminBooking) {
   const preferredId = booking.preferredProvider?.id;
   return (booking.participants ?? []).filter(
@@ -281,6 +300,34 @@ function selectionLabel(booking: AdminBooking) {
   }
 
   return 'Preferred therapist requested';
+}
+
+function selectionPathLabel(booking: AdminBooking) {
+  const fallbackCount = fallbackParticipants(booking).length;
+
+  if (!booking.preferredProvider) {
+    return fallbackCount > 0 ? 'Open pool request with backup supply' : 'Open pool request';
+  }
+
+  if (booking.status === 'OPEN_MATCHING' && isPreferredAwaitingDecision(booking)) {
+    return fallbackCount > 0
+      ? 'Direct request first, with backup therapists already waiting'
+      : 'Direct request first, waiting on the preferred therapist';
+  }
+
+  if (isBackupSelected(booking)) {
+    return 'Direct request escalated to backup, then the guest chose a backup therapist';
+  }
+
+  if (booking.status === 'MATCHED') {
+    return 'Direct request confirmed by the preferred therapist';
+  }
+
+  if (fallbackCount > 0) {
+    return 'Backup therapists are available while the preferred therapist stays in the flow';
+  }
+
+  return 'Direct request remains the active path';
 }
 
 function selectionToneClass(booking: AdminBooking) {
