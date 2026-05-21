@@ -314,6 +314,28 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                       : (openBookings.any((item) => item is Map<String, dynamic> && item['status'] == 'MATCHED') ? 2 : 1)),
             ),
             const SizedBox(height: 16),
+            RequestQueueSummary(
+              totalRequests: openBookings.whereType<Map<String, dynamic>>().length,
+              preferredRequests: openBookings
+                  .whereType<Map<String, dynamic>>()
+                  .where((booking) {
+                    final preferredProvider = booking['preferredProvider'];
+                    return preferredProvider is Map<String, dynamic> && preferredProvider['userId'] == auth.userId;
+                  })
+                  .length,
+              backupRequests: openBookings
+                  .whereType<Map<String, dynamic>>()
+                  .where((booking) {
+                    final preferredProvider = booking['preferredProvider'];
+                    return preferredProvider is Map<String, dynamic> && preferredProvider['userId'] != auth.userId;
+                  })
+                  .length,
+              chatReady: openBookings
+                  .whereType<Map<String, dynamic>>()
+                  .where((booking) => booking['chatRoom'] != null)
+                  .length,
+            ),
+            const SizedBox(height: 16),
             if (openBookings.isEmpty)
               const InfoCard(text: 'No direct requests yet. Ask the customer to book your profile, then refresh.')
             else
@@ -426,6 +448,106 @@ class RequestFlowBar extends StatelessWidget {
   }
 }
 
+class RequestQueueSummary extends StatelessWidget {
+  const RequestQueueSummary({
+    super.key,
+    required this.totalRequests,
+    required this.preferredRequests,
+    required this.backupRequests,
+    required this.chatReady,
+  });
+
+  final int totalRequests;
+  final int preferredRequests;
+  final int backupRequests;
+  final int chatReady;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: RequestSummaryCard(
+                label: 'Queue',
+                value: '$totalRequests open',
+                tone: const Color(0xFFEAF2FF),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: RequestSummaryCard(
+                label: 'Direct',
+                value: '$preferredRequests first-pick',
+                tone: const Color(0xFFEAF5E3),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: RequestSummaryCard(
+                label: 'Backup',
+                value: '$backupRequests standby',
+                tone: const Color(0xFFFBF0DE),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: RequestSummaryCard(
+                label: 'Chat',
+                value: '$chatReady ready',
+                tone: const Color(0xFFF2EAFE),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class RequestSummaryCard extends StatelessWidget {
+  const RequestSummaryCard({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.tone,
+  });
+
+  final String label;
+  final String value;
+  final Color tone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: tone,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.black54, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class OpenBookingCard extends StatelessWidget {
   const OpenBookingCard({
     super.key,
@@ -460,6 +582,10 @@ class OpenBookingCard extends StatelessWidget {
     final isMatched = booking['status'] == 'MATCHED';
     final preferredProviderName = preferredProvider?['displayName'] as String?;
     final customerAddress = booking['address'] as Map<String, dynamic>?;
+    final customerName = customerAddress?['name']?.toString() ?? 'Guest';
+    final customerPhone = customerAddress?['phone']?.toString();
+    final bookingId = booking['id']?.toString() ?? '';
+    final shortBookingId = bookingId.length <= 8 ? bookingId : bookingId.substring(0, 8);
     final requestModeLabel = isPreferredRequest
         ? 'Direct request'
         : hasPreferredProvider
@@ -492,6 +618,11 @@ class OpenBookingCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(service?['name'] as String? ?? 'Massage booking', style: Theme.of(context).textTheme.titleLarge),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$customerName${customerPhone == null ? '' : ' • $customerPhone'}',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                      ),
                       Text('${booking['status']} - ${participants.length} provider(s) joined'),
                     ],
                   ),
@@ -517,7 +648,7 @@ class OpenBookingCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 ProviderRequestTag(label: requestModeLabel),
-                ProviderRequestTag(label: 'Booking ${booking['id']}', highlighted: true),
+                ProviderRequestTag(label: 'Booking $shortBookingId', highlighted: true),
                 ProviderRequestTag(label: '${service?['durationMin'] ?? '-'} min'),
                 ProviderRequestTag(label: '${formatCurrency(service?['basePrice'])} VND'),
               ],
@@ -531,6 +662,28 @@ class OpenBookingCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
               ),
             ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: RequestSummaryCard(
+                    label: 'Role',
+                    value: isPreferredRequest ? 'First therapist' : (hasPreferredProvider ? 'Backup option' : 'Open candidate'),
+                    tone: isPreferredRequest ? const Color(0xFFEAF5E3) : (hasPreferredProvider ? const Color(0xFFFBF0DE) : const Color(0xFFEAF2FF)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: RequestSummaryCard(
+                    label: 'Decision',
+                    value: isPreferredRequest
+                        ? (isMatched ? (hasChat ? 'Chat live' : 'Accepted') : 'Reply now')
+                        : (joined ? 'Visible now' : 'Can join'),
+                    tone: isMatched ? const Color(0xFFF2EAFE) : const Color(0xFFF7F8FA),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 10),
             Container(
               width: double.infinity,
