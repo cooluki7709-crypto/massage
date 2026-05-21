@@ -1712,6 +1712,13 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                             ],
                           ),
                           const SizedBox(height: 12),
+                          WaitingStagePanel(
+                            status: status,
+                            fallbackCount: fallbackCount,
+                            preferredProviderName: preferredProvider?['displayName'] as String?,
+                            expiresAt: expiresAt,
+                          ),
+                          const SizedBox(height: 12),
                           WaitingInfoBanner(
                             title: status == 'OPEN_MATCHING' ? 'Live matching window' : 'Booking progress',
                             body: status == 'OPEN_MATCHING'
@@ -1869,6 +1876,114 @@ class WaitingStatCard extends StatelessWidget {
           Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54)),
           const SizedBox(height: 8),
           Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+}
+
+class WaitingStagePanel extends StatelessWidget {
+  const WaitingStagePanel({
+    super.key,
+    required this.status,
+    required this.fallbackCount,
+    required this.preferredProviderName,
+    required this.expiresAt,
+  });
+
+  final String status;
+  final int fallbackCount;
+  final String? preferredProviderName;
+  final String? expiresAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final stageItems = [
+      WaitingStageItem(
+        title: preferredProviderName == null ? 'Finding therapist' : 'Preferred therapist first',
+        body: preferredProviderName == null
+            ? 'Nearby therapists are being checked now.'
+            : '$preferredProviderName gets the first response window before backups appear.',
+        accent: const Color(0xFF5E8E4A),
+      ),
+      WaitingStageItem(
+        title: fallbackCount == 0 ? 'No backup yet' : '$fallbackCount backup option(s) ready',
+        body: fallbackCount == 0
+            ? 'If the first therapist is slow, backup therapists can join this request.'
+            : 'You can switch to another available therapist below without restarting the booking.',
+        accent: const Color(0xFFB9852F),
+      ),
+      WaitingStageItem(
+        title: status == 'MATCHED' ? 'Confirmed' : 'Auto-close timer',
+        body: status == 'MATCHED'
+            ? 'The therapist is confirmed. Next step is service start and chat.'
+            : 'This request closes automatically at ${formatExpiry(expiresAt)} if no therapist is selected.',
+        accent: const Color(0xFF2563EB),
+      ),
+    ];
+
+    return Column(
+      children: [
+        for (var index = 0; index < stageItems.length; index++) ...[
+          stageItems[index],
+          if (index != stageItems.length - 1) const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class WaitingStageItem extends StatelessWidget {
+  const WaitingStageItem({
+    super.key,
+    required this.title,
+    required this.body,
+    required this.accent,
+  });
+
+  final String title;
+  final String body;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            margin: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(
+              color: accent,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  body,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

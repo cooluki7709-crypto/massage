@@ -459,6 +459,18 @@ class OpenBookingCard extends StatelessWidget {
     final hasChat = booking['chatRoom'] != null;
     final isMatched = booking['status'] == 'MATCHED';
     final preferredProviderName = selectedProvider?['displayName'] as String?;
+    final customerAddress = booking['address'] as Map<String, dynamic>?;
+    final nextAction = isPreferredRequest && !isMatched
+        ? 'Reply now so the customer can confirm you directly.'
+        : isPreferredRequest && isMatched && !hasChat
+            ? 'Start the service when you are ready to unlock chat.'
+            : isPreferredRequest && hasChat
+                ? 'Continue with the customer in chat.'
+                : joined
+                    ? 'Stay visible and wait for the customer to choose you.'
+                    : hasPreferredProvider
+                        ? 'Offer backup support if you can cover this request.'
+                        : 'Join this open request to enter the customer shortlist.';
 
     return Card(
       child: Padding(
@@ -495,8 +507,48 @@ class OpenBookingCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Text('Booking ${booking['id']}'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ProviderRequestTag(label: 'Booking ${booking['id']}', highlighted: true),
+                ProviderRequestTag(label: '${service?['durationMin'] ?? '-'} min'),
+                ProviderRequestTag(label: '${formatCurrency(service?['basePrice'])} VND'),
+              ],
+            ),
+            const SizedBox(height: 10),
             Text('Scheduled: ${booking['scheduledStartAt'] ?? 'soon'}'),
+            if (customerAddress != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Guest address: ${customerAddress['line1'] ?? 'Address pending'}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F8FA),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Next action',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    nextAction,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             Text(
               isPreferredRequest
                   ? 'The customer picked your profile first and is waiting for your response.'
@@ -881,6 +933,35 @@ class MessageTile extends StatelessWidget {
   }
 }
 
+class ProviderRequestTag extends StatelessWidget {
+  const ProviderRequestTag({
+    super.key,
+    required this.label,
+    this.highlighted = false,
+  });
+
+  final String label;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: highlighted ? const Color(0xFFE8F2DF) : Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: highlighted ? const Color(0xFFBFD6AA) : Theme.of(context).colorScheme.outlineVariant,
+        ),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
 class ProviderLocationPreviewCard extends StatelessWidget {
   const ProviderLocationPreviewCard({
     super.key,
@@ -1241,6 +1322,22 @@ class ProviderMvpScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+String formatCurrency(dynamic amount) {
+  final number = (amount as num?)?.toInt() ?? 0;
+  final text = number.toString();
+  final buffer = StringBuffer();
+
+  for (var index = 0; index < text.length; index++) {
+    final reverseIndex = text.length - index;
+    buffer.write(text[index]);
+    if (reverseIndex > 1 && reverseIndex % 3 == 1) {
+      buffer.write('.');
+    }
+  }
+
+  return buffer.toString();
 }
 
 class InfoCard extends StatelessWidget {
