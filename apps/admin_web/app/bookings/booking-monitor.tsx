@@ -16,15 +16,29 @@ export function BookingMonitor({ bookings }: Props) {
   const [lastRefresh, setLastRefresh] = useState(() => new Date());
   const [isPending, startTransition] = useTransition();
 
+  const orderedBookings = useMemo(
+    () =>
+      [...bookings].sort((left, right) => {
+        const leftScore = bookingPriority(left);
+        const rightScore = bookingPriority(right);
+        if (leftScore !== rightScore) {
+          return rightScore - leftScore;
+        }
+
+        return bookingTimestamp(right) - bookingTimestamp(left);
+      }),
+    [bookings],
+  );
+
   const summary = useMemo(() => {
-    const open = bookings.filter((booking) => booking.status === 'OPEN_MATCHING');
-    const matched = bookings.filter((booking) => booking.status === 'MATCHED');
-    const active = bookings.filter((booking) => activeStatuses.has(booking.status));
+    const open = orderedBookings.filter((booking) => booking.status === 'OPEN_MATCHING');
+    const matched = orderedBookings.filter((booking) => booking.status === 'MATCHED');
+    const active = orderedBookings.filter((booking) => activeStatuses.has(booking.status));
     const noParticipants = open.filter((booking) => (booking.participants?.length ?? 0) === 0);
     const waitingSelection = open.filter((booking) => fallbackParticipants(booking).length > 0);
     const preferredPending = open.filter((booking) => booking.preferredProvider && isPreferredAwaitingDecision(booking));
-    const backupChosen = bookings.filter((booking) => isBackupSelected(booking));
-    const chatLive = bookings.filter((booking) => Boolean(booking.chatRoom));
+    const backupChosen = orderedBookings.filter((booking) => isBackupSelected(booking));
+    const chatLive = orderedBookings.filter((booking) => Boolean(booking.chatRoom));
     return [
       ['Active bookings', active.length.toString()],
       ['Open matching', open.length.toString()],
@@ -35,7 +49,7 @@ export function BookingMonitor({ bookings }: Props) {
       ['Backup selected', backupChosen.length.toString()],
       ['Chat live', chatLive.length.toString()],
     ];
-  }, [bookings]);
+  }, [orderedBookings]);
 
   useEffect(() => {
     if (!autoRefresh) {
@@ -104,12 +118,13 @@ export function BookingMonitor({ bookings }: Props) {
             </tr>
           </thead>
           <tbody>
-            {bookings.map((booking) => (
+            {orderedBookings.map((booking) => (
               <tr key={booking.id}>
                 <td>
                   <strong>{shortId(booking.id)}</strong>
                   <div className="muted">{booking.services?.[0]?.service?.name ?? 'Service pending'}</div>
                   <div className="muted">{formatDate(booking.scheduledStartAt)}</div>
+                  <div className="muted">{recencyLabel(booking)}</div>
                 </td>
                 <td>
                   <StatusBadge status={booking.status} />
@@ -170,7 +185,7 @@ export function BookingMonitor({ bookings }: Props) {
                 </td>
               </tr>
             ))}
-            {bookings.length === 0 && (
+            {orderedBookings.length === 0 && (
               <tr>
                 <td colSpan={6}>No bookings loaded. Start the API and run the smoke flow to populate this table.</td>
               </tr>
@@ -180,6 +195,26 @@ export function BookingMonitor({ bookings }: Props) {
       </section>
     </>
   );
+}
+
+function bookingPriority(booking: AdminBooking) {
+  if (booking.status === 'IN_SERVICE') {
+    return 5;
+  }
+  if (booking.status === 'PROVIDER_ON_THE_WAY' || booking.status === 'ARRIVED') {
+    return 4;
+  }
+  if (booking.status === 'MATCHED') {
+    return 3;
+  }
+  if (booking.status === 'OPEN_MATCHING') {
+    return 2;
+  }
+  return 1;
+}
+
+function bookingTimestamp(booking: AdminBooking) {
+  return new Date(booking.createdAt ?? booking.scheduledStartAt ?? booking.expiresAt ?? 0).getTime();
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -247,6 +282,27 @@ function formatDate(value?: string | null) {
     return 'No schedule';
   }
   return new Date(value).toLocaleString();
+}
+
+function recencyLabel(booking: AdminBooking) {
+  const timestamp = booking.createdAt ?? booking.scheduledStartAt ?? booking.expiresAt;
+  if (!timestamp) {
+    return 'Created time unavailable';
+  }
+
+  const minutesAgo = Math.max(0, Math.round((Date.now() - new Date(timestamp).getTime()) / 60000));
+  if (minutesAgo < 1) {
+    return 'Updated just now';
+  }
+  if (minutesAgo < 60) {
+    return `Updated ${minutesAgo}m ago`;
+  }
+  const hoursAgo = Math.round(minutesAgo / 60);
+  if (hoursAgo < 24) {
+    return `Updated ${hoursAgo}h ago`;
+  }
+  const daysAgo = Math.round(hoursAgo / 24);
+  return `Updated ${daysAgo}d ago`;
 }
 
 function isSelectedProviderParticipant(booking: AdminBooking) {

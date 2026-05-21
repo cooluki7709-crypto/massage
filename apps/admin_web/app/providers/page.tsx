@@ -4,7 +4,7 @@ import { approveProvider, enablePushDevice, rejectProvider } from './actions';
 type AdminPushDevice = NonNullable<NonNullable<AdminProvider['user']>['pushDevices']>[number];
 
 export default async function ProvidersPage() {
-  const providers = await adminGet<AdminProvider[]>('/admin/providers', []);
+  const providers = sortProviders(await adminGet<AdminProvider[]>('/admin/providers', []));
   const fileReadUrls = new Map<string, string>();
   await Promise.all(
     providers.flatMap((provider) =>
@@ -184,6 +184,9 @@ function buildProviderSummary(providers: AdminProvider[]) {
   const approved = providers.filter((provider) => provider.verification?.status === 'APPROVED').length;
   const online = providers.filter((provider) => provider.status === 'ONLINE_AVAILABLE').length;
   const pushReady = providers.filter((provider) => hasHealthyPush(provider)).length;
+  const pushDisabled = providers.filter(
+    (provider) => (provider.user?.pushDevices ?? []).some((device) => !device.enabled),
+  ).length;
   const readyNow = providers.filter(
     (provider) =>
       provider.verification?.status === 'APPROVED' &&
@@ -196,6 +199,34 @@ function buildProviderSummary(providers: AdminProvider[]) {
     ['Approved', approved.toString()],
     ['Online now', online.toString()],
     ['Push ready', pushReady.toString()],
+    ['Push needs review', pushDisabled.toString()],
     ['Ready for dispatch', readyNow.toString()],
   ] as const;
+}
+
+function sortProviders(providers: AdminProvider[]) {
+  return [...providers].sort((left, right) => {
+    const leftScore = providerPriority(left);
+    const rightScore = providerPriority(right);
+    if (leftScore !== rightScore) {
+      return rightScore - leftScore;
+    }
+
+    return (left.displayName || left.user?.fullName || left.user?.phone || '').localeCompare(
+      right.displayName || right.user?.fullName || right.user?.phone || '',
+    );
+  });
+}
+
+function providerPriority(provider: AdminProvider) {
+  if (provider.verification?.status === 'APPROVED' && provider.status === 'ONLINE_AVAILABLE' && hasHealthyPush(provider)) {
+    return 4;
+  }
+  if (provider.verification?.status === 'APPROVED' && provider.status === 'ONLINE_AVAILABLE') {
+    return 3;
+  }
+  if (provider.verification?.status === 'APPROVED') {
+    return 2;
+  }
+  return 1;
 }
