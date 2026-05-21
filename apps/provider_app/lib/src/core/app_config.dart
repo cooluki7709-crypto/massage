@@ -25,4 +25,17 @@ class AppConfig {
     'SOCKET_BASE_URL',
     defaultValue: 'http://localhost:3000',
   );
+
+  static const supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: '',
+  );
+
+  static const supabaseAnonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: '',
+  );
+
+  static bool get supabaseEnabled =>
+      supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 }
