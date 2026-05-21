@@ -49,6 +49,11 @@ const providerAuth = await request('/auth/verify-otp', {
   body: JSON.stringify({ phone: '+84900000002', otp: '123456', role: 'PROVIDER' }),
 });
 
+const backupProviderAuth = await request('/auth/verify-otp', {
+  method: 'POST',
+  body: JSON.stringify({ phone: '+84900000003', otp: '123456', role: 'PROVIDER' }),
+});
+
 const adminAuth = await request('/auth/verify-otp', {
   method: 'POST',
   body: JSON.stringify({ phone: '+84900000099', otp: '123456', role: 'ADMIN' }),
@@ -64,6 +69,11 @@ await patchJson('/notifications/device-token/register', providerAuth.accessToken
   platform: 'android',
 });
 
+await patchJson('/notifications/device-token/register', backupProviderAuth.accessToken, {
+  token: 'demo-backup-provider-device-token',
+  platform: 'android',
+});
+
 const services = await request('/services');
 const service = services[0];
 
@@ -76,13 +86,20 @@ await postJson('/provider/verification/submit', providerAuth.accessToken, {
   fileIds: [verificationUpload.file.id],
 });
 await postJson(`/admin/providers/${providerAuth.user.providerProfile.id}/approve`, adminAuth.accessToken);
+await postJson(`/admin/providers/${backupProviderAuth.user.providerProfile.id}/approve`, adminAuth.accessToken);
 const verificationReadUrl = await getJson(`/files/${verificationUpload.file.id}/read-url`, adminAuth.accessToken);
 
 await postJson('/provider/online', providerAuth.accessToken);
+await postJson('/provider/online', backupProviderAuth.accessToken);
 
 await postJson('/provider/location', providerAuth.accessToken, {
   lat: 10.7769,
   lng: 106.7009,
+});
+
+await postJson('/provider/location', backupProviderAuth.accessToken, {
+  lat: 10.7825,
+  lng: 106.6951,
 });
 
 const booking = await postJson('/customer/bookings', customerAuth.accessToken, {
@@ -91,6 +108,16 @@ const booking = await postJson('/customer/bookings', customerAuth.accessToken, {
   address: { line1: 'District 1, Ho Chi Minh City' },
   lat: 10.7769,
   lng: 106.7009,
+  paymentMethod: 'CASH',
+});
+
+const hybridBooking = await postJson('/customer/bookings', customerAuth.accessToken, {
+  serviceId: service.id,
+  providerId: providerAuth.user.providerProfile.id,
+  scheduledStartAt: new Date(Date.now() + 75 * 60_000).toISOString(),
+  address: { line1: 'Hybrid fallback smoke flow' },
+  lat: 10.7783,
+  lng: 106.6994,
   paymentMethod: 'CASH',
 });
 
@@ -104,6 +131,11 @@ const momoBooking = await postJson('/customer/bookings', customerAuth.accessToke
 });
 
 await postJson(`/provider/bookings/${booking.id}/join`, providerAuth.accessToken);
+await postJson(`/provider/bookings/${hybridBooking.id}/join`, backupProviderAuth.accessToken);
+
+const hybridMatched = await postJson(`/customer/bookings/${hybridBooking.id}/select-provider`, customerAuth.accessToken, {
+  providerId: backupProviderAuth.user.providerProfile.id,
+});
 
 const matched = await postJson(`/customer/bookings/${booking.id}/select-provider`, customerAuth.accessToken, {
   providerId: providerAuth.user.providerProfile.id,
@@ -139,10 +171,21 @@ const adminBooking = adminBookings.find((item) => item.id === booking.id);
 if (!adminBooking?.chatRoom?.id || !adminBooking?.services?.length || !adminBooking?.participants?.length) {
   throw new Error(`Admin booking monitor payload is incomplete: ${JSON.stringify(adminBooking)}`);
 }
+const adminHybridBooking = adminBookings.find((item) => item.id === hybridBooking.id);
+if (!adminHybridBooking?.preferredProvider?.id || !adminHybridBooking?.selectedProvider?.id) {
+  throw new Error(`Hybrid booking is missing preferred/final provider state: ${JSON.stringify(adminHybridBooking)}`);
+}
+if (adminHybridBooking.preferredProvider.id === adminHybridBooking.selectedProvider.id) {
+  throw new Error(`Hybrid booking did not switch from preferred to backup provider: ${JSON.stringify(adminHybridBooking)}`);
+}
 const adminProviders = await getJson('/admin/providers', adminAuth.accessToken);
 const adminProvider = adminProviders.find((item) => item.id === providerAuth.user.providerProfile.id);
 if (!adminProvider?.user?.pushDevices?.some((device) => device.token === 'demo-provider-device-token')) {
   throw new Error(`Admin provider payload is missing registered push device: ${JSON.stringify(adminProvider)}`);
+}
+const adminBackupProvider = adminProviders.find((item) => item.id === backupProviderAuth.user.providerProfile.id);
+if (!adminBackupProvider?.user?.pushDevices?.some((device) => device.token === 'demo-backup-provider-device-token')) {
+  throw new Error(`Admin backup provider payload is missing registered push device: ${JSON.stringify(adminBackupProvider)}`);
 }
 const payment = await getJson('/admin/payments', adminAuth.accessToken).then((payments) =>
   payments.find((item) => item.bookingId === booking.id),
@@ -189,7 +232,9 @@ for (let attempt = 0; attempt < 20 && notificationToRetry; attempt++) {
 console.log({
   ok: true,
   bookingId: booking.id,
+  hybridBookingId: hybridBooking.id,
   chatRoomId,
+  hybridChatRoomId: hybridMatched.booking.chatRoom.id,
   customerBookingCount: customerBookings.length,
   providerBookingCount: providerBookings.length,
   chatMessageId: chatMessage.id,
@@ -200,6 +245,10 @@ console.log({
   payoutBatchCount: adminPayoutBatches.length,
   adminBookingMonitorReady: true,
   adminProviderPushDeviceCount: adminProvider?.user?.pushDevices?.length ?? 0,
+  adminBackupProviderPushDeviceCount: adminBackupProvider?.user?.pushDevices?.length ?? 0,
+  hybridPreferredProviderId: adminHybridBooking?.preferredProvider?.id ?? null,
+  hybridSelectedProviderId: adminHybridBooking?.selectedProvider?.id ?? null,
+  hybridSwitchedToBackup: adminHybridBooking?.preferredProvider?.id !== adminHybridBooking?.selectedProvider?.id,
   momoPaymentStatus: momoPayment?.status ?? null,
   syncedMomoStatus: syncedMomo?.status ?? null,
   releasedMomoStatus: releasedMomo?.status ?? null,
