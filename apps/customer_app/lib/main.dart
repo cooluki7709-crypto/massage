@@ -154,10 +154,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final results = await Future.wait([
         repository.listServices(),
         repository.nearbyProviders(),
+        repository.listBookings(),
       ]);
+      final restoredBooking = _latestTrackableBooking(results[2]);
+      if (restoredBooking != null) {
+        repository.joinBookingRoom(restoredBooking['id'] as String);
+        attachRealtimeListeners();
+      }
       setState(() {
         services = results[0];
         providers = results[1];
+        activeBooking = restoredBooking;
+        if (restoredBooking != null) {
+          selectedService = _serviceFromBooking(restoredBooking);
+        }
       });
     } catch (exception) {
       setState(() => error = '$exception');
@@ -179,11 +189,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       error = null;
     });
     try {
-      final booking = await ref.read(customerRepositoryProvider).createBooking(service['id'] as String);
+      final repository = ref.read(customerRepositoryProvider);
+      final existing = _latestTrackableBooking(await repository.listBookings());
+      final booking = existing ?? await repository.createBooking(service['id'] as String);
+      repository.joinBookingRoom(booking['id'] as String);
       attachRealtimeListeners();
       setState(() {
         activeBooking = booking;
-        realtimeMessage = 'Matching opened. Listening for providers in realtime.';
+        realtimeMessage = existing == null
+            ? 'Matching opened. Listening for providers in realtime.'
+            : 'Existing open booking restored. Listening for providers in realtime.';
       });
     } catch (exception) {
       setState(() => error = '$exception');
@@ -216,6 +231,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         setState(() => loading = false);
       }
     }
+  }
+
+  Map<String, dynamic>? _latestTrackableBooking(List<dynamic> bookings) {
+    final candidates = bookings
+        .whereType<Map<String, dynamic>>()
+        .where((booking) => const {
+              'OPEN_MATCHING',
+              'MATCHED',
+              'PROVIDER_ON_THE_WAY',
+              'ARRIVED',
+              'IN_SERVICE',
+            }.contains(booking['status']))
+        .toList()
+      ..sort((left, right) => _bookingSortValue(right).compareTo(_bookingSortValue(left)));
+    return candidates.isEmpty ? null : candidates.first;
+  }
+
+  Map<String, dynamic>? _serviceFromBooking(Map<String, dynamic> booking) {
+    final services = booking['services'];
+    if (services is! List || services.isEmpty) {
+      return null;
+    }
+    final first = services.first;
+    if (first is! Map<String, dynamic>) {
+      return null;
+    }
+    final service = first['service'];
+    return service is Map<String, dynamic> ? service : null;
+  }
+
+  String _bookingSortValue(Map<String, dynamic> booking) {
+    return (booking['openedAt'] ?? booking['createdAt'] ?? '') as String;
   }
 
   Future<void> selectProvider(Map<String, dynamic> participant) async {
@@ -475,6 +522,7 @@ class BookingActionPanel extends StatelessWidget {
             Text('Matching status', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Text('Booking ${booking['id']}'),
+            Text('Code ${shortBookingCode(booking['id'] as String?)}'),
             Text('Status: $status'),
             const SizedBox(height: 8),
             BookingSummaryRow(
@@ -534,6 +582,13 @@ class BookingActionPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+String shortBookingCode(String? id) {
+  if (id == null || id.isEmpty) {
+    return '----';
+  }
+  return id.length <= 8 ? id : id.substring(0, 8).toUpperCase();
 }
 
 class ProviderParticipantTile extends StatelessWidget {

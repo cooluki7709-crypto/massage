@@ -166,6 +166,13 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
     }
     try {
       final bookings = await ref.read(providerRepositoryProvider).openBookings();
+      bookings.sort((left, right) {
+        final leftMap = left as Map<String, dynamic>;
+        final rightMap = right as Map<String, dynamic>;
+        final leftValue = (leftMap['openedAt'] ?? leftMap['createdAt'] ?? '') as String;
+        final rightValue = (rightMap['openedAt'] ?? rightMap['createdAt'] ?? '') as String;
+        return rightValue.compareTo(leftValue);
+      });
       setState(() => openBookings = bookings);
     } catch (exception) {
       setState(() => error = '$exception');
@@ -303,6 +310,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
               for (final booking in openBookings)
                 OpenBookingCard(
                   booking: booking as Map<String, dynamic>,
+                  isNewest: identical(booking, openBookings.first),
                   joined: joinedBookingIds.contains(booking['id']),
                   loading: loading,
                   onJoin: () => joinBooking(booking),
@@ -403,6 +411,7 @@ class OpenBookingCard extends StatelessWidget {
   const OpenBookingCard({
     super.key,
     required this.booking,
+    required this.isNewest,
     required this.joined,
     required this.loading,
     required this.onJoin,
@@ -411,6 +420,7 @@ class OpenBookingCard extends StatelessWidget {
   });
 
   final Map<String, dynamic> booking;
+  final bool isNewest;
   final bool joined;
   final bool loading;
   final VoidCallback onJoin;
@@ -447,9 +457,15 @@ class OpenBookingCard extends StatelessWidget {
                     children: [
                       Text(service?['name'] as String? ?? 'Massage booking', style: Theme.of(context).textTheme.titleLarge),
                       Text('${booking['status']} - ${participants.length} provider(s) joined'),
+                      Text('Code ${shortBookingCode(booking['id'] as String?)}'),
                     ],
                   ),
                 ),
+                if (isNewest)
+                  Chip(
+                    label: const Text('Latest'),
+                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -555,6 +571,13 @@ class ProviderSummaryItem {
 
   final String label;
   final String value;
+}
+
+String shortBookingCode(String? id) {
+  if (id == null || id.isEmpty) {
+    return '----';
+  }
+  return id.length <= 8 ? id : id.substring(0, 8).toUpperCase();
 }
 
 class EarningsScreen extends ConsumerWidget {

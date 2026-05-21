@@ -97,6 +97,10 @@ class CustomerRepository {
     return result is List<dynamic> ? result : [];
   }
 
+  void joinBookingRoom(String bookingId) {
+    _socket.joinBooking(bookingId);
+  }
+
   Future<Map<String, dynamic>> createBooking(String serviceId) async {
     final result = await _api.postJson('/customer/bookings', {
       'serviceId': serviceId,
