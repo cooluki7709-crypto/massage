@@ -112,6 +112,53 @@ export class AdminService {
     });
   }
 
+  getBookingDetail(id: string) {
+    return this.prisma.booking.findUniqueOrThrow({
+      where: { id },
+      include: {
+        customerProfile: { include: { user: true } },
+        preferredProvider: {
+          include: {
+            user: true,
+            locationSnapshots: { orderBy: { recordedAt: 'desc' }, take: 1 },
+          },
+        },
+        selectedProvider: {
+          include: {
+            user: true,
+            locationSnapshots: { orderBy: { recordedAt: 'desc' }, take: 1 },
+          },
+        },
+        participants: {
+          orderBy: { joinedAt: 'asc' },
+          include: {
+            providerProfile: {
+              include: {
+                user: true,
+                locationSnapshots: { orderBy: { recordedAt: 'desc' }, take: 1 },
+              },
+            },
+          },
+        },
+        services: { include: { service: true } },
+        payment: { include: { refunds: true } },
+        refunds: true,
+        review: true,
+        earning: true,
+        snapshots: { orderBy: { recordedAt: 'desc' }, take: 10 },
+        chatRoom: {
+          include: {
+            messages: {
+              orderBy: { createdAt: 'desc' },
+              take: 20,
+              include: { sender: { select: { id: true, phone: true, fullName: true, roles: true } } },
+            },
+          },
+        },
+      },
+    });
+  }
+
   listPayments() {
     return this.prisma.payment.findMany({
       orderBy: { id: 'desc' },

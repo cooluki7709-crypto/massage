@@ -239,6 +239,16 @@ const adminBooking = adminBookings.find((item) => item.id === booking.id);
 if (!adminBooking?.chatRoom?.id || !adminBooking?.services?.length || !adminBooking?.participants?.length) {
   throw new Error(`Admin booking monitor payload is incomplete: ${JSON.stringify(adminBooking)}`);
 }
+const adminBookingDetail = await getJson(`/admin/bookings/${booking.id}`, adminAuth.accessToken);
+if (
+  adminBookingDetail?.id !== booking.id ||
+  !adminBookingDetail?.payment?.id ||
+  !adminBookingDetail?.chatRoom?.messages?.some((message) => message.id === chatMessage.id) ||
+  !adminBookingDetail?.review?.id ||
+  !adminBookingDetail?.earning?.id
+) {
+  throw new Error(`Admin booking detail payload is incomplete: ${JSON.stringify(adminBookingDetail)}`);
+}
 const adminHybridBooking = adminBookings.find((item) => item.id === hybridBooking.id);
 if (!adminHybridBooking?.preferredProvider?.id || !adminHybridBooking?.selectedProvider?.id) {
   throw new Error(`Hybrid booking is missing preferred/final provider state: ${JSON.stringify(adminHybridBooking)}`);
@@ -316,6 +326,7 @@ console.log({
   payoutBatchId: payoutBatch.id,
   payoutBatchCount: adminPayoutBatches.length,
   adminBookingMonitorReady: true,
+  adminBookingDetailReady: true,
   adminProviderPushDeviceCount: adminProvider?.user?.pushDevices?.length ?? 0,
   adminBackupProviderPushDeviceCount: adminBackupProvider?.user?.pushDevices?.length ?? 0,
   hybridPreferredProviderId: adminHybridBooking?.preferredProvider?.id ?? null,

@@ -54,24 +54,69 @@ export type AdminBooking = {
   id: string;
   status: string;
   createdAt?: string;
+  updatedAt?: string;
   scheduledStartAt?: string;
+  scheduledEndAt?: string;
   expiresAt?: string | null;
+  address?: unknown;
+  lat?: string | number;
+  lng?: string | number;
   preferredProvider?: { id?: string; displayName?: string | null; status?: string; user?: { phone?: string; fullName?: string | null } };
   participants?: Array<{
     id: string;
     status: string;
+    distanceMeters?: number | null;
+    providerStatusAtJoin?: string | null;
+    joinedAt?: string;
+    respondedAt?: string | null;
     providerProfile?: {
       id: string;
       displayName?: string | null;
       status?: string;
       user?: { fullName?: string | null; phone?: string };
+      currentLat?: string | number | null;
+      currentLng?: string | number | null;
+      locationSnapshots?: AdminLocationSnapshot[];
     };
   }>;
-  services?: Array<{ service?: { name?: string; durationMin?: number; basePrice?: number } }>;
-  payment?: { id?: string; status: string; amount: number; method: string; currency?: string } | null;
+  services?: Array<{ price?: number; quantity?: number; service?: { name?: string; durationMin?: number; basePrice?: number } }>;
+  payment?: { id?: string; status: string; amount: number; method: string; currency?: string; refunds?: Array<{ id: string; amount: number; status: string; createdAt?: string }> } | null;
   customerProfile?: { user?: { fullName?: string | null; phone?: string } };
-  selectedProvider?: { id?: string; displayName?: string | null; status?: string; user?: { phone?: string; fullName?: string | null } };
-  chatRoom?: { id: string } | null;
+  selectedProvider?: {
+    id?: string;
+    displayName?: string | null;
+    status?: string;
+    user?: { phone?: string; fullName?: string | null };
+    currentLat?: string | number | null;
+    currentLng?: string | number | null;
+    locationSnapshots?: AdminLocationSnapshot[];
+  };
+  chatRoom?: { id: string; messages?: AdminChatMessage[] } | null;
+};
+
+export type AdminBookingDetail = AdminBooking & {
+  notes?: string | null;
+  openedAt?: string | null;
+  refunds?: AdminRefund[];
+  review?: AdminReview | null;
+  earning?: AdminEarning | null;
+  snapshots?: AdminLocationSnapshot[];
+};
+
+export type AdminLocationSnapshot = {
+  id: string;
+  bookingId?: string | null;
+  providerProfileId: string;
+  lat: string | number;
+  lng: string | number;
+  recordedAt: string;
+};
+
+export type AdminChatMessage = {
+  id: string;
+  body: string;
+  createdAt: string;
+  sender?: { id: string; phone?: string; fullName?: string | null; roles?: string[] };
 };
 
 export type AdminPayment = {

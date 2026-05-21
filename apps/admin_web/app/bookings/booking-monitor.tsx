@@ -152,7 +152,11 @@ export function BookingMonitor({ bookings }: Props) {
             {visibleBookings.map((booking) => (
               <tr id={`booking-${booking.id}`} key={booking.id}>
                 <td>
-                  <strong>{shortId(booking.id)}</strong>
+                  <strong>
+                    <Link className="text-link" href={`/bookings/${booking.id}`}>
+                      {shortId(booking.id)}
+                    </Link>
+                  </strong>
                   <div className="muted">{booking.services?.[0]?.service?.name ?? 'Service pending'}</div>
                   <div className="muted">{formatDate(booking.scheduledStartAt)}</div>
                   <div className="muted">{recencyLabel(booking)}</div>
@@ -211,6 +215,9 @@ export function BookingMonitor({ bookings }: Props) {
                   </div>
                   {booking.payment?.id && (
                     <div className="actions" style={{ marginTop: 8 }}>
+                      <Link className="text-link" href={`/bookings/${booking.id}`}>
+                        Detail
+                      </Link>
                       <Link className="text-link" href={`/payments#payment-${booking.payment.id}`}>
                         Open payment
                       </Link>

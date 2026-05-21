@@ -56,7 +56,7 @@ export default async function RefundsPage() {
                   {refund.booking?.status ?? refund.bookingId}
                   <div className="muted">Booking {shortId(refund.bookingId)}</div>
                   <div className="actions" style={{ marginTop: 8 }}>
-                    <Link className="text-link" href={`/bookings#booking-${refund.bookingId}`}>
+                    <Link className="text-link" href={`/bookings/${refund.bookingId}`}>
                       Open booking
                     </Link>
                     <Link className="text-link" href={`/payments#payment-${refund.paymentId}`}>

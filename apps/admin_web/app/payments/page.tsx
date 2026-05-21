@@ -65,7 +65,7 @@ export default async function PaymentsPage() {
                   <div className="muted">{payment.booking?.status ?? 'UNKNOWN'}</div>
                   <div className="muted">{payment.booking?.customerProfile?.user?.phone ?? 'No customer phone'}</div>
                   <div className="actions" style={{ marginTop: 8 }}>
-                    <Link className="text-link" href={`/bookings#booking-${payment.bookingId}`}>
+                    <Link className="text-link" href={`/bookings/${payment.bookingId}`}>
                       Open booking
                     </Link>
                     {payment.refunds?.at(0)?.id && (

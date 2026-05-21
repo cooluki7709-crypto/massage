@@ -47,6 +47,11 @@ export class AdminController {
     return this.admin.listBookings();
   }
 
+  @Get('bookings/:id')
+  bookingDetail(@Param('id') id: string) {
+    return this.admin.getBookingDetail(id);
+  }
+
   @Get('payments')
   payments() {
     return this.admin.listPayments();
