@@ -68,7 +68,7 @@ export type AdminBooking = {
     };
   }>;
   services?: Array<{ service?: { name?: string; durationMin?: number; basePrice?: number } }>;
-  payment?: { status: string; amount: number; method: string } | null;
+  payment?: { id?: string; status: string; amount: number; method: string; currency?: string } | null;
   customerProfile?: { user?: { fullName?: string | null; phone?: string } };
   selectedProvider?: { id?: string; displayName?: string | null; status?: string; user?: { phone?: string; fullName?: string | null } };
   chatRoom?: { id: string } | null;

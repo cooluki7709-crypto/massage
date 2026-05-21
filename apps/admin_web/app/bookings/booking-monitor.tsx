@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AdminBooking } from '../../lib/admin-api';
 
@@ -149,7 +150,7 @@ export function BookingMonitor({ bookings }: Props) {
           </thead>
           <tbody>
             {visibleBookings.map((booking) => (
-              <tr key={booking.id}>
+              <tr id={`booking-${booking.id}`} key={booking.id}>
                 <td>
                   <strong>{shortId(booking.id)}</strong>
                   <div className="muted">{booking.services?.[0]?.service?.name ?? 'Service pending'}</div>
@@ -204,8 +205,22 @@ export function BookingMonitor({ bookings }: Props) {
                 <td>
                   {booking.payment?.status ?? 'NONE'}
                   <div className="muted">
-                    {booking.payment ? `${booking.payment.amount} VND - ${booking.payment.method}` : 'No payment'}
+                    {booking.payment
+                      ? `${booking.payment.amount} ${booking.payment.currency ?? 'VND'} - ${booking.payment.method}`
+                      : 'No payment'}
                   </div>
+                  {booking.payment?.id && (
+                    <div className="actions" style={{ marginTop: 8 }}>
+                      <Link className="text-link" href={`/payments#payment-${booking.payment.id}`}>
+                        Open payment
+                      </Link>
+                      {(booking.status === 'REFUNDED' || booking.payment.status === 'REFUNDED') && (
+                        <Link className="text-link" href="/refunds">
+                          Refund board
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </td>
                 <td>
                   <div>{opsSignal(booking)}</div>

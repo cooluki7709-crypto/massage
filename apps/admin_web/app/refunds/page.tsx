@@ -1,4 +1,5 @@
 import { AdminRefund, adminGet } from '../../lib/admin-api';
+import Link from 'next/link';
 
 export default async function RefundsPage() {
   const refunds = sortRefunds(await adminGet<AdminRefund[]>('/admin/refunds', []));
@@ -19,6 +20,10 @@ export default async function RefundsPage() {
           <p>Refunded bookings</p>
           <h2>{refunds.filter((refund) => refund.booking?.status === 'REFUNDED').length}</h2>
         </div>
+        <div className="card">
+          <p>Needs update</p>
+          <h2>{refunds.filter((refund) => refund.status === 'REQUESTED' && refund.payment?.status !== 'REFUNDED').length}</h2>
+        </div>
       </section>
       <div className="card">
         <table className="table">
@@ -36,7 +41,7 @@ export default async function RefundsPage() {
           </thead>
           <tbody>
             {refunds.map((refund) => (
-              <tr key={refund.id}>
+              <tr id={`refund-${refund.id}`} key={refund.id}>
                 <td>{shortId(refund.id)}</td>
                 <td>
                   {refund.booking?.customerProfile?.user?.fullName ??
@@ -47,7 +52,18 @@ export default async function RefundsPage() {
                 <td>
                   {refund.payment?.method} / {refund.payment?.status}
                 </td>
-                <td>{refund.booking?.status ?? refund.bookingId}</td>
+                <td>
+                  {refund.booking?.status ?? refund.bookingId}
+                  <div className="muted">Booking {shortId(refund.bookingId)}</div>
+                  <div className="actions" style={{ marginTop: 8 }}>
+                    <Link className="text-link" href={`/bookings#booking-${refund.bookingId}`}>
+                      Open booking
+                    </Link>
+                    <Link className="text-link" href={`/payments#payment-${refund.paymentId}`}>
+                      Open payment
+                    </Link>
+                  </div>
+                </td>
                 <td>
                   {refund.amount} {refund.payment?.currency ?? 'VND'}
                 </td>

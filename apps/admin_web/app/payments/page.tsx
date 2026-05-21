@@ -1,4 +1,5 @@
 import { AdminPayment, adminGet } from '../../lib/admin-api';
+import Link from 'next/link';
 import { capturePayment, refundPayment, releasePayment, syncPayment } from './actions';
 
 export default async function PaymentsPage() {
@@ -28,6 +29,10 @@ export default async function PaymentsPage() {
           <p>Needs action</p>
           <h2>{payments.filter((payment) => paymentOpsState(payment) !== 'settled').length}</h2>
         </div>
+        <div className="card">
+          <p>Linked refunds</p>
+          <h2>{payments.reduce((total, payment) => total + (payment.refunds?.length ?? 0), 0)}</h2>
+        </div>
       </section>
       <div className="card">
         <table className="table">
@@ -45,7 +50,7 @@ export default async function PaymentsPage() {
           </thead>
           <tbody>
             {payments.map((payment) => (
-              <tr key={payment.id}>
+              <tr id={`payment-${payment.id}`} key={payment.id}>
                 <td>{payment.id}</td>
                 <td>{payment.method}</td>
                 <td>
@@ -59,6 +64,16 @@ export default async function PaymentsPage() {
                   {shortId(payment.bookingId)}
                   <div className="muted">{payment.booking?.status ?? 'UNKNOWN'}</div>
                   <div className="muted">{payment.booking?.customerProfile?.user?.phone ?? 'No customer phone'}</div>
+                  <div className="actions" style={{ marginTop: 8 }}>
+                    <Link className="text-link" href={`/bookings#booking-${payment.bookingId}`}>
+                      Open booking
+                    </Link>
+                    {payment.refunds?.at(0)?.id && (
+                      <Link className="text-link" href={`/refunds#refund-${payment.refunds[0].id}`}>
+                        Open refund
+                      </Link>
+                    )}
+                  </div>
                 </td>
                 <td>
                   <div>{paymentOpsSignal(payment)}</div>
