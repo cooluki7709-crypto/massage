@@ -973,6 +973,10 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
     final service = widget.selectedService;
     final provider = widget.providerDetail;
     final distanceMeters = provider['distanceMeters'] as num?;
+    final basePrice = (service['basePrice'] as num?)?.toInt() ?? 0;
+    final platformFee = 0;
+    final serviceCount = 1;
+    final totalAmount = basePrice + platformFee;
     final customerPoint = customerLat == null || customerLng == null ? null : LatLng(customerLat!, customerLng!);
     final providerPoint = deriveProviderLatLng(provider);
     return Scaffold(
@@ -986,12 +990,41 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Name')),
-                  TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Phone')),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: nameController,
+                          decoration: const InputDecoration(labelText: 'Name'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: phoneController,
+                          decoration: const InputDecoration(labelText: 'Phone'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: addressController,
                     decoration: const InputDecoration(labelText: 'Address'),
                     maxLines: 2,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(Icons.call_outlined, size: 18, color: Colors.black54),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          phoneController.text,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1042,20 +1075,61 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
             ),
             const SizedBox(height: 14),
             BookingSectionCard(
-              title: service['name'] as String? ?? 'Selected service',
-              child: Row(
+              title: 'Selected service',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 72),
-                  const SizedBox(width: 14),
-                  Expanded(
+                  Row(
+                    children: [
+                      ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 72),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              provider['displayName'] as String? ?? 'Provider',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${providerAverageRating(provider).toStringAsFixed(1)} (${providerReviewCount(provider)} reviews)',
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              formatDistance(distanceMeters),
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F5EC),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${service['durationMin'] ?? '-'} min | ${formatCurrency(service['basePrice'])} VND'),
+                        Text(
+                          service['name'] as String? ?? 'Selected service',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                        ),
                         const SizedBox(height: 10),
-                        Text(provider['displayName'] as String? ?? 'Provider', style: Theme.of(context).textTheme.titleLarge),
-                        const SizedBox(height: 4),
-                        Text('${providerAverageRating(provider).toStringAsFixed(1)} (${providerReviewCount(provider)} reviews)'),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ServiceTag(label: '${service['durationMin'] ?? '-'} min'),
+                            ServiceTag(label: '${formatCurrency(basePrice)} VND'),
+                            const ServiceTag(label: '1 therapist'),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -1067,7 +1141,7 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
               title: 'Payment method',
               child: Row(
                 children: [
-                  const Expanded(child: Text('Cash payment')),
+                  const Expanded(child: Text('Cash payment on service start')),
                   FilledButton.tonal(onPressed: () {}, child: const Text('View all')),
                 ],
               ),
@@ -1091,12 +1165,36 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
             const SizedBox(height: 14),
             BookingSectionCard(
               title: 'Payment summary',
-              child: Row(
+              child: Column(
                 children: [
-                  const Expanded(child: Text('Total')),
-                  Text(
-                    '${formatCurrency(service['basePrice'])} VND',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                  BookingSummaryRow(
+                    label: 'Services',
+                    value: '$serviceCount item',
+                  ),
+                  const SizedBox(height: 10),
+                  BookingSummaryRow(
+                    label: service['name'] as String? ?? 'Massage service',
+                    value: '${formatCurrency(basePrice)} VND',
+                  ),
+                  const SizedBox(height: 10),
+                  BookingSummaryRow(
+                    label: 'Platform fee',
+                    value: '${formatCurrency(platformFee)} VND',
+                  ),
+                  const SizedBox(height: 10),
+                  BookingSummaryRow(
+                    label: 'Coupon',
+                    value: couponController.text.trim().isEmpty ? 'Not applied' : couponController.text.trim(),
+                    highlighted: couponController.text.trim().isNotEmpty,
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    child: Divider(height: 1),
+                  ),
+                  BookingSummaryRow(
+                    label: 'Total',
+                    value: '${formatCurrency(totalAmount)} VND',
+                    emphasized: true,
                   ),
                 ],
               ),
@@ -1117,7 +1215,9 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 18),
           ),
-          child: Text(submitting ? 'Creating booking...' : 'Book now'),
+          child: Text(
+            submitting ? 'Creating booking...' : 'Book now · ${formatCurrency(totalAmount)} VND',
+          ),
         ),
       ),
     );
@@ -1148,6 +1248,66 @@ class BookingSectionCard extends StatelessWidget {
             child,
           ],
         ),
+      ),
+    );
+  }
+}
+
+class BookingSummaryRow extends StatelessWidget {
+  const BookingSummaryRow({
+    super.key,
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+    this.highlighted = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasized;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = emphasized
+        ? Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)
+        : Theme.of(context).textTheme.bodyLarge;
+    final valueStyle = emphasized
+        ? Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)
+        : Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: highlighted ? const Color(0xFF5E8E4A) : null,
+              fontWeight: highlighted ? FontWeight.w700 : FontWeight.w500,
+            );
+
+    return Row(
+      children: [
+        Expanded(child: Text(label, style: labelStyle)),
+        Text(value, style: valueStyle),
+      ],
+    );
+  }
+}
+
+class ServiceTag extends StatelessWidget {
+  const ServiceTag({
+    super.key,
+    required this.label,
+  });
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE6E0D2)),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
   }
