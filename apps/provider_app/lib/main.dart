@@ -316,18 +316,24 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
               const InfoCard(text: 'No direct requests yet. Ask the customer to book your profile, then refresh.')
             else
               for (final booking in openBookings)
-                OpenBookingCard(
-                  booking: booking as Map<String, dynamic>,
-                  isPreferredRequest:
-                      ((booking as Map<String, dynamic>)['selectedProvider'] as Map<String, dynamic>?)?['userId'] ==
-                      auth.userId,
-                  joined: joinedBookingIds.contains(booking['id']),
-                  loading: loading,
-                  onJoin: () => joinBooking(booking),
-                  onAccept: () => respondToBooking(booking, true),
-                  onReject: () => respondToBooking(booking, false),
-                  onStart: () => startService(booking),
-                ),
+                if (booking is Map<String, dynamic>)
+                  Builder(
+                    builder: (context) {
+                      final selectedProvider = booking['selectedProvider'];
+                      final isPreferredRequest =
+                          selectedProvider is Map<String, dynamic> && selectedProvider['userId'] == auth.userId;
+                      return OpenBookingCard(
+                        booking: booking,
+                        isPreferredRequest: isPreferredRequest,
+                        joined: joinedBookingIds.contains(booking['id']),
+                        loading: loading,
+                        onJoin: () => joinBooking(booking),
+                        onAccept: () => respondToBooking(booking, true),
+                        onReject: () => respondToBooking(booking, false),
+                        onStart: () => startService(booking),
+                      );
+                    },
+                  ),
           ],
         ],
       ),
@@ -469,6 +475,19 @@ class OpenBookingCard extends StatelessWidget {
                       Text(service?['name'] as String? ?? 'Massage booking', style: Theme.of(context).textTheme.titleLarge),
                       Text('${booking['status']} - ${participants.length} provider(s) joined'),
                     ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isPreferredRequest
+                        ? const Color(0xFFE7F2DE)
+                        : (hasPreferredProvider ? const Color(0xFFF8ECD4) : const Color(0xFFE5ECFB)),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    isPreferredRequest ? 'Preferred' : (hasPreferredProvider ? 'Backup' : 'Open'),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],

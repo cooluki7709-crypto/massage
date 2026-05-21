@@ -21,13 +21,15 @@ export function BookingMonitor({ bookings }: Props) {
     const matched = bookings.filter((booking) => booking.status === 'MATCHED');
     const active = bookings.filter((booking) => activeStatuses.has(booking.status));
     const noParticipants = open.filter((booking) => (booking.participants?.length ?? 0) === 0);
-    const waitingSelection = open.filter((booking) => (booking.participants?.length ?? 0) > 0);
+    const waitingSelection = open.filter((booking) => fallbackParticipants(booking).length > 0);
+    const preferredPending = open.filter((booking) => booking.selectedProvider && !isSelectedProviderParticipant(booking));
     return [
       ['Active bookings', active.length.toString()],
       ['Open matching', open.length.toString()],
       ['Matched', matched.length.toString()],
       ['No providers yet', noParticipants.length.toString()],
-      ['Waiting selection', waitingSelection.length.toString()],
+      ['Preferred pending', preferredPending.length.toString()],
+      ['Fallback options', waitingSelection.length.toString()],
     ];
   }, [bookings]);
 
@@ -116,14 +118,20 @@ export function BookingMonitor({ bookings }: Props) {
                 </td>
                 <td>
                   <strong>{booking.participants?.length ?? 0} joined</strong>
-                  <div className="muted">Selected {booking.selectedProvider?.displayName ?? 'none'}</div>
+                  <div className="muted">Preferred {booking.selectedProvider?.displayName ?? 'none'}</div>
                   <div className="muted">
-                    {booking.selectedProvider?.user?.phone ? `Provider phone ${booking.selectedProvider.user.phone}` : 'Provider not selected'}
+                    {booking.selectedProvider?.user?.phone ? `Preferred phone ${booking.selectedProvider.user.phone}` : 'Preferred provider not set'}
                   </div>
-                  <div className="participant-list">
-                    {(booking.participants ?? []).slice(0, 3).map((participant) => (
+                  <div className="participant-list" style={{ marginTop: 8 }}>
+                    {booking.selectedProvider && (
+                      <span className="pill" style={{ background: '#eef6e8', borderColor: '#b9d4a8' }}>
+                        Preferred: {booking.selectedProvider.displayName ?? 'Provider'}
+                        {isSelectedProviderParticipant(booking) ? ' joined' : ' pending'}
+                      </span>
+                    )}
+                    {fallbackParticipants(booking).slice(0, 4).map((participant) => (
                       <span className="pill" key={participant.id}>
-                        {participant.providerProfile?.displayName ?? 'Provider'}: {participant.status}
+                        Backup: {participant.providerProfile?.displayName ?? 'Provider'} ({participant.status})
                       </span>
                     ))}
                   </div>
@@ -159,12 +167,15 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function opsSignal(booking: AdminBooking) {
-  const participantCount = booking.participants?.length ?? 0;
+  const participantCount = fallbackParticipants(booking).length;
+  if (booking.status === 'OPEN_MATCHING' && booking.selectedProvider && !isSelectedProviderParticipant(booking)) {
+    return <span className="signal signal-warn">Preferred provider pending</span>;
+  }
   if (booking.status === 'OPEN_MATCHING' && participantCount === 0) {
-    return <span className="signal signal-warn">Needs provider attention</span>;
+    return <span className="signal signal-warn">No fallback providers yet</span>;
   }
   if (booking.status === 'OPEN_MATCHING' && participantCount > 0) {
-    return <span className="signal signal-info">Waiting customer selection</span>;
+    return <span className="signal signal-info">Fallback options ready</span>;
   }
   if (booking.status === 'MATCHED' && !booking.chatRoom) {
     return <span className="signal signal-warn">Chat missing</span>;
@@ -176,12 +187,15 @@ function opsSignal(booking: AdminBooking) {
 }
 
 function nextAction(booking: AdminBooking) {
-  const participantCount = booking.participants?.length ?? 0;
+  const participantCount = fallbackParticipants(booking).length;
+  if (booking.status === 'OPEN_MATCHING' && booking.selectedProvider && !isSelectedProviderParticipant(booking)) {
+    return 'Wait for the preferred provider, but monitor fallback therapist supply.';
+  }
   if (booking.status === 'OPEN_MATCHING' && participantCount === 0) {
-    return 'Watch provider supply and notification response.';
+    return 'Watch notifications and nearby provider supply.';
   }
   if (booking.status === 'OPEN_MATCHING' && participantCount > 0) {
-    return 'Customer can choose one provider now.';
+    return 'Customer can keep waiting or switch to a backup therapist.';
   }
   if (booking.status === 'MATCHED') {
     return 'Check chat creation, route tracking, and provider departure.';
@@ -207,4 +221,25 @@ function formatDate(value?: string | null) {
     return 'No schedule';
   }
   return new Date(value).toLocaleString();
+}
+
+function isSelectedProviderParticipant(booking: AdminBooking) {
+  const selectedProviderId = booking.selectedProvider?.id;
+  if (!selectedProviderId) {
+    return false;
+  }
+
+  return (booking.participants ?? []).some(
+    (participant) => participant.providerProfile?.id === selectedProviderId && participant.status !== 'REJECTED',
+  );
+}
+
+function fallbackParticipants(booking: AdminBooking) {
+  const preferredId = booking.selectedProvider?.id;
+  return (booking.participants ?? []).filter(
+    (participant) =>
+      participant.status !== 'REJECTED' &&
+      participant.providerProfile?.id &&
+      participant.providerProfile.id !== preferredId,
+  );
 }
