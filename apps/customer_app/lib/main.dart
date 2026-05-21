@@ -314,7 +314,7 @@ class ProviderListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayName = provider['displayName'] as String? ?? 'Provider';
-    final distanceMeters = provider['distanceMeters'] as num?;
+    final distanceMeters = asDouble(provider['distanceMeters']);
     final rating = providerAverageRating(provider);
     final reviewCount = providerReviewCount(provider);
     final availableLabel = provider['status'] == 'ONLINE_AVAILABLE' ? 'Available now' : 'Available soon';
@@ -593,7 +593,7 @@ class ProviderDetailPage extends StatelessWidget {
                         children: [
                           const Icon(Icons.location_on_outlined, size: 22, color: Colors.grey),
                           const SizedBox(width: 4),
-                          Text(formatDistance(providerPreview['distanceMeters'] as num?)),
+                          Text(formatDistance(asDouble(providerPreview['distanceMeters']))),
                           const SizedBox(width: 14),
                           const Icon(Icons.star_rounded, size: 22, color: Color(0xFFF59E0B)),
                           const SizedBox(width: 4),
@@ -988,7 +988,7 @@ class ReviewCard extends StatelessWidget {
               children: List.generate(
                 5,
                 (index) => Icon(
-                  index < ((review['rating'] as num?)?.toInt() ?? 0) ? Icons.star_rounded : Icons.star_outline_rounded,
+                  index < (asNum(review['rating'])?.toInt() ?? 0) ? Icons.star_rounded : Icons.star_outline_rounded,
                   size: 18,
                   color: const Color(0xFFF59E0B),
                 ),
@@ -1114,8 +1114,8 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
   Widget build(BuildContext context) {
     final service = widget.selectedService;
     final provider = widget.providerDetail;
-    final distanceMeters = provider['distanceMeters'] as num?;
-    final basePrice = (service['basePrice'] as num?)?.toInt() ?? 0;
+    final distanceMeters = asDouble(provider['distanceMeters']);
+    final basePrice = asNum(service['basePrice'])?.toInt() ?? 0;
     final platformFee = 0;
     final serviceCount = 1;
     final totalAmount = basePrice + platformFee;
@@ -1745,7 +1745,7 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                                       Text('Therapist location shared'),
                                       const SizedBox(height: 6),
                                       Text(
-                                        'Lat ${formatCoordinate((latestProviderLocation?['lat'] as num?)?.toDouble())} | Lng ${formatCoordinate((latestProviderLocation?['lng'] as num?)?.toDouble())}',
+                                        'Lat ${formatCoordinate(asDouble(latestProviderLocation?['lat']))} | Lng ${formatCoordinate(asDouble(latestProviderLocation?['lng']))}',
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
@@ -1826,7 +1826,7 @@ class TherapistSelectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = participant['providerProfile'] as Map<String, dynamic>? ?? <String, dynamic>{};
-    final distance = formatDistance(provider['distanceMeters'] as num?);
+    final distance = formatDistance(asDouble(provider['distanceMeters']));
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -3022,7 +3022,7 @@ double providerAverageRating(Map<String, dynamic> provider) {
     return 5;
   }
   final total = reviews.fold<double>(0, (sum, item) {
-    final rating = (item as Map<String, dynamic>)['rating'] as num? ?? 0;
+    final rating = asNum((item as Map<String, dynamic>)['rating']) ?? 0;
     return sum + rating.toDouble();
   });
   return total / reviews.length;
@@ -3065,8 +3065,8 @@ String formatDistance(num? meters) {
 }
 
 LatLng? deriveProviderLatLng(Map<String, dynamic>? provider) {
-  final lat = (provider?['lat'] as num?)?.toDouble();
-  final lng = (provider?['lng'] as num?)?.toDouble();
+  final lat = asDouble(provider?['lat']);
+  final lng = asDouble(provider?['lng']);
   if (lat == null || lng == null) {
     return null;
   }
@@ -3086,8 +3086,8 @@ class CustomerLocationSnapshot {
 }
 
 LatLng? deriveBookingLatLng(Map<String, dynamic>? booking) {
-  final lat = (booking?['lat'] as num?)?.toDouble();
-  final lng = (booking?['lng'] as num?)?.toDouble();
+  final lat = asDouble(booking?['lat']);
+  final lng = asDouble(booking?['lng']);
   if (lat == null || lng == null) {
     return null;
   }
@@ -3095,8 +3095,8 @@ LatLng? deriveBookingLatLng(Map<String, dynamic>? booking) {
 }
 
 LatLng? deriveRealtimeLatLng(Map<String, dynamic>? payload) {
-  final lat = (payload?['lat'] as num?)?.toDouble();
-  final lng = (payload?['lng'] as num?)?.toDouble();
+  final lat = asDouble(payload?['lat']);
+  final lng = asDouble(payload?['lng']);
   if (lat == null || lng == null) {
     return null;
   }
@@ -3111,7 +3111,7 @@ String formatCoordinate(double? value) {
 }
 
 String formatCurrency(dynamic amount) {
-  final number = (amount as num?)?.toInt() ?? 0;
+  final number = asNum(amount)?.toInt() ?? 0;
   final text = number.toString();
   final buffer = StringBuffer();
   for (var index = 0; index < text.length; index++) {
@@ -3122,6 +3122,23 @@ String formatCurrency(dynamic amount) {
     }
   }
   return buffer.toString();
+}
+
+num? asNum(dynamic value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is num) {
+    return value;
+  }
+  if (value is String) {
+    return num.tryParse(value);
+  }
+  return null;
+}
+
+double? asDouble(dynamic value) {
+  return asNum(value)?.toDouble();
 }
 
 double bookingProgress(String status) {
