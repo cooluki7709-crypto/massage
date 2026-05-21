@@ -106,11 +106,16 @@ try {
   const services = await getJson('/services');
   const service = services[0];
 
-  const bookingOpened = waitForEvent(providerSocket, 'booking.opened');
+  const uniqueAddressLine = `Realtime smoke ${Date.now()}`;
+  const bookingOpened = waitForEvent(
+    providerSocket,
+    'booking.opened',
+    (payload) => payload?.input?.booking?.address?.line1 === uniqueAddressLine,
+  );
   const booking = await postJson('/customer/bookings', customerAuth.accessToken, {
     serviceId: service.id,
     scheduledStartAt: new Date(Date.now() + 60 * 60_000).toISOString(),
-    address: { line1: 'District 1, Ho Chi Minh City' },
+    address: { line1: uniqueAddressLine },
     lat: 10.7769,
     lng: 106.7009,
     paymentMethod: 'CASH',
