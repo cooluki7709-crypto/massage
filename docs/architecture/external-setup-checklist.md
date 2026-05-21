@@ -1,167 +1,218 @@
-# External Setup Checklist
+# HANDS External Setup Checklist
 
-이 문서는 HANDS를 로컬 MVP에서 실제 운영 단계로 올릴 때 필요한 외부 등록 항목을 한 번에 처리할 수 있도록 정리한 체크리스트입니다.
+This checklist records the external accounts, keys, and console setup needed before HANDS moves from local MVP testing to real Vietnam-wide operation.
 
-## 1. Google Maps
+Keep secrets outside Git. The recommended local secret folder is:
 
-### Android Maps SDK
+```powershell
+C:\dev\massage-vn-workspace\secrets
+```
 
-- Google Cloud Console에서 `Maps SDK for Android` 활성화
-- Billing 연결
-- Android API key 생성 후 `Android apps` 제한 적용
+## Project Identity
 
-등록할 패키지 이름:
+- App name: `HANDS`
+- Service area: all Vietnam, starting with local MVP flows around Ho Chi Minh City
+- Customer app languages planned later: Vietnamese, English, Korean, Chinese, Japanese
+- Provider app language planned later: Vietnamese
+- Admin languages planned later: Korean, Vietnamese, English
 
-- Customer: `com.massagevn.customer.customer_app`
-- Provider: `com.massagevn.provider.provider_app`
+## 1. Firebase Cloud Messaging
 
-현재 개발용 SHA-1:
+Use one Firebase project and register two Android apps:
 
-- `E3:8D:6A:41:B9:0E:6D:E0:1C:8E:BA:5E:2D:4B:22:1E:0A:63:4E:18`
+- Customer package: `com.massagevn.customer.customer_app`
+- Provider package: `com.massagevn.provider.provider_app`
 
-로컬 실행 시 환경변수:
-
-- `MAPS_API_KEY=<your-google-maps-android-key>`
-
-## 2. Firebase Cloud Messaging
-
-같은 Firebase 프로젝트에 아래 Android 앱 2개 등록:
-
-- Customer: `com.massagevn.customer.customer_app`
-- Provider: `com.massagevn.provider.provider_app`
-
-필수 파일 배치:
+Required files:
 
 - `C:\dev\massage-vn-workspace\repo\apps\customer_app\android\app\google-services.json`
 - `C:\dev\massage-vn-workspace\repo\apps\provider_app\android\app\google-services.json`
 
-서비스 계정 JSON 보관 위치 권장:
+Recommended service account path:
 
-- `C:\dev\massage-vn-workspace\secrets\massage-vn-firebase-adminsdk.json`
+```powershell
+C:\dev\massage-vn-workspace\secrets\hands-firebase-adminsdk.json
+```
 
-필수 `.env` 값:
+Runtime `.env` values:
 
-- `FCM_PROJECT_ID`
-- `FCM_SERVICE_ACCOUNT_FILE`
+```dotenv
+FCM_PROJECT_ID=your-firebase-project-id
+FCM_SERVICE_ACCOUNT_FILE=C:\dev\massage-vn-workspace\secrets\hands-firebase-adminsdk.json
+```
 
-선택 대안:
-
-- `FCM_SERVICE_ACCOUNT_JSON`
-- `FCM_SERVICE_ACCOUNT_JSON_BASE64`
-
-## 3. SMS / OTP Provider
-
-실운영 OTP를 위해 아래 항목 준비:
-
-- `SMS_PROVIDER`
-- `SMS_API_URL`
-- `SMS_API_KEY`
-- `SMS_SENDER_ID`
-
-현재 개발 모드에서는:
-
-- `SMS_PROVIDER=dev`
-- `DEV_OTP=123456`
-
-## 4. Payments
-
-### MoMo
-
-필수 값:
-
-- `MOMO_PARTNER_CODE`
-- `MOMO_ACCESS_KEY`
-- `MOMO_SECRET_KEY`
-
-### VNPay
-
-필수 값:
-
-- `VNPAY_TMN_CODE`
-- `VNPAY_HASH_SECRET`
-
-운영 전 확인:
-
-- 승인/보류/취소/환불 정책
-- callback / return URL
-- 테스트 merchant와 운영 merchant 분리
-
-## 5. Storage / CDN
-
-필수 값:
-
-- `S3_ENDPOINT`
-- `S3_REGION`
-- `S3_BUCKET`
-- `S3_ACCESS_KEY`
-- `S3_SECRET_KEY`
-- `S3_PUBLIC_BASE_URL`
-
-운영 체크:
-
-- provider verification 파일은 private
-- public provider assets는 CDN 경유
-
-## 6. Domains / Deployment
-
-운영 전 준비:
-
-- API 도메인
-- Admin 도메인
-- TLS 인증서
-- Nginx reverse proxy 설정
-- CORS origin 목록
-- production `.env`
-
-## 7. Admin Access / Demo Accounts
-
-현재 로컬 기준:
-
-- `ADMIN_API_BASE_URL=http://localhost:3100/api`
-- `ADMIN_DEMO_PHONE=+84900000099`
-- `ADMIN_DEMO_OTP=123456`
-
-운영 전에는:
-
-- 실제 admin 계정 분리
-- 데모 OTP 제거
-- 강한 JWT secret 교체
-
-## 8. One-Time Verification Commands
-
-Firebase 설정 확인:
+Verification:
 
 ```powershell
 cd C:\dev\massage-vn-workspace\repo
 node .\infra\scripts\check-mobile-firebase.mjs
+node .\infra\scripts\check-external-setup.mjs --strict
 ```
 
-환경변수 확인:
+## 2. Google Maps
+
+Enable these APIs in Google Cloud:
+
+- Maps SDK for Android
+- Billing for the Google Cloud project
+
+Create Android-restricted API keys. You can use one shared key for both apps in MVP, but production should prefer separate keys.
+
+Android package restrictions:
+
+- `com.massagevn.customer.customer_app`
+- `com.massagevn.provider.provider_app`
+
+Development SHA-1 currently recorded:
+
+```text
+E3:8D:6A:41:B9:0E:6D:E0:1C:8E:BA:5E:2D:4B:22:1E:0A:63:4E:18
+```
+
+Local run value:
+
+```powershell
+$env:MAPS_API_KEY="your-google-maps-android-key"
+```
+
+The Flutter run scripts pass this key to Android manifest placeholders and Dart config:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-emulator.ps1 -App customer
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-emulator.ps1 -App provider
+```
+
+## 3. SMS / OTP
+
+Development uses a fixed OTP:
+
+```dotenv
+SMS_PROVIDER=dev
+DEV_OTP=123456
+```
+
+Production needs:
+
+```dotenv
+SMS_PROVIDER=your-provider
+SMS_API_URL=https://provider.example/api
+SMS_API_KEY=your-secret-key
+SMS_SENDER_ID=HANDS
+```
+
+Decision still needed:
+
+- Vietnam SMS provider
+- OTP rate limits
+- resend cooldown
+- fraud monitoring rules
+
+## 4. Payments
+
+MVP supports:
+
+- Cash
+- MoMo
+- VNPay
+
+MoMo production values:
+
+```dotenv
+MOMO_PARTNER_CODE=
+MOMO_ACCESS_KEY=
+MOMO_SECRET_KEY=
+```
+
+VNPay production values:
+
+```dotenv
+VNPAY_TMN_CODE=
+VNPAY_HASH_SECRET=
+```
+
+Before launch, confirm:
+
+- authorization / release / capture behavior
+- refund behavior
+- callback URL
+- return URL
+- sandbox merchant separated from production merchant
+- admin manual refund permissions
+
+## 5. Storage / CDN
+
+MVP can run on local MinIO. Production should use S3-compatible storage or Cloudflare R2.
+
+Required values:
+
+```dotenv
+S3_ENDPOINT=
+S3_REGION=
+S3_BUCKET=
+S3_ACCESS_KEY=
+S3_SECRET_KEY=
+S3_PUBLIC_BASE_URL=
+```
+
+Rules:
+
+- Provider verification files stay private.
+- Public provider profile media can be served through CDN.
+- Never commit uploaded files or service account credentials.
+
+## 6. Domains / Deployment
+
+Production preparation:
+
+- API domain
+- Admin domain
+- TLS certificates
+- Nginx reverse proxy
+- CORS origin list
+- production `.env`
+- backup and restore schedule
+- GitHub Actions later, after the MVP flow stabilizes
+
+## 7. Admin Access
+
+Local defaults:
+
+```dotenv
+ADMIN_API_BASE_URL=http://localhost:3100/api
+ADMIN_DEMO_PHONE=+84900000099
+ADMIN_DEMO_OTP=123456
+```
+
+Before launch:
+
+- create real admin accounts
+- disable demo OTP
+- rotate JWT secrets
+- define owner / operator / finance permissions
+- enable audit log review for payout, refund, provider approval, and coupon changes
+
+## One-Time Full Check
+
+Run this before real device or emulator testing:
 
 ```powershell
 cd C:\dev\massage-vn-workspace\repo
-node .\infra\scripts\check-env.mjs
-```
-
-전체 로컬 검증:
-
-```powershell
-cd C:\dev\massage-vn-workspace\repo
+node .\infra\scripts\check-external-setup.mjs
 powershell -ExecutionPolicy Bypass -File .\infra\scripts\verify-local.ps1 -WithServices
 ```
 
-## 9. Current Project Defaults
+Run strict mode before production-like E2E testing:
 
-- 앱 이름: `HANDS`
-- 서비스 범위: 베트남 전지역
-- 표준 로컬 API: `http://localhost:3100/api`
-- 표준 로컬 Admin: `http://localhost:3101`
+```powershell
+node .\infra\scripts\check-external-setup.mjs --strict
+```
 
-## 10. Recommended Fill Order
+## Recommended Fill Order
 
-1. Firebase / FCM
-2. Google Maps
-3. SMS provider
-4. MoMo / VNPay
-5. Storage / CDN
-6. Domain / TLS / deploy
+1. Firebase / FCM Android app configs
+2. Firebase service account file
+3. Google Maps Android key
+4. SMS provider
+5. MoMo and VNPay credentials
+6. Storage / CDN credentials
+7. Production domains and TLS

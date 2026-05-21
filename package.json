@@ -10,6 +10,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "env:check": "node infra/scripts/check-env.mjs",
+    "external:check": "node infra/scripts/check-external-setup.mjs",
     "dev-env:check": "powershell -ExecutionPolicy Bypass -File infra/scripts/check-dev-env.ps1",
     "verify:local": "powershell -ExecutionPolicy Bypass -File infra/scripts/verify-local.ps1",
     "backup:db": "powershell -ExecutionPolicy Bypass -File infra/scripts/backup-db.ps1",

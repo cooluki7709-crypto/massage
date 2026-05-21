@@ -63,13 +63,13 @@ function Test-DirectoryWritable {
 
 function Test-TcpPort {
   param(
-    [string]$Host,
+    [string]$HostName,
     [int]$Port
   )
 
   $client = New-Object System.Net.Sockets.TcpClient
   try {
-    $async = $client.BeginConnect($Host, $Port, $null, $null)
+    $async = $client.BeginConnect($HostName, $Port, $null, $null)
     if (-not $async.AsyncWaitHandle.WaitOne(1500, $false)) {
       return $false
     }
@@ -83,8 +83,8 @@ function Test-TcpPort {
 }
 
 function Test-LocalInfraReady {
-  $postgresReady = Test-TcpPort -Host "127.0.0.1" -Port 5432
-  $redisReady = Test-TcpPort -Host "127.0.0.1" -Port 6379
+  $postgresReady = Test-TcpPort -HostName "127.0.0.1" -Port 5432
+  $redisReady = Test-TcpPort -HostName "127.0.0.1" -Port 6379
   $minioReady = $false
 
   try {
@@ -193,9 +193,11 @@ $global:LASTEXITCODE = 0
 Invoke-Check "script syntax: api smoke" "node --check infra\scripts\api-smoke.mjs"
 Invoke-Check "script syntax: realtime smoke" "node --check infra\scripts\realtime-smoke.mjs"
 Invoke-Check "script syntax: env check" "node --check infra\scripts\check-env.mjs"
+Invoke-Check "script syntax: external setup check" "node --check infra\scripts\check-external-setup.mjs"
 Invoke-Check "script syntax: mobile firebase check" "node --check infra\scripts\check-mobile-firebase.mjs"
 Invoke-Check "script syntax: seed" "node --check apps\api\prisma\seed.js"
 Invoke-Check "env example" "node infra\scripts\check-env.mjs .env.example"
+Invoke-Check "external setup advisory" "node infra\scripts\check-external-setup.mjs"
 Invoke-Check "mobile firebase config" "node infra\scripts\check-mobile-firebase.mjs --optional"
 Invoke-Check "prisma validate" "`$env:DATABASE_URL='postgresql://massage:massage@localhost:5432/massage_vn?schema=public'; npx.cmd prisma validate --schema apps/api/prisma/schema.prisma"
 Invoke-Check "api typecheck" "npm.cmd run typecheck --workspace @massage-vn/api"
