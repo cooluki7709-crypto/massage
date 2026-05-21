@@ -101,7 +101,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       if (!mounted) {
         return;
       }
-      setState(() => statusMessage = 'New direct booking request received.');
+      setState(() => statusMessage = 'A new direct booking request just arrived.');
       unawaited(loadOpenBookings(showLoading: false));
     });
 
@@ -109,7 +109,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       if (!mounted) {
         return;
       }
-      setState(() => statusMessage = 'Booking matched. Check selected provider state.');
+      setState(() => statusMessage = 'A booking was confirmed. Review the selected therapist state.');
       unawaited(loadOpenBookings(showLoading: false));
     });
 
@@ -117,7 +117,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       if (!mounted) {
         return;
       }
-      setState(() => statusMessage = 'A matching job expired.');
+      setState(() => statusMessage = 'A booking request expired before a therapist was confirmed.');
       unawaited(loadOpenBookings(showLoading: false));
     });
   }
@@ -156,7 +156,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
     await ref.read(providerRepositoryProvider).goOnline();
     setState(() {
       isOnline = true;
-      statusMessage = 'Online and location shared.';
+      statusMessage = 'You are online and visible for direct booking requests.';
     });
   }
 
@@ -190,7 +190,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       await ref.read(providerRepositoryProvider).joinBooking(bookingId);
       setState(() {
         joinedBookingIds = {...joinedBookingIds, bookingId};
-        statusMessage = 'Joined booking. Waiting for customer selection.';
+        statusMessage = 'You joined this request. Waiting for the customer to choose a therapist.';
       });
       await loadOpenBookings();
     } catch (exception) {
@@ -216,7 +216,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
         await ref.read(providerRepositoryProvider).rejectBooking(bookingId);
         joinedBookingIds = joinedBookingIds.where((id) => id != bookingId).toSet();
       }
-      setState(() => statusMessage = accepted ? 'Accepted booking request.' : 'Rejected booking request.');
+      setState(() => statusMessage = accepted ? 'You accepted the booking request.' : 'You declined the booking request.');
       await loadOpenBookings();
     } catch (exception) {
       setState(() => error = '$exception');
@@ -236,7 +236,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
     });
     try {
       await ref.read(providerRepositoryProvider).startBooking(bookingId);
-      setState(() => statusMessage = 'Service started. Chat is now available.');
+      setState(() => statusMessage = 'Service started. The chat room is now live.');
       await loadOpenBookings();
     } catch (exception) {
       setState(() => error = '$exception');
@@ -378,9 +378,9 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
             ),
             const SizedBox(height: 16),
             if (bookingItems.isEmpty)
-              const InfoCard(text: 'No direct requests yet. Ask the customer to book your profile, then refresh.')
+              const InfoCard(text: 'No direct requests yet. Once a customer books your profile, it will appear here.')
             else if (visibleBookings.isEmpty)
-              const InfoCard(text: 'No requests match the current filter. Switch the filter to review older items.')
+              const InfoCard(text: 'No requests match this filter right now. Switch filters to review older items.')
             else
               for (final booking in visibleBookings)
                 Builder(
@@ -1069,7 +1069,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       customerLat = asNum(booking?['lat'])?.toDouble();
       customerLng = asNum(booking?['lng'])?.toDouble();
       messages = loadedMessages;
-      statusMessage = 'Chat room loaded for booking ${booking?['id']}.';
+      statusMessage = 'Chat is ready for booking ${booking?['id']}.';
     });
     attachChatListener();
   }
@@ -1099,7 +1099,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         lastSharedLat = location['lat'];
         lastSharedLng = location['lng'];
         statusMessage =
-            'Current location shared with the customer at ${formatCoordinate(lastSharedLat)} / ${formatCoordinate(lastSharedLng)}.';
+            'Your current location was shared with the customer at ${formatCoordinate(lastSharedLat)} / ${formatCoordinate(lastSharedLng)}.';
       });
     } catch (exception) {
       setState(() => error = '$exception');
@@ -1120,14 +1120,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Text('Chat', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            auth == null ? 'Login to load selected booking chats.' : 'Realtime messages with the customer.',
+            auth == null ? 'Login to load your latest service chat.' : 'Realtime messages with the customer during service.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: loading ? null : signInAndLoadChat,
             icon: const Icon(Icons.chat_bubble_outline),
-            label: Text(chatRoomId == null ? 'Load latest chat' : 'Refresh chat'),
+            label: Text(chatRoomId == null ? 'Open latest chat' : 'Refresh chat'),
           ),
           if (loading) ...[
             const SizedBox(height: 12),
@@ -1143,7 +1143,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
           const SizedBox(height: 16),
           if (chatRoomId == null)
-            const InfoCard(text: 'Chat opens after the guest selects you and you start the service flow.')
+            const InfoCard(text: 'Chat opens after the guest confirms you and the service start step begins.')
           else ...[
             Text('Room $chatRoomId', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
@@ -1161,7 +1161,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             const SizedBox(height: 8),
             if (messages.isEmpty)
-              const InfoCard(text: 'No messages yet.')
+              const InfoCard(text: 'No messages yet. The first message will appear here as soon as either side sends one.')
             else
               for (final message in messages)
                 MessageTile(message: message as Map<String, dynamic>),

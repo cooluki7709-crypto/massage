@@ -1766,7 +1766,7 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                           const SizedBox(height: 8),
                           Text(waitingText, style: Theme.of(context).textTheme.bodyLarge),
                           const SizedBox(height: 8),
-                          Text('Request auto-expires at ${formatExpiry(expiresAt)}'),
+                          Text('This request closes automatically at ${formatExpiry(expiresAt)}'),
                           const SizedBox(height: 16),
                           if (loading) const LinearProgressIndicator(),
                           if (error != null) ...[
@@ -1812,10 +1812,10 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                           ),
                           const SizedBox(height: 12),
                           WaitingInfoBanner(
-                            title: status == 'OPEN_MATCHING' ? 'Live matching window' : 'Booking progress',
+                            title: status == 'OPEN_MATCHING' ? 'Therapist confirmation window' : 'Booking progress',
                             body: status == 'OPEN_MATCHING'
-                                ? 'Your preferred therapist gets the first chance. If they are slow to confirm, other nearby therapists can appear below.'
-                                : 'Your request is already confirmed. Use Chat when the therapist starts the service.',
+                                ? 'Your chosen therapist gets the first response window. If they take too long, other nearby therapists can appear below.'
+                                : 'Your therapist is confirmed. Keep this page open until service start, or move to Chat when the room is ready.',
                           ),
                           const SizedBox(height: 18),
                           BookingSectionCard(
@@ -1840,23 +1840,23 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                           ),
                           const SizedBox(height: 18),
                           if (preferredProvider != null) ...[
-                            Text('Preferred therapist', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            Text('Chosen therapist', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 12),
                             TherapistDisplayCard(
                               provider: preferredProvider,
-                              badgeLabel: 'Preferred',
-                              detail: 'This therapist gets the first response window for your request.',
+                              badgeLabel: 'Chosen first',
+                              detail: 'This therapist is getting the first confirmation window for your request.',
                               subtitle: fallbackCount == 0
-                                  ? 'Checking availability - ${formatRemainingTime(expiresAt)}'
-                                  : 'Checking availability - ${formatRemainingTime(expiresAt)} before you may switch',
+                                  ? 'Checking availability • ${formatRemainingTime(expiresAt)} remaining'
+                                  : 'Checking availability • ${formatRemainingTime(expiresAt)} remaining before backup options open',
                             ),
                             const SizedBox(height: 16),
                           ],
                           if (alternativeParticipants.isNotEmpty) ...[
-                            Text('Available therapists', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            Text('Backup therapists', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 4),
                             Text(
-                              '$fallbackCount therapist(s) can take this request now.',
+                              '$fallbackCount therapist(s) can take this request if you want to switch.',
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
                             ),
                             const SizedBox(height: 12),
@@ -1866,21 +1866,21 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                                 onSelect: () => selectProvider(item),
                               ),
                           ] else if (finalizedProvider != null) ...[
-                            Text('Selected therapist', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            Text('Confirmed therapist', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 12),
                             TherapistDisplayCard(
                               provider: finalizedProvider,
-                              badgeLabel: 'Final',
-                              detail: 'Your booking is locked to this therapist now.',
+                              badgeLabel: 'Confirmed',
+                              detail: 'Your booking is now locked to this therapist.',
                             ),
                           ] else ...[
-                            const EmptyPanel(text: 'Waiting for a provider response. Other available therapists can appear here later.'),
+                            const EmptyPanel(text: 'Waiting for a therapist response. Backup options can appear here if the first therapist is slow to confirm.'),
                           ],
                           const SizedBox(height: 10),
                           FilledButton.tonalIcon(
                             onPressed: loading ? null : () => refreshBooking(),
                             icon: const Icon(Icons.refresh),
-                            label: const Text('Refresh status'),
+                            label: const Text('Check latest status'),
                           ),
                         ],
                       ),
@@ -2121,10 +2121,10 @@ class WaitingStagePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final stageItems = [
       WaitingStageItem(
-        title: preferredProviderName == null ? 'Finding therapist' : 'Preferred therapist first',
+        title: preferredProviderName == null ? 'Finding a therapist' : 'Chosen therapist first',
         body: preferredProviderName == null
             ? 'Nearby therapists are being checked now.'
-            : '$preferredProviderName gets the first response window before backups appear.',
+            : '$preferredProviderName gets the first response window before backup therapists are invited in.',
         accent: const Color(0xFF5E8E4A),
         caption: preferredProviderName == null ? 'Stage 1' : 'Stage 1 · direct request',
       ),
@@ -2794,7 +2794,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() {
       chatRoomId = roomId;
       messages = loadedMessages;
-      statusMessage = 'Chat room loaded for booking ${booking?['id']}.';
+      statusMessage = 'Chat is ready for booking ${booking?['id']}.';
     });
     attachChatListener();
   }
