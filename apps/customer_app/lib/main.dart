@@ -72,7 +72,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late final RealtimeSocket _socket;
-  List<dynamic> services = [];
   List<dynamic> providers = [];
   Map<String, dynamic>? selectedService;
   Map<String, dynamic>? activeBooking;
@@ -152,22 +151,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       final repository = ref.read(customerRepositoryProvider);
       final results = await Future.wait([
-        repository.listServices(),
         repository.nearbyProviders(),
-        repository.listBookings(),
       ]);
-      final restoredBooking = _latestTrackableBooking(results[2]);
-      if (restoredBooking != null) {
-        repository.joinBookingRoom(restoredBooking['id'] as String);
-        attachRealtimeListeners();
-      }
       setState(() {
-        services = results[0];
-        providers = results[1];
-        activeBooking = restoredBooking;
-        if (restoredBooking != null) {
-          selectedService = _serviceFromBooking(restoredBooking);
-        }
+        providers = results[0];
       });
     } catch (exception) {
       setState(() => error = '$exception');
@@ -189,16 +176,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       error = null;
     });
     try {
-      final repository = ref.read(customerRepositoryProvider);
-      final existing = _latestTrackableBooking(await repository.listBookings());
-      final booking = existing ?? await repository.createBooking(service['id'] as String);
-      repository.joinBookingRoom(booking['id'] as String);
+      final booking = await ref.read(customerRepositoryProvider).createBooking(service['id'] as String);
       attachRealtimeListeners();
       setState(() {
         activeBooking = booking;
-        realtimeMessage = existing == null
-            ? 'Matching opened. Listening for providers in realtime.'
-            : 'Existing open booking restored. Listening for providers in realtime.';
+        realtimeMessage = 'Matching opened. Listening for providers in realtime.';
+      });
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> bookSelectedProvider({
+    required String providerId,
+    required String providerName,
+    required Map<String, dynamic> service,
+  }) async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final booking = await ref.read(customerRepositoryProvider).createBooking(
+            service['id'] as String,
+            providerId: providerId,
+          );
+      attachRealtimeListeners();
+      setState(() {
+        selectedService = service;
+        activeBooking = booking;
+        realtimeMessage = 'Booking request sent to $providerName. Waiting for provider response.';
       });
     } catch (exception) {
       setState(() => error = '$exception');
@@ -233,38 +244,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Map<String, dynamic>? _latestTrackableBooking(List<dynamic> bookings) {
-    final candidates = bookings
-        .whereType<Map<String, dynamic>>()
-        .where((booking) => const {
-              'OPEN_MATCHING',
-              'MATCHED',
-              'PROVIDER_ON_THE_WAY',
-              'ARRIVED',
-              'IN_SERVICE',
-            }.contains(booking['status']))
-        .toList()
-      ..sort((left, right) => _bookingSortValue(right).compareTo(_bookingSortValue(left)));
-    return candidates.isEmpty ? null : candidates.first;
-  }
-
-  Map<String, dynamic>? _serviceFromBooking(Map<String, dynamic> booking) {
-    final services = booking['services'];
-    if (services is! List || services.isEmpty) {
-      return null;
-    }
-    final first = services.first;
-    if (first is! Map<String, dynamic>) {
-      return null;
-    }
-    final service = first['service'];
-    return service is Map<String, dynamic> ? service : null;
-  }
-
-  String _bookingSortValue(Map<String, dynamic> booking) {
-    return (booking['openedAt'] ?? booking['createdAt'] ?? '') as String;
-  }
-
   Future<void> selectProvider(Map<String, dynamic> participant) async {
     final bookingId = activeBooking?['id'] as String?;
     final providerId = participant['providerProfileId'] as String?;
@@ -291,26 +270,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  Future<void> openProviderDetail(Map<String, dynamic> provider) async {
+    final providerId = provider['id'] as String?;
+    if (providerId == null) {
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        return ProviderDetailSheet(
+          providerPreview: provider,
+          loader: () => ref.read(customerRepositoryProvider).getProviderDetail(providerId),
+          onBookService: (service) async {
+            Navigator.of(context).pop();
+            await bookSelectedProvider(
+              providerId: providerId,
+              providerName: provider['displayName'] as String? ?? 'Provider',
+              service: service,
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
     final booking = activeBooking;
-    final participants = booking?['participants'] is List<dynamic> ? booking!['participants'] as List<dynamic> : [];
-    final selectedProvider = booking?['selectedProvider'] as Map<String, dynamic>?;
-    final activeStep = booking == null
-        ? (selectedService == null ? 0 : 1)
-        : selectedProvider != null || booking['status'] == 'MATCHED'
-            ? 3
-            : 2;
 
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Choose a service', style: Theme.of(context).textTheme.headlineMedium),
+          Text('Choose a provider', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            auth == null ? 'Sign in to start booking.' : 'Service, provider preview, matching, and final selection.',
+            auth == null
+                ? 'Sign in to start booking.'
+                : 'Browse nearby providers, open one profile, choose one service, and send a direct booking request.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 16),
@@ -327,46 +327,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   }
                 : loadCatalog,
             icon: const Icon(Icons.login),
-            label: Text(auth == null ? 'Demo customer login' : 'Refresh services'),
+            label: Text(auth == null ? 'Demo customer login' : 'Refresh providers'),
           ),
           const SizedBox(height: 16),
           if (auth == null)
-            const EmptyPanel(text: 'Login loads service catalog, nearby providers, and booking actions from the API.')
+            const EmptyPanel(text: 'Login loads nearby providers, provider detail, and direct booking actions from the API.')
           else ...[
-            FlowStatusBar(activeStep: activeStep),
+            FlowStatusBar(
+              activeStep: booking == null ? 0 : (booking['chatRoom'] != null ? 3 : 2),
+            ),
             const SizedBox(height: 16),
             if (loading) const LinearProgressIndicator(),
             if (error != null) ErrorPanel(text: error!),
             if (realtimeMessage != null) EmptyPanel(text: realtimeMessage!),
             if (providerLocation != null) ProviderLocationPanel(location: providerLocation!),
             const SizedBox(height: 12),
-            Text('Services', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            if (services.isEmpty)
-              const EmptyPanel(text: 'Tap refresh services to load the API catalog.')
-            else
-              for (final service in services)
-                Card(
-                  child: ListTile(
-                    selected: selectedService?['id'] == service['id'],
-                    title: Text(service['name'] as String? ?? 'Service'),
-                    subtitle: Text('${service['durationMin']} min - ${service['basePrice']} VND'),
-                    trailing: selectedService?['id'] == service['id']
-                        ? const Icon(Icons.check_circle)
-                        : const Icon(Icons.chevron_right),
-                    onTap: booking == null ? () => setState(() => selectedService = service as Map<String, dynamic>) : null,
-                  ),
-                ),
-            const SizedBox(height: 16),
-            if (booking == null) ...[
-              BookingActionPanel(
-                selectedService: selectedService,
+            if (booking != null) ...[
+              DirectBookingStatusPanel(
                 activeBooking: booking,
-                participants: participants,
-                selectedProvider: selectedProvider,
-                onOpenBooking: loading ? null : openBooking,
                 onRefreshBooking: loading ? null : () => refreshBooking(),
-                onSelectProvider: loading ? null : selectProvider,
               ),
               const SizedBox(height: 16),
             ],
@@ -375,25 +354,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             if (providers.isEmpty)
               const EmptyPanel(text: 'Nearby verified providers will appear before booking confirmation.')
             else
-              for (final provider in providers.take(3))
+              for (final provider in providers)
                 Card(
                   child: ListTile(
                     leading: const CircleAvatar(child: Icon(Icons.spa_outlined)),
                     title: Text(provider['displayName'] as String? ?? 'Provider'),
                     subtitle: Text('${provider['distanceMeters'] ?? '?'} m - ${provider['status'] ?? 'UNKNOWN'}'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => openProviderDetail(provider as Map<String, dynamic>),
                   ),
                 ),
-            const SizedBox(height: 16),
-            if (booking != null)
-              BookingActionPanel(
-                selectedService: selectedService,
-                activeBooking: booking,
-                participants: participants,
-                selectedProvider: selectedProvider,
-                onOpenBooking: loading ? null : openBooking,
-                onRefreshBooking: loading ? null : () => refreshBooking(),
-                onSelectProvider: loading ? null : selectProvider,
-              ),
           ],
         ],
       ),
@@ -429,7 +399,7 @@ class FlowStatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final steps = ['Service', 'Confirm', 'Matching', 'Select'];
+    final steps = ['List', 'Detail', 'Request', 'Chat'];
     return Row(
       children: [
         for (var index = 0; index < steps.length; index++)
@@ -459,124 +429,58 @@ class FlowStatusBar extends StatelessWidget {
   }
 }
 
-class BookingActionPanel extends StatelessWidget {
-  const BookingActionPanel({
+class DirectBookingStatusPanel extends StatelessWidget {
+  const DirectBookingStatusPanel({
     super.key,
-    required this.selectedService,
     required this.activeBooking,
-    required this.participants,
-    required this.selectedProvider,
-    required this.onOpenBooking,
     required this.onRefreshBooking,
-    required this.onSelectProvider,
   });
 
-  final Map<String, dynamic>? selectedService;
   final Map<String, dynamic>? activeBooking;
-  final List<dynamic> participants;
-  final Map<String, dynamic>? selectedProvider;
-  final VoidCallback? onOpenBooking;
   final VoidCallback? onRefreshBooking;
-  final void Function(Map<String, dynamic> participant)? onSelectProvider;
 
   @override
   Widget build(BuildContext context) {
     final booking = activeBooking;
     if (booking == null) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Confirm booking', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 8),
-              Text(
-                selectedService == null
-                    ? 'Pick one service to open a realtime matching job.'
-                    : '${selectedService!['name']} will open as a cash booking in District 1.',
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: selectedService == null ? null : onOpenBooking,
-                icon: const Icon(Icons.radar_outlined),
-                label: const Text('Open realtime matching'),
-              ),
-            ],
-          ),
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     final status = booking['status'] ?? 'OPEN_MATCHING';
     final chatRoom = booking['chatRoom'] as Map<String, dynamic>?;
-    final provider = selectedProvider;
-    final joinedCount = participants.length;
-    final waitingForSelection = status == 'OPEN_MATCHING' && provider == null;
+    final selectedProvider = booking['selectedProvider'] as Map<String, dynamic>?;
+    final serviceList = booking['services'] is List<dynamic> ? booking['services'] as List<dynamic> : [];
+    final firstService = serviceList.isEmpty ? null : serviceList.first as Map<String, dynamic>;
+    final service = firstService?['service'] as Map<String, dynamic>?;
+    final statusText = switch (status) {
+      'OPEN_MATCHING' => 'Request sent. Waiting for the provider to accept or decline.',
+      'MATCHED' => 'Provider accepted. Waiting for service start to unlock chat.',
+      'IN_SERVICE' => 'Service started. Chat is available now.',
+      'COMPLETED' => 'Service completed.',
+      'EXPIRED' => 'The provider declined or the request expired. Choose another provider.',
+      _ => 'Current booking status: $status',
+    };
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Matching status', style: Theme.of(context).textTheme.titleLarge),
+            Text('Direct booking status', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Text('Booking ${booking['id']}'),
-            Text('Code ${shortBookingCode(booking['id'] as String?)}'),
             Text('Status: $status'),
-            const SizedBox(height: 8),
-            BookingSummaryRow(
-              items: [
-                SummaryItem(label: 'Joined', value: '$joinedCount provider(s)'),
-                SummaryItem(
-                  label: 'Customer step',
-                  value: waitingForSelection ? 'Select final provider' : (provider == null ? 'Waiting' : 'Provider chosen'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            EmptyPanel(
-              text: waitingForSelection
-                  ? (joinedCount == 0
-                      ? 'The booking is live. Wait for providers to join, then choose one provider.'
-                      : 'Providers have joined. Review them below and pick the final provider.')
-                  : 'Final provider selected. Chat and arrival tracking can continue from here.',
-            ),
-            if (provider != null) ...[
-              const SizedBox(height: 8),
-              Card(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.check_circle_outline)),
-                  title: Text(provider['displayName'] as String? ?? 'Selected provider'),
-                  subtitle: Text(chatRoom == null ? 'Waiting for chat room sync.' : 'Chat room ${chatRoom['id']} is ready.'),
-                ),
-              ),
-            ],
+            if (service != null) Text('Service: ${service['name']}'),
+            if (selectedProvider != null) Text('Provider: ${selectedProvider['displayName']}'),
             if (chatRoom != null) Text('Chat room ready: ${chatRoom['id']}'),
+            const SizedBox(height: 12),
+            EmptyPanel(text: statusText),
             const SizedBox(height: 12),
             FilledButton.tonalIcon(
               onPressed: onRefreshBooking,
               icon: const Icon(Icons.refresh),
-              label: const Text('Refresh joined providers'),
+              label: const Text('Refresh booking status'),
             ),
-            const SizedBox(height: 12),
-            if (participants.isEmpty)
-              const EmptyPanel(text: 'Waiting for providers to join. Open the Provider app and join this booking.')
-            else
-              for (final item in participants)
-                Builder(
-                  builder: (context) {
-                    final participant = item as Map<String, dynamic>;
-                    return ProviderParticipantTile(
-                      participant: participant,
-                      isSelected: provider?['id'] == participant['providerProfileId'],
-                      onSelect: status == 'OPEN_MATCHING' && provider == null && onSelectProvider != null
-                          ? () => onSelectProvider!(participant)
-                          : null,
-                    );
-                  },
-                ),
           ],
         ),
       ),
@@ -584,87 +488,89 @@ class BookingActionPanel extends StatelessWidget {
   }
 }
 
-String shortBookingCode(String? id) {
-  if (id == null || id.isEmpty) {
-    return '----';
-  }
-  return id.length <= 8 ? id : id.substring(0, 8).toUpperCase();
-}
-
-class ProviderParticipantTile extends StatelessWidget {
-  const ProviderParticipantTile({
+class ProviderDetailSheet extends StatelessWidget {
+  const ProviderDetailSheet({
     super.key,
-    required this.participant,
-    required this.onSelect,
-    required this.isSelected,
+    required this.providerPreview,
+    required this.loader,
+    required this.onBookService,
   });
 
-  final Map<String, dynamic> participant;
-  final VoidCallback? onSelect;
-  final bool isSelected;
+  final Map<String, dynamic> providerPreview;
+  final Future<Map<String, dynamic>> Function() loader;
+  final Future<void> Function(Map<String, dynamic> service) onBookService;
 
   @override
   Widget build(BuildContext context) {
-    final provider = participant['providerProfile'] as Map<String, dynamic>?;
-    final status = participant['status'] ?? 'JOINED';
-    return Card(
-      child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.person_pin_circle_outlined)),
-        title: Text(provider?['displayName'] as String? ?? 'Joined provider'),
-        subtitle: Text('$status${isSelected ? ' - final provider' : ''}'),
-        trailing: isSelected
-            ? const Chip(
-                avatar: Icon(Icons.check, size: 16),
-                label: Text('Selected'),
-              )
-            : FilledButton(
-                onPressed: onSelect,
-                child: const Text('Select'),
-              ),
+    return SafeArea(
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: loader(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          final detail = snapshot.data ?? providerPreview;
+          final reviews = detail['reviews'] is List<dynamic> ? detail['reviews'] as List<dynamic> : [];
+          final services = detail['services'] is List<dynamic> ? detail['services'] as List<dynamic> : [];
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(detail['displayName'] as String? ?? 'Provider', style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 8),
+                Text(
+                  '${providerPreview['distanceMeters'] ?? '?'} m away • ${detail['bio'] ?? 'Massage provider profile'}',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 16),
+                Text('Reviews', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                if (reviews.isEmpty)
+                  const EmptyPanel(text: 'No reviews yet.')
+                else
+                  for (final review in reviews.take(3))
+                    Card(
+                      child: ListTile(
+                        leading: const CircleAvatar(child: Icon(Icons.star_outline)),
+                        title: Text('Rating ${review['rating'] ?? '-'}'),
+                        subtitle: Text(review['comment'] as String? ?? 'No comment'),
+                      ),
+                    ),
+                const SizedBox(height: 16),
+                Text('Services', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                if (services.isEmpty)
+                  const EmptyPanel(text: 'No services configured yet.')
+                else
+                  for (final item in services)
+                    Builder(
+                      builder: (context) {
+                        final providerService = item as Map<String, dynamic>;
+                        final service = providerService['service'] as Map<String, dynamic>? ?? <String, dynamic>{};
+                        return Card(
+                          child: ListTile(
+                            title: Text(service['name'] as String? ?? 'Service'),
+                            subtitle: Text('${service['durationMin'] ?? '-'} min • ${service['basePrice'] ?? '-'} VND'),
+                            trailing: FilledButton(
+                              onPressed: () => onBookService(service),
+                              child: const Text('Book'),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
-}
-
-class BookingSummaryRow extends StatelessWidget {
-  const BookingSummaryRow({super.key, required this.items});
-
-  final List<SummaryItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var index = 0; index < items.length; index++)
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(right: index == items.length - 1 ? 0 : 8),
-              child: Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(items[index].label, style: Theme.of(context).textTheme.labelMedium),
-                      const SizedBox(height: 4),
-                      Text(items[index].value, style: Theme.of(context).textTheme.titleMedium),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class SummaryItem {
-  const SummaryItem({required this.label, required this.value});
-
-  final String label;
-  final String value;
 }
 
 class ProvidersScreen extends ConsumerWidget {
@@ -692,9 +598,9 @@ class MatchingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MvpScreen(
-      title: 'Open matching',
-      subtitle: 'Bookings emit booking.opened, provider.joined, booking.matched, and booking.expired.',
-      items: ['Customer creates booking', 'Providers join realtime', 'Customer selects final provider'],
+      title: 'Direct booking',
+      subtitle: 'Customer chooses one provider, the provider accepts or rejects, then chat opens on service start.',
+      items: ['Customer selects provider', 'Provider accepts request', 'Provider starts service chat'],
     );
   }
 }

@@ -37,13 +37,13 @@ Admin web uses sidebar navigation:
 ```mermaid
 flowchart TD
   A["Launch"] --> B["Location Permission"]
-  B --> C["Service Selection"]
-  C --> D["Nearby Providers"]
-  D --> E["Provider Detail"]
-  E --> F["Booking Confirmation"]
-  F --> G["Open Matching Waiting"]
-  G --> H["Providers Join Realtime"]
-  H --> I["Customer Selects Provider"]
+  B --> C["Nearby Providers"]
+  C --> D["Provider Detail"]
+  D --> E["Review Profile / Reviews / Services"]
+  E --> F["Customer Selects One Service"]
+  F --> G["Direct Booking Request"]
+  G --> H["Provider Accepts Or Rejects"]
+  H --> I["Provider Starts Service Flow"]
   I --> J["Chat Created"]
   J --> K["Provider Location Shared"]
   K --> L["Provider On The Way"]
@@ -67,7 +67,7 @@ flowchart TD
   G --> H["Google Or Phone Login"]
 ```
 
-MVP Phase 1 keeps the same broad order: explore first, service category second, provider list third, booking action fourth. The intentional product change is after booking action: instead of copying the reference booking mechanics, our app opens a realtime matching job and lets multiple providers join before the customer selects the final provider.
+MVP Phase 1 keeps the same broad order: explore first, provider browse second, provider detail third, booking action fourth. The intentional product choice for the first MVP is a simpler direct-booking request instead of multi-provider realtime selection.
 
 ## Provider Sequence
 
@@ -76,19 +76,18 @@ flowchart TD
   A["Login"] --> B["Verification Check"]
   B --> C["Online Toggle"]
   C --> D["Realtime Location"]
-  D --> E["Open Jobs"]
-  E --> F["Join Booking"]
-  F --> G["Wait For Customer Selection"]
-  G --> H["Accepted As Final Provider"]
-  H --> I["Chat And Navigate"]
-  I --> J["Arrived"]
-  J --> K["Start Service"]
-  K --> L["Complete Service"]
-  L --> M["Earnings Updated"]
+  D --> E["Direct Booking Request Inbox"]
+  E --> F["Accept Or Reject"]
+  F --> G["Start Service Flow"]
+  G --> H["Chat And Navigate"]
+  H --> I["Arrived"]
+  I --> J["Start Service"]
+  J --> K["Complete Service"]
+  K --> L["Earnings Updated"]
 ```
 
 ## UX Comparison Principles
 
-- Preserve: onboarding/auth/location prompts, tab-based IA, service/provider browsing before booking, booking detail/status timeline, chat placement, provider verification sequence.
-- Change: original branding, artwork, copy, colors, icons, and payment/provider matching mechanics.
-- Improve: make matching explicit and anxiety-reducing with visible provider participants and clear timeout/refund states.
+- Preserve: onboarding/auth/location prompts, tab-based IA, provider browsing before booking, booking detail/status timeline, chat placement, provider verification sequence.
+- Change: original branding, artwork, copy, colors, icons, and the original matching implementation.
+- Improve: make provider response state explicit and keep the booking path easy to understand for customers, providers, and operators.

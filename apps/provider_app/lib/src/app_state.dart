@@ -101,6 +101,26 @@ class ProviderRepository {
     return result is List<dynamic> ? result : [];
   }
 
+  Future<List<dynamic>> requestBookings() async {
+    final items = await listBookings();
+    const activeStatuses = {
+      'OPEN_MATCHING',
+      'MATCHED',
+      'PROVIDER_ON_THE_WAY',
+      'ARRIVED',
+      'IN_SERVICE',
+    };
+    return items
+        .whereType<Map<String, dynamic>>()
+        .where((booking) => activeStatuses.contains(booking['status']))
+        .toList()
+      ..sort((left, right) {
+        final leftValue = (left['openedAt'] ?? left['createdAt'] ?? '') as String;
+        final rightValue = (right['openedAt'] ?? right['createdAt'] ?? '') as String;
+        return rightValue.compareTo(leftValue);
+      });
+  }
+
   Future<Map<String, dynamic>> joinBooking(String bookingId) async {
     final result = await _api.postJson('/provider/bookings/$bookingId/join', {}) as Map<String, dynamic>;
     _socket.joinBooking(bookingId);
@@ -114,6 +134,11 @@ class ProviderRepository {
 
   Future<Map<String, dynamic>> rejectBooking(String bookingId) async {
     final result = await _api.postJson('/provider/bookings/$bookingId/reject', {});
+    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> startBooking(String bookingId) async {
+    final result = await _api.postJson('/provider/bookings/$bookingId/start', {});
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
 

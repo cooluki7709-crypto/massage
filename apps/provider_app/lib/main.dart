@@ -98,7 +98,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       if (!mounted) {
         return;
       }
-      setState(() => statusMessage = 'New open matching job received.');
+      setState(() => statusMessage = 'New direct booking request received.');
       unawaited(loadOpenBookings(showLoading: false));
     });
 
@@ -165,14 +165,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       });
     }
     try {
-      final bookings = await ref.read(providerRepositoryProvider).openBookings();
-      bookings.sort((left, right) {
-        final leftMap = left as Map<String, dynamic>;
-        final rightMap = right as Map<String, dynamic>;
-        final leftValue = (leftMap['openedAt'] ?? leftMap['createdAt'] ?? '') as String;
-        final rightValue = (rightMap['openedAt'] ?? rightMap['createdAt'] ?? '') as String;
-        return rightValue.compareTo(leftValue);
-      });
+      final bookings = await ref.read(providerRepositoryProvider).requestBookings();
       setState(() => openBookings = bookings);
     } catch (exception) {
       setState(() => error = '$exception');
@@ -220,7 +213,27 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
         await ref.read(providerRepositoryProvider).rejectBooking(bookingId);
         joinedBookingIds = joinedBookingIds.where((id) => id != bookingId).toSet();
       }
-      setState(() => statusMessage = accepted ? 'Accepted participation.' : 'Rejected participation.');
+      setState(() => statusMessage = accepted ? 'Accepted booking request.' : 'Rejected booking request.');
+      await loadOpenBookings();
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> startService(Map<String, dynamic> booking) async {
+    final bookingId = booking['id'] as String;
+    setState(() {
+      loading = true;
+      error = null;
+      statusMessage = null;
+    });
+    try {
+      await ref.read(providerRepositoryProvider).startBooking(bookingId);
+      setState(() => statusMessage = 'Service started. Chat is now available.');
       await loadOpenBookings();
     } catch (exception) {
       setState(() => error = '$exception');
@@ -234,33 +247,22 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
-    final hasJoinedRequest = joinedBookingIds.isNotEmpty;
-    final hasSelection = openBookings.any((booking) => booking is Map<String, dynamic> && booking['status'] == 'MATCHED');
-    final activeStep = !isOnline
-        ? 0
-        : openBookings.isEmpty
-            ? 1
-            : hasSelection
-                ? 3
-                : hasJoinedRequest
-                    ? 2
-                    : 1;
 
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Open booking requests', style: Theme.of(context).textTheme.headlineMedium),
+          Text('Direct booking requests', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            auth == null ? 'Login to receive matching jobs.' : 'Join open bookings and wait for customer selection.',
+            auth == null ? 'Login to receive direct booking requests.' : 'Accept or reject bookings sent directly to you.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: auth == null ? signInAndLoad : () => loadOpenBookings(),
             icon: const Icon(Icons.login),
-            label: Text(auth == null ? 'Demo provider login' : 'Refresh open jobs'),
+            label: Text(auth == null ? 'Demo provider login' : 'Refresh requests'),
           ),
           const SizedBox(height: 12),
           ProviderStatusPanel(
@@ -300,22 +302,28 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
           ],
           const SizedBox(height: 20),
           if (auth == null)
-            const InfoCard(text: 'Login first to load open bookings from the API.')
+            const InfoCard(text: 'Login first to load direct booking requests from the API.')
           else ...[
-            RequestFlowBar(activeStep: activeStep),
+            RequestFlowBar(
+              activeStep: !isOnline
+                  ? 0
+                  : (openBookings.any((item) => item is Map<String, dynamic> && item['chatRoom'] != null)
+                      ? 3
+                      : (openBookings.any((item) => item is Map<String, dynamic> && item['status'] == 'MATCHED') ? 2 : 1)),
+            ),
             const SizedBox(height: 16),
             if (openBookings.isEmpty)
-              const InfoCard(text: 'No open matching jobs yet. Create a booking in the Customer app, then refresh.')
+              const InfoCard(text: 'No direct requests yet. Ask the customer to book your profile, then refresh.')
             else
               for (final booking in openBookings)
                 OpenBookingCard(
                   booking: booking as Map<String, dynamic>,
-                  isNewest: identical(booking, openBookings.first),
                   joined: joinedBookingIds.contains(booking['id']),
                   loading: loading,
                   onJoin: () => joinBooking(booking),
                   onAccept: () => respondToBooking(booking, true),
                   onReject: () => respondToBooking(booking, false),
+                  onStart: () => startService(booking),
                 ),
           ],
         ],
@@ -358,7 +366,7 @@ class ProviderStatusPanel extends StatelessWidget {
                 children: [
                   Text(isOnline ? 'Online available' : 'Offline', style: Theme.of(context).textTheme.titleMedium),
                   Text(
-                    isOnline ? 'Location is shared for matching.' : 'Go online to receive open matching jobs.',
+                    isOnline ? 'Location is shared for booking requests.' : 'Go online to receive direct booking requests.',
                   ),
                 ],
               ),
@@ -381,7 +389,7 @@ class RequestFlowBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final steps = ['Online', 'Listen', 'Join', 'Selected'];
+    final steps = ['Online', 'Request', 'Accept', 'Chat'];
     return Row(
       children: [
         for (var index = 0; index < steps.length; index++)
@@ -411,21 +419,21 @@ class OpenBookingCard extends StatelessWidget {
   const OpenBookingCard({
     super.key,
     required this.booking,
-    required this.isNewest,
     required this.joined,
     required this.loading,
     required this.onJoin,
     required this.onAccept,
     required this.onReject,
+    required this.onStart,
   });
 
   final Map<String, dynamic> booking;
-  final bool isNewest;
   final bool joined;
   final bool loading;
   final VoidCallback onJoin;
   final VoidCallback onAccept;
   final VoidCallback onReject;
+  final VoidCallback onStart;
 
   @override
   Widget build(BuildContext context) {
@@ -434,12 +442,9 @@ class OpenBookingCard extends StatelessWidget {
     final service = firstService['service'] as Map<String, dynamic>?;
     final participants = booking['participants'] is List<dynamic> ? booking['participants'] as List<dynamic> : [];
     final selectedProvider = booking['selectedProvider'] as Map<String, dynamic>?;
+    final isDirectRequest = selectedProvider != null;
+    final hasChat = booking['chatRoom'] != null;
     final isMatched = booking['status'] == 'MATCHED';
-    final nextStep = !joined
-        ? 'Join this job to enter the customer shortlist.'
-        : isMatched
-            ? 'Customer already selected a provider. Review the final state.'
-            : 'You are in the shortlist. Wait for the customer to pick one provider.';
 
     return Card(
       child: Padding(
@@ -457,46 +462,58 @@ class OpenBookingCard extends StatelessWidget {
                     children: [
                       Text(service?['name'] as String? ?? 'Massage booking', style: Theme.of(context).textTheme.titleLarge),
                       Text('${booking['status']} - ${participants.length} provider(s) joined'),
-                      Text('Code ${shortBookingCode(booking['id'] as String?)}'),
                     ],
                   ),
                 ),
-                if (isNewest)
-                  Chip(
-                    label: const Text('Latest'),
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                  ),
               ],
             ),
             const SizedBox(height: 12),
             Text('Booking ${booking['id']}'),
             Text('Scheduled: ${booking['scheduledStartAt'] ?? 'soon'}'),
-            Text('Payment opens as authorization, customer selects final provider.'),
-            const SizedBox(height: 8),
-            InfoCard(text: nextStep),
-            const SizedBox(height: 8),
-            BookingOpsRow(
-              items: [
-                ProviderSummaryItem(label: 'Joined now', value: '${participants.length} provider(s)'),
-                ProviderSummaryItem(
-                  label: 'Final provider',
-                  value: selectedProvider?['displayName'] as String? ?? (isMatched ? 'Assigned' : 'Waiting'),
-                ),
-              ],
-            ),
-            if (selectedProvider != null) ...[
-              const SizedBox(height: 8),
-              Card(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.assignment_turned_in_outlined)),
-                  title: Text(selectedProvider['displayName'] as String? ?? 'Selected provider'),
-                  subtitle: Text(isMatched ? 'Booking is matched and moving into service delivery.' : 'Customer selection pending.'),
-                ),
-              ),
-            ],
+            Text(isDirectRequest
+                ? 'This request came directly from a customer who chose your profile.'
+                : 'Payment opens as authorization, customer selects final provider.'),
             const SizedBox(height: 12),
-            if (!joined)
+            if (isDirectRequest)
+              InfoCard(
+                text: isMatched
+                    ? (hasChat
+                        ? 'Service started. Chat is ready.'
+                        : 'You accepted this request. Start service to unlock chat.')
+                    : 'The customer already chose you. Accept or decline this request.',
+              )
+            else
+              const InfoCard(text: 'Customer opens a public request and providers may join.'),
+            const SizedBox(height: 12),
+            if (isDirectRequest && !isMatched)
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: loading ? null : onReject,
+                      icon: const Icon(Icons.close),
+                      label: const Text('Decline'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: loading ? null : onAccept,
+                      icon: const Icon(Icons.check),
+                      label: const Text('Accept request'),
+                    ),
+                  ),
+                ],
+              )
+            else if (isDirectRequest && isMatched && !hasChat)
+              FilledButton.icon(
+                onPressed: loading ? null : onStart,
+                icon: const Icon(Icons.play_arrow_outlined),
+                label: const Text('Start service chat'),
+              )
+            else if (isDirectRequest && hasChat)
+              const InfoCard(text: 'Chat is ready. Continue from the Chat tab.')
+            else if (!joined)
               FilledButton.icon(
                 onPressed: loading ? null : onJoin,
                 icon: const Icon(Icons.add_circle_outline),
@@ -530,54 +547,6 @@ class OpenBookingCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class BookingOpsRow extends StatelessWidget {
-  const BookingOpsRow({super.key, required this.items});
-
-  final List<ProviderSummaryItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var index = 0; index < items.length; index++)
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(right: index == items.length - 1 ? 0 : 8),
-              child: Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(items[index].label, style: Theme.of(context).textTheme.labelMedium),
-                      const SizedBox(height: 4),
-                      Text(items[index].value, style: Theme.of(context).textTheme.titleMedium),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class ProviderSummaryItem {
-  const ProviderSummaryItem({required this.label, required this.value});
-
-  final String label;
-  final String value;
-}
-
-String shortBookingCode(String? id) {
-  if (id == null || id.isEmpty) {
-    return '----';
-  }
-  return id.length <= 8 ? id : id.substring(0, 8).toUpperCase();
 }
 
 class EarningsScreen extends ConsumerWidget {

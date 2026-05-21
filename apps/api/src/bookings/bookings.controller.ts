@@ -19,6 +19,7 @@ export class BookingsController {
     @Body()
     body: {
       serviceId: string;
+      providerId?: string;
       scheduledStartAt: string;
       address: Prisma.InputJsonValue;
       lat: number;
@@ -58,8 +59,8 @@ export class BookingsController {
   @Get('provider/bookings/open')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.PROVIDER)
-  getOpenBookings() {
-    return this.bookings.getOpenBookings();
+  getOpenBookings(@CurrentUser() user: AuthenticatedUser) {
+    return this.bookings.getOpenBookings(user.id);
   }
 
   @Get('provider/bookings')

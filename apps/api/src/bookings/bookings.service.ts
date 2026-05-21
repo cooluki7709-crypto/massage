@@ -29,6 +29,7 @@ export class BookingsService {
     userId: string | undefined,
     input: {
       serviceId: string;
+      providerId?: string;
       scheduledStartAt: string;
       address: Prisma.InputJsonValue;
       lat: number;
@@ -47,6 +48,12 @@ export class BookingsService {
     }
 
     const service = await this.prisma.massageService.findUniqueOrThrow({ where: { id: input.serviceId } });
+    const selectedProvider = input.providerId
+      ? await this.prisma.providerProfile.findUniqueOrThrow({
+          where: { id: input.providerId },
+          include: { user: true },
+        })
+      : null;
     const scheduledStartAt = new Date(input.scheduledStartAt);
     const scheduledEndAt = new Date(scheduledStartAt.getTime() + service.durationMin * 60_000);
     const expiresAt = new Date(Date.now() + 15 * 60_000);
@@ -61,6 +68,7 @@ export class BookingsService {
         lat: input.lat,
         lng: input.lng,
         notes: input.notes,
+        selectedProviderId: selectedProvider?.id,
         openedAt: new Date(),
         expiresAt,
         services: {
@@ -72,8 +80,22 @@ export class BookingsService {
         payment: {
           create: this.payments.buildAuthorization(input.paymentMethod, service.basePrice),
         },
+        participants: selectedProvider
+          ? {
+              create: {
+                providerProfileId: selectedProvider.id,
+                status: ParticipantStatus.JOINED,
+                providerStatusAtJoin: selectedProvider.status,
+              },
+            }
+          : undefined,
       },
-      include: { services: { include: { service: true } }, payment: true, participants: true },
+      include: {
+        services: { include: { service: true } },
+        payment: true,
+        participants: { include: { providerProfile: true } },
+        selectedProvider: true,
+      },
     });
 
     if (booking.payment?.id) {
@@ -90,11 +112,24 @@ export class BookingsService {
     await this.notifications.create({
       userId,
       type: 'booking.opened',
-      title: 'Booking opened',
-      body: 'We are looking for nearby providers.',
-      data: { bookingId: booking.id },
+      title: selectedProvider ? 'Booking request sent' : 'Booking opened',
+      body: selectedProvider
+        ? `${selectedProvider.displayName} received your booking request.`
+        : 'We are looking for nearby providers.',
+      data: { bookingId: booking.id, providerProfileId: selectedProvider?.id },
     });
-    this.matchingGateway.emitBookingOpened(booking.id, result);
+    if (selectedProvider?.userId) {
+      await this.notifications.create({
+        userId: selectedProvider.userId,
+        type: 'booking.requested',
+        title: 'New direct booking request',
+        body: 'A customer requested one of your services.',
+        data: { bookingId: booking.id, customerProfileId: customer.id },
+      });
+      this.matchingGateway.emitDirectBookingRequested(selectedProvider.userId, booking.id, result);
+    } else {
+      this.matchingGateway.emitBookingOpened(booking.id, result);
+    }
     return result;
   }
 
@@ -139,10 +174,35 @@ export class BookingsService {
     });
   }
 
-  getOpenBookings() {
+  async getOpenBookings(providerUserId?: string) {
+    const provider = providerUserId ? await this.requireProvider(providerUserId) : null;
     return this.prisma.booking.findMany({
-      where: { status: BookingStatus.OPEN_MATCHING, expiresAt: { gt: new Date() } },
-      include: { services: { include: { service: true } }, participants: true },
+      where: {
+        status: BookingStatus.OPEN_MATCHING,
+        expiresAt: { gt: new Date() },
+        ...(provider
+          ? {
+              OR: [
+                { selectedProviderId: provider.id },
+                {
+                  selectedProviderId: null,
+                  participants: {
+                    none: {
+                      providerProfileId: provider.id,
+                      status: ParticipantStatus.REJECTED,
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        services: { include: { service: true } },
+        participants: { include: { providerProfile: true } },
+        selectedProvider: true,
+        chatRoom: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -173,6 +233,9 @@ export class BookingsService {
     const booking = await this.prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
     if (booking.status !== BookingStatus.OPEN_MATCHING) {
       throw new BadRequestException('Booking is not open for matching');
+    }
+    if (booking.selectedProviderId && booking.selectedProviderId !== provider.id) {
+      throw new BadRequestException('This booking request targets another provider');
     }
 
     const participant = await this.prisma.bookingParticipant.upsert({
@@ -257,6 +320,64 @@ export class BookingsService {
 
   async updateParticipant(bookingId: string, providerUserId: string | undefined, status: ParticipantStatus) {
     const provider = await this.requireProvider(providerUserId);
+    const booking = await this.prisma.booking.findUniqueOrThrow({
+      where: { id: bookingId },
+      include: { customerProfile: true, selectedProvider: true, chatRoom: true },
+    });
+
+    if (booking.selectedProviderId === provider.id) {
+      if (status === ParticipantStatus.ACCEPTED) {
+        const updated = await this.prisma.booking.update({
+          where: { id: bookingId },
+          data: {
+            status: BookingStatus.MATCHED,
+            participants: {
+              update: {
+                where: { bookingId_providerProfileId: { bookingId, providerProfileId: provider.id } },
+                data: { status, respondedAt: new Date() },
+              },
+            },
+          },
+          include: { participants: true, selectedProvider: true, chatRoom: true },
+        });
+        await this.notifications.create({
+          userId: booking.customerProfile.userId,
+          type: 'booking.accepted',
+          title: 'Provider accepted your booking',
+          body: `${provider.displayName} accepted your request.`,
+          data: { bookingId },
+        });
+        this.matchingGateway.emitBookingMatched(bookingId, updated);
+        return updated;
+      }
+
+      if (status === ParticipantStatus.REJECTED) {
+        const updated = await this.prisma.booking.update({
+          where: { id: bookingId },
+          data: {
+            status: BookingStatus.EXPIRED,
+            participants: {
+              update: {
+                where: { bookingId_providerProfileId: { bookingId, providerProfileId: provider.id } },
+                data: { status, respondedAt: new Date() },
+              },
+            },
+          },
+          include: { participants: true, selectedProvider: true, chatRoom: true },
+        });
+        await this.matching.closeBooking(bookingId);
+        await this.notifications.create({
+          userId: booking.customerProfile.userId,
+          type: 'booking.rejected',
+          title: 'Provider declined your booking',
+          body: 'Please choose another provider.',
+          data: { bookingId, providerProfileId: provider.id },
+        });
+        this.matchingGateway.emitBookingExpired(bookingId, updated);
+        return updated;
+      }
+    }
+
     return this.prisma.bookingParticipant.update({
       where: { bookingId_providerProfileId: { bookingId, providerProfileId: provider.id } },
       data: { status, respondedAt: new Date() },
@@ -270,6 +391,33 @@ export class BookingsService {
   async updateProviderBookingStatus(bookingId: string, providerUserId: string, status: BookingStatus) {
     const provider = await this.requireProvider(providerUserId);
     await this.requireSelectedProvider(bookingId, provider.id);
+    if (status === BookingStatus.IN_SERVICE) {
+      const updated = await this.prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          status,
+          chatRoom: { upsert: { create: {}, update: {} } },
+        },
+        include: { chatRoom: true, selectedProvider: true, customerProfile: true },
+      });
+      await this.notifications.create({
+        userId: updated.customerProfile.userId,
+        type: 'service.started',
+        title: 'Service started',
+        body: 'Your provider started the service. Chat is now available.',
+        data: { bookingId, chatRoomId: updated.chatRoom?.id },
+      });
+      if (updated.selectedProvider?.userId) {
+        await this.notifications.create({
+          userId: updated.selectedProvider.userId,
+          type: 'service.started',
+          title: 'Service started',
+          body: 'Chat with the customer is now available.',
+          data: { bookingId, chatRoomId: updated.chatRoom?.id },
+        });
+      }
+      return updated;
+    }
     return this.updateStatus(bookingId, status);
   }
 

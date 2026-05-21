@@ -30,13 +30,11 @@ class AuthSession {
   const AuthSession({
     required this.userId,
     required this.accessToken,
-    required this.refreshToken,
     required this.user,
   });
 
   final String userId;
   final String accessToken;
-  final String refreshToken;
   final Map<String, dynamic> user;
 }
 
@@ -53,17 +51,10 @@ class AuthController extends StateNotifier<AuthSession?> {
       'role': 'CUSTOMER',
     });
     final accessToken = result['accessToken'] as String;
-    final refreshToken = result['refreshToken'] as String;
     final user = result['user'] as Map<String, dynamic>;
     _api.accessToken = accessToken;
-    _api.refreshToken = refreshToken;
     _socket.connect(accessToken);
-    state = AuthSession(
-      userId: user['id'] as String,
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-      user: user,
-    );
+    state = AuthSession(userId: user['id'] as String, accessToken: accessToken, user: user);
   }
 }
 
@@ -87,6 +78,11 @@ class CustomerRepository {
     return result is List<dynamic> ? result : [];
   }
 
+  Future<Map<String, dynamic>> getProviderDetail(String providerId) async {
+    final result = await _api.getJson('/customer/providers/$providerId');
+    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+  }
+
   Future<Map<String, dynamic>> getBooking(String bookingId) async {
     final result = await _api.getJson('/customer/bookings/$bookingId');
     return result as Map<String, dynamic>;
@@ -97,21 +93,19 @@ class CustomerRepository {
     return result is List<dynamic> ? result : [];
   }
 
-  void joinBookingRoom(String bookingId) {
-    _socket.joinBooking(bookingId);
-  }
-
-  Future<Map<String, dynamic>> createBooking(String serviceId) async {
+  Future<Map<String, dynamic>> createBooking(String serviceId, {String? providerId}) async {
     final result = await _api.postJson('/customer/bookings', {
       'serviceId': serviceId,
+      if (providerId != null) 'providerId': providerId,
       'scheduledStartAt': DateTime.now().add(const Duration(hours: 1)).toIso8601String(),
       'address': {'line1': 'District 1, Ho Chi Minh City'},
       'lat': 10.7769,
       'lng': 106.7009,
       'paymentMethod': 'CASH',
     });
-    _socket.joinBooking(result['id'] as String);
-    return result;
+    final bookingId = result['id'] as String;
+    _socket.joinBooking(bookingId);
+    return getBooking(bookingId);
   }
 
   Future<Map<String, dynamic>> selectProvider(String bookingId, String providerProfileId) async {

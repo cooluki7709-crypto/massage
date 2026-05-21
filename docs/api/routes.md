@@ -101,3 +101,12 @@ The retry queue stores DB notifications first. Delivery attempts are recorded in
 Callbacks are placeholder parser routes in the MVP. Real MoMo/VNPay signature validation must be added before production.
 
 Manual admin refunds move the payment to `REFUNDED`, mark the booking as `REFUNDED`, create a `Refund` row, and cancel unpaid provider earnings for that booking.
+## Phase 1 Direct Booking Notes
+
+- `POST /customer/bookings` can include an optional `providerId` for the first MVP direct-booking flow.
+- When `providerId` is present, the booking is treated as a direct request to one provider rather than a public open-matching job.
+- `GET /provider/bookings/open` returns:
+  - direct requests targeted to the authenticated provider
+  - general open-matching jobs when no direct target is set
+- `POST /provider/bookings/:id/accept` confirms a direct request.
+- `POST /provider/bookings/:id/start` creates the chat room when the provider starts the service flow.
