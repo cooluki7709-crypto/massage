@@ -1,20 +1,30 @@
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'core/api_client.dart';
 import 'core/providers.dart';
 import 'core/realtime_socket.dart';
+import 'features/map/data/datasources/provider_device_location_datasource.dart';
+import 'features/map/domain/services/provider_location_heartbeat.dart';
+import 'features/map/presentation/providers/map_providers.dart';
 
 export 'core/providers.dart';
 export 'features/auth/presentation/providers/auth_providers.dart';
+export 'features/map/presentation/providers/map_providers.dart';
 
 final providerRepositoryProvider = Provider<ProviderRepository>((ref) {
-  return ProviderRepository(ref.read(apiClientProvider), ref.read(realtimeSocketProvider));
+  return ProviderRepository(
+    ref.read(apiClientProvider),
+    ref.read(realtimeSocketProvider),
+    ref.read(providerDeviceLocationDataSourceProvider),
+  );
 });
 
-final providerLocationHeartbeatProvider = Provider<ProviderLocationHeartbeat>((ref) {
-  final heartbeat = ProviderLocationHeartbeat(ref.read(providerRepositoryProvider));
+final providerLocationHeartbeatProvider =
+    Provider<ProviderLocationHeartbeat>((ref) {
+  final heartbeat = ProviderLocationHeartbeat(() async {
+    await ref.read(providerRepositoryProvider).updateLocation();
+  });
   ref.onDispose(heartbeat.dispose);
   return heartbeat;
 });
@@ -23,10 +33,11 @@ const double demoProviderLat = 10.7769;
 const double demoProviderLng = 106.7009;
 
 class ProviderRepository {
-  ProviderRepository(this._api, this._socket);
+  ProviderRepository(this._api, this._socket, this._locationDataSource);
 
   final ApiClient _api;
   final RealtimeSocket _socket;
+  final ProviderDeviceLocationDataSource _locationDataSource;
 
   Future<void> goOnline() async {
     await _api.postJson('/provider/online', {});
@@ -38,7 +49,7 @@ class ProviderRepository {
   }
 
   Future<Map<String, double>> updateLocation({String? bookingId}) async {
-    final position = await currentPosition();
+    final position = await _locationDataSource.currentPosition();
     final resolved = await resolveProviderLocation(position);
     final lat = resolved['lat']!;
     final lng = resolved['lng']!;
@@ -47,7 +58,8 @@ class ProviderRepository {
     return {'lat': lat, 'lng': lng};
   }
 
-  Future<Map<String, double>> resolveProviderLocation(Position? position) async {
+  Future<Map<String, double>> resolveProviderLocation(
+      Position? position) async {
     final lat = position?.latitude;
     final lng = position?.longitude;
     if (lat != null && lng != null && isVietnamCoordinate(lat, lng)) {
@@ -58,7 +70,9 @@ class ProviderRepository {
     final profile = me['providerProfile'] as Map<String, dynamic>?;
     final profileLat = asNum(profile?['currentLat'])?.toDouble();
     final profileLng = asNum(profile?['currentLng'])?.toDouble();
-    if (profileLat != null && profileLng != null && isVietnamCoordinate(profileLat, profileLng)) {
+    if (profileLat != null &&
+        profileLng != null &&
+        isVietnamCoordinate(profileLat, profileLng)) {
       return {'lat': profileLat, 'lng': profileLng};
     }
 
@@ -105,30 +119,36 @@ class ProviderRepository {
         .where((booking) => activeStatuses.contains(booking['status']))
         .toList()
       ..sort((left, right) {
-        final leftValue = (left['openedAt'] ?? left['createdAt'] ?? '') as String;
-        final rightValue = (right['openedAt'] ?? right['createdAt'] ?? '') as String;
+        final leftValue =
+            (left['openedAt'] ?? left['createdAt'] ?? '') as String;
+        final rightValue =
+            (right['openedAt'] ?? right['createdAt'] ?? '') as String;
         return rightValue.compareTo(leftValue);
       });
   }
 
   Future<Map<String, dynamic>> joinBooking(String bookingId) async {
-    final result = await _api.postJson('/provider/bookings/$bookingId/join', {}) as Map<String, dynamic>;
+    final result = await _api.postJson('/provider/bookings/$bookingId/join', {})
+        as Map<String, dynamic>;
     _socket.joinBooking(bookingId);
     return result;
   }
 
   Future<Map<String, dynamic>> acceptBooking(String bookingId) async {
-    final result = await _api.postJson('/provider/bookings/$bookingId/accept', {});
+    final result =
+        await _api.postJson('/provider/bookings/$bookingId/accept', {});
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> rejectBooking(String bookingId) async {
-    final result = await _api.postJson('/provider/bookings/$bookingId/reject', {});
+    final result =
+        await _api.postJson('/provider/bookings/$bookingId/reject', {});
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> startBooking(String bookingId) async {
-    final result = await _api.postJson('/provider/bookings/$bookingId/start', {});
+    final result =
+        await _api.postJson('/provider/bookings/$bookingId/start', {});
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
 
@@ -152,27 +172,6 @@ class ProviderRepository {
     });
   }
 
-  Future<Position?> currentPosition() async {
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      return null;
-    }
-
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-      return null;
-    }
-
-    return Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-      ),
-    );
-  }
-
   Future<Map<String, dynamic>> earningsSummary() async {
     final result = await _api.getJson('/provider/earnings/summary');
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
@@ -193,7 +192,8 @@ class ProviderRepository {
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
 
-  Future<Map<String, dynamic>> createVerificationUpload({String contentType = 'image/jpeg'}) async {
+  Future<Map<String, dynamic>> createVerificationUpload(
+      {String contentType = 'image/jpeg'}) async {
     final result = await _api.postJson('/files/presign', {
       'contentType': contentType,
       'visibility': 'PRIVATE',
@@ -202,32 +202,12 @@ class ProviderRepository {
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
 
-  Future<Map<String, dynamic>> submitVerification({List<String> fileIds = const []}) async {
-    final result = await _api.postJson('/provider/verification/submit', {'fileIds': fileIds});
+  Future<Map<String, dynamic>> submitVerification(
+      {List<String> fileIds = const []}) async {
+    final result = await _api
+        .postJson('/provider/verification/submit', {'fileIds': fileIds});
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
-}
-
-class ProviderLocationHeartbeat {
-  ProviderLocationHeartbeat(this._repository);
-
-  final ProviderRepository _repository;
-  Timer? _timer;
-
-  Future<void> start() async {
-    _timer?.cancel();
-    await _repository.updateLocation();
-    _timer = Timer.periodic(const Duration(minutes: 10), (_) {
-      unawaited(_repository.updateLocation());
-    });
-  }
-
-  void stop() {
-    _timer?.cancel();
-    _timer = null;
-  }
-
-  void dispose() => stop();
 }
 
 bool isVietnamCoordinate(double lat, double lng) {
