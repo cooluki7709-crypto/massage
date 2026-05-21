@@ -484,6 +484,10 @@ function selectionLabel(booking: AdminBooking) {
     return 'No preferred therapist';
   }
 
+  if (isBackupSelected(booking)) {
+    return 'Backup therapist selected';
+  }
+
   if (booking.status === 'OPEN_MATCHING' && isPreferredAwaitingDecision(booking)) {
     return 'Preferred therapist pending';
   }
@@ -576,6 +580,10 @@ function isPreferredAwaitingDecision(booking: AdminBooking) {
 }
 
 function preferredProviderStateLabel(booking: AdminBooking) {
+  if (isBackupSelected(booking)) {
+    return 'not final';
+  }
+
   const participant = preferredParticipantState(booking);
   if (!participant) {
     return 'requested';
