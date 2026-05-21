@@ -7,6 +7,7 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import 'src/app_state.dart';
 import 'src/core/app_config.dart';
 import 'src/core/realtime_socket.dart';
+import 'src/features/notification/presentation/providers/notification_providers.dart';
 
 void main() {
   runApp(const ProviderScope(child: ProviderApp()));
@@ -142,7 +143,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
     });
     try {
       await ref.read(authControllerProvider.notifier).signInDemoProvider();
-      final pushResult = await ref.read(pushTokenRegistrarProvider).registerCurrentDevice();
+      final pushResult = await ref.read(registerCurrentDevicePushTokenProvider).call();
       attachRealtimeListeners();
       await goOnline();
       await ref.read(providerLocationHeartbeatProvider).start();

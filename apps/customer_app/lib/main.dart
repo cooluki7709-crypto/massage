@@ -7,6 +7,7 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import 'src/app_state.dart';
 import 'src/core/app_config.dart';
 import 'src/core/realtime_socket.dart';
+import 'src/features/notification/presentation/providers/notification_providers.dart';
 
 void main() {
   runApp(const ProviderScope(child: CustomerApp()));
@@ -139,7 +140,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
     try {
       await ref.read(authControllerProvider.notifier).signInDemoCustomer();
-      final pushResult = await ref.read(pushTokenRegistrarProvider).registerCurrentDevice();
+      final pushResult = await ref.read(registerCurrentDevicePushTokenProvider).call();
       await loadHome();
       if (mounted) {
         setState(() => notice = pushResult.message);
@@ -3162,7 +3163,7 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
     });
     try {
       await ref.read(authControllerProvider.notifier).signInDemoCustomer();
-      final pushResult = await ref.read(pushTokenRegistrarProvider).registerCurrentDevice();
+      final pushResult = await ref.read(registerCurrentDevicePushTokenProvider).call();
       await loadProviders();
       if (mounted) {
         setState(() => notice = pushResult.message);
