@@ -45,6 +45,13 @@ export class BookingsController {
     return this.bookings.getCustomerBooking(id, user.id);
   }
 
+  @Post('customer/bookings/:id/cancel')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CUSTOMER)
+  cancelCustomerBooking(@CurrentUser() user: AuthenticatedUser, @Param('id') bookingId: string) {
+    return this.bookings.cancelCustomerBooking(bookingId, user.id);
+  }
+
   @Post('customer/bookings/:id/select-provider')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CUSTOMER)

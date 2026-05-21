@@ -25,6 +25,7 @@ export class ProvidersService {
       include: {
         user: { select: { fullName: true, phone: true } },
         services: { include: { service: true } },
+        reviews: { select: { rating: true }, take: 20, orderBy: { createdAt: 'desc' } },
       },
       take: 50,
     });

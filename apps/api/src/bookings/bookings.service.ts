@@ -174,6 +174,71 @@ export class BookingsService {
     });
   }
 
+  async cancelCustomerBooking(bookingId: string, customerUserId: string) {
+    const customer = await this.prisma.customerProfile.findUniqueOrThrow({ where: { userId: customerUserId } });
+    const booking = await this.prisma.booking.findFirstOrThrow({
+      where: { id: bookingId, customerProfileId: customer.id },
+      include: {
+        participants: { include: { providerProfile: true } },
+        selectedProvider: true,
+      },
+    });
+
+    if (
+      booking.status === BookingStatus.COMPLETED ||
+      booking.status === BookingStatus.CANCELLED ||
+      booking.status === BookingStatus.REFUNDED
+    ) {
+      throw new BadRequestException('Booking cannot be cancelled in its current state');
+    }
+
+    const updated = await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: BookingStatus.CANCELLED,
+        expiresAt: new Date(),
+      },
+      include: {
+        participants: { include: { providerProfile: true } },
+        selectedProvider: true,
+        chatRoom: true,
+        services: { include: { service: true } },
+        payment: true,
+      },
+    });
+
+    await this.matching.closeBooking(bookingId);
+    const providerUserIds = new Set<string>();
+    if (updated.selectedProvider?.userId) {
+      providerUserIds.add(updated.selectedProvider.userId);
+    }
+    for (const participant of updated.participants) {
+      if (participant.providerProfile?.userId) {
+        providerUserIds.add(participant.providerProfile.userId);
+      }
+    }
+
+    for (const providerUserId of providerUserIds) {
+      await this.notifications.create({
+        userId: providerUserId,
+        type: 'booking.cancelled',
+        title: 'Booking cancelled',
+        body: 'The customer cancelled this booking request.',
+        data: { bookingId },
+      });
+    }
+
+    await this.notifications.create({
+      userId: customerUserId,
+      type: 'booking.cancelled',
+      title: 'Booking cancelled',
+      body: 'Your request has been cancelled.',
+      data: { bookingId },
+    });
+    this.matchingGateway.emitBookingExpired(bookingId, updated);
+    return updated;
+  }
+
   async getOpenBookings(providerUserId?: string) {
     const provider = providerUserId ? await this.requireProvider(providerUserId) : null;
     return this.prisma.booking.findMany({
