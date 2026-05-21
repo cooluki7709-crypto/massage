@@ -76,6 +76,25 @@ await patchJson('/notifications/device-token/register', backupProviderAuth.acces
 
 const services = await request('/services');
 const service = services[0];
+const couponCode = `smoke${Date.now()}`;
+const coupon = await postJson('/admin/coupons', adminAuth.accessToken, {
+  code: couponCode,
+  description: 'Smoke test checkout discount',
+  discount: { type: 'percent', value: 10 },
+  active: true,
+});
+const couponPreview = await postJson('/customer/coupons/preview', customerAuth.accessToken, {
+  code: couponCode.toLowerCase(),
+  serviceId: service.id,
+  subtotal: service.basePrice,
+});
+const expectedCouponDiscount = Math.min(service.basePrice, Math.round((service.basePrice * 10) / 100));
+if (coupon.code !== couponCode.toUpperCase()) {
+  throw new Error(`Coupon code was not normalized by admin create: ${JSON.stringify(coupon)}`);
+}
+if (couponPreview.discountAmount !== expectedCouponDiscount) {
+  throw new Error(`Coupon preview discount mismatch: ${JSON.stringify({ couponPreview, expectedCouponDiscount })}`);
+}
 
 const verificationUpload = await postJson('/files/presign', providerAuth.accessToken, {
   contentType: 'image/jpeg',
@@ -129,6 +148,29 @@ const momoBooking = await postJson('/customer/bookings', customerAuth.accessToke
   lng: 106.7009,
   paymentMethod: 'MOMO',
 });
+
+const couponBooking = await postJson('/customer/bookings', customerAuth.accessToken, {
+  serviceId: service.id,
+  couponCode: couponCode.toLowerCase(),
+  scheduledStartAt: new Date(Date.now() + 105 * 60_000).toISOString(),
+  address: { line1: 'Coupon checkout smoke flow' },
+  lat: 10.7769,
+  lng: 106.7009,
+  paymentMethod: 'CASH',
+});
+const expectedCouponTotal = Math.max(0, service.basePrice - expectedCouponDiscount);
+const couponPayment = await getJson('/admin/payments', adminAuth.accessToken).then((payments) =>
+  payments.find((item) => item.bookingId === couponBooking.id),
+);
+if (couponPayment?.amount !== expectedCouponTotal) {
+  throw new Error(
+    `Coupon booking payment total mismatch: ${JSON.stringify({
+      amount: couponPayment?.amount,
+      expectedCouponTotal,
+      couponPayment,
+    })}`,
+  );
+}
 
 await postJson(`/provider/bookings/${booking.id}/join`, providerAuth.accessToken);
 await postJson(`/provider/bookings/${hybridBooking.id}/join`, backupProviderAuth.accessToken);
@@ -250,6 +292,10 @@ console.log({
   hybridSelectedProviderId: adminHybridBooking?.selectedProvider?.id ?? null,
   hybridSwitchedToBackup: adminHybridBooking?.preferredProvider?.id !== adminHybridBooking?.selectedProvider?.id,
   momoPaymentStatus: momoPayment?.status ?? null,
+  couponId: coupon.id,
+  couponCode: coupon.code,
+  couponDiscountAmount: couponPreview.discountAmount,
+  couponBookingPaymentAmount: couponPayment?.amount ?? null,
   syncedMomoStatus: syncedMomo?.status ?? null,
   releasedMomoStatus: releasedMomo?.status ?? null,
   capturedCashStatus: capturedCash?.status ?? null,

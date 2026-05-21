@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { adminPatch, adminPost } from '../../lib/admin-api';
 
 export async function createCoupon(formData: FormData) {
-  const code = String(formData.get('code') || '').trim();
+  const code = String(formData.get('code') || '').trim().toUpperCase();
   const description = String(formData.get('description') || '').trim();
   const percent = Number(formData.get('percent') || 0);
   const startsAt = String(formData.get('startsAt') || '').trim();

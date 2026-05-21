@@ -4,9 +4,12 @@ import { createCoupon, toggleCoupon } from './actions';
 export default async function CouponsPage() {
   const coupons = await adminGet<AdminCoupon[]>('/admin/coupons', []);
   const orderedCoupons = [...coupons].sort((left, right) => couponPriority(right) - couponPriority(left));
+  const liveCoupons = orderedCoupons.filter((coupon) => coupon.active && couponWindowState(coupon) === 'live');
   const activeCoupons = orderedCoupons.filter((coupon) => coupon.active && couponWindowState(coupon) !== 'expired');
   const scheduledCoupons = orderedCoupons.filter((coupon) => coupon.active && couponWindowState(coupon) === 'scheduled');
   const expiredCoupons = orderedCoupons.filter((coupon) => couponWindowState(coupon) === 'expired');
+  const pausedCoupons = orderedCoupons.filter((coupon) => !coupon.active);
+  const needsReview = orderedCoupons.filter((coupon) => couponNeedsReview(coupon));
 
   return (
     <>
@@ -20,12 +23,17 @@ export default async function CouponsPage() {
         }}
       >
         <SummaryCard label="Total" value={String(orderedCoupons.length)} hint="Coupons loaded for admin review." />
+        <SummaryCard label="Live now" value={String(liveCoupons.length)} hint="Can be used in customer checkout." />
         <SummaryCard label="Active" value={String(activeCoupons.length)} hint="Live or upcoming discounts." />
         <SummaryCard label="Scheduled" value={String(scheduledCoupons.length)} hint="Approved, but start time is still ahead." />
         <SummaryCard label="Expired" value={String(expiredCoupons.length)} hint="Candidates for pause or cleanup." />
+        <SummaryCard label="Needs review" value={String(needsReview.length)} hint="Expired active codes or paused campaigns." />
       </section>
       <section className="card">
         <h2>Create Coupon</h2>
+        <p className="muted">
+          Codes are normalized to uppercase and customer checkout accepts either uppercase or lowercase input.
+        </p>
         <form className="form-row" action={createCoupon}>
           <input name="code" placeholder="WELCOME10" />
           <input name="description" placeholder="Description" />
@@ -36,6 +44,18 @@ export default async function CouponsPage() {
         </form>
       </section>
       <section className="card" style={{ marginTop: 20 }}>
+        <div className="toolbar">
+          <div>
+            <h2 style={{ margin: 0 }}>Checkout Campaigns</h2>
+            <p className="muted">Use this board to confirm which codes are safe to expose in the customer booking flow.</p>
+          </div>
+          <div className="participant-list">
+            <span className="pill pill-success">{liveCoupons.length} live</span>
+            <span className="pill pill-info">{scheduledCoupons.length} scheduled</span>
+            <span className="pill pill-warn">{needsReview.length} review</span>
+            <span className="pill">{pausedCoupons.length} paused</span>
+          </div>
+        </div>
         <table className="table">
           <thead>
             <tr>
@@ -51,15 +71,23 @@ export default async function CouponsPage() {
           <tbody>
             {orderedCoupons.map((coupon) => (
               <tr key={coupon.id}>
-                <td>{coupon.code}</td>
+                <td>
+                  <strong>{coupon.code}</strong>
+                  <div className="muted">Customer can enter {coupon.code.toLowerCase()} or {coupon.code}</div>
+                </td>
                 <td>{coupon.description ?? '-'}</td>
                 <td>{formatDiscount(coupon.discount)}</td>
                 <td>
-                  <div>{couponStatusLabel(coupon)}</div>
+                  <span className={couponStatusClass(coupon)}>{couponStatusLabel(coupon)}</span>
                   <div style={{ color: '#6b7280', fontSize: 12 }}>{couponWindowSignal(coupon)}</div>
                 </td>
                 <td>{couponWindowLabel(coupon)}</td>
-                <td>{couponOpsHint(coupon)}</td>
+                <td>
+                  <div>{couponOpsHint(coupon)}</div>
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    {couponCheckoutHint(coupon)}
+                  </div>
+                </td>
                 <td>
                   <form action={toggleCoupon}>
                     <input type="hidden" name="couponId" value={coupon.id} />
@@ -93,6 +121,9 @@ function SummaryCard({ label, value, hint }: { label: string; value: string; hin
 
 function couponPriority(coupon: AdminCoupon) {
   const windowState = couponWindowState(coupon);
+  if (couponNeedsReview(coupon)) {
+    return 6;
+  }
   if (coupon.active && windowState === 'live') {
     return 5;
   }
@@ -103,6 +134,11 @@ function couponPriority(coupon: AdminCoupon) {
     return 3;
   }
   return 1;
+}
+
+function couponNeedsReview(coupon: AdminCoupon) {
+  const windowState = couponWindowState(coupon);
+  return (coupon.active && windowState === 'expired') || !coupon.active;
 }
 
 function couponWindowState(coupon: AdminCoupon): 'draft' | 'scheduled' | 'live' | 'expired' {
@@ -168,6 +204,31 @@ function couponOpsHint(coupon: AdminCoupon) {
     return 'Re-activate when the campaign should return.';
   }
   return 'Safe to use in customer checkout now.';
+}
+
+function couponCheckoutHint(coupon: AdminCoupon) {
+  const windowState = couponWindowState(coupon);
+  if (!coupon.active) {
+    return 'Checkout preview will reject this code until it is activated.';
+  }
+  if (windowState === 'scheduled') {
+    return 'Checkout preview will reject this code until the start time.';
+  }
+  if (windowState === 'expired') {
+    return 'Checkout preview will reject this code because the end time passed.';
+  }
+  return 'Checkout preview and booking payment authorization should apply this discount.';
+}
+
+function couponStatusClass(coupon: AdminCoupon) {
+  const windowState = couponWindowState(coupon);
+  if (!coupon.active || windowState === 'expired') {
+    return 'signal signal-warn';
+  }
+  if (windowState === 'scheduled') {
+    return 'signal signal-info';
+  }
+  return 'signal signal-ok';
 }
 
 function formatDiscount(discount: unknown) {
