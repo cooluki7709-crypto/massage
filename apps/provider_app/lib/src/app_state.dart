@@ -102,7 +102,19 @@ class ProviderRepository {
   }
 
   Future<List<dynamic>> requestBookings() async {
-    final items = await listBookings();
+    final openItems = await openBookings();
+    final ownItems = await listBookings();
+    final merged = <String, Map<String, dynamic>>{};
+
+    for (final item in [...openItems, ...ownItems]) {
+      if (item is Map<String, dynamic>) {
+        final id = item['id'] as String?;
+        if (id != null) {
+          merged[id] = item;
+        }
+      }
+    }
+
     const activeStatuses = {
       'OPEN_MATCHING',
       'MATCHED',
@@ -110,8 +122,7 @@ class ProviderRepository {
       'ARRIVED',
       'IN_SERVICE',
     };
-    return items
-        .whereType<Map<String, dynamic>>()
+    return merged.values
         .where((booking) => activeStatuses.contains(booking['status']))
         .toList()
       ..sort((left, right) {

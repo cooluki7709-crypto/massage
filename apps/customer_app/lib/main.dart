@@ -1101,13 +1101,19 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
     final selectedProvider = currentBooking?['selectedProvider'] as Map<String, dynamic>?;
     final service = currentBooking == null ? null : firstBookingService(currentBooking);
     final status = currentBooking?['status'] as String? ?? 'OPEN_MATCHING';
+    final preferredProvider = status == 'OPEN_MATCHING' ? selectedProvider : null;
+    final finalizedProvider = status == 'OPEN_MATCHING' ? null : selectedProvider;
+    final alternativeParticipants = participants
+        .whereType<Map<String, dynamic>>()
+        .where((item) => item['providerProfileId'] != preferredProvider?['id'])
+        .toList();
     final waitingText = status == 'OPEN_MATCHING'
-        ? (selectedProvider == null
-            ? 'Waiting for ${providerDisplayName(currentBooking)} to respond...'
-            : 'Waiting for the selected therapist to start the service...')
+        ? (preferredProvider == null
+            ? 'Waiting for nearby therapists to respond...'
+            : 'Waiting for ${preferredProvider['displayName'] ?? 'your therapist'} to confirm. Other therapists may join too.')
         : status == 'MATCHED'
             ? 'Provider accepted. Waiting for service start...'
-            : status == 'IN_SERVICE'
+                : status == 'IN_SERVICE'
                 ? 'Service started. Continue in Chat.'
                 : 'Status: $status';
 
@@ -1181,18 +1187,27 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           const SizedBox(height: 18),
-                          if (selectedProvider == null && participants.length > 1) ...[
+                          if (preferredProvider != null) ...[
+                            Text('Preferred therapist', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 12),
+                            TherapistDisplayCard(
+                              provider: preferredProvider,
+                              subtitle: 'Checking availability now',
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                          if (alternativeParticipants.isNotEmpty) ...[
                             Text('Available therapists', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 12),
-                            for (final item in participants)
+                            for (final item in alternativeParticipants)
                               TherapistSelectionCard(
                                 participant: item,
                                 onSelect: () => selectProvider(item),
                               ),
-                          ] else if (selectedProvider != null) ...[
+                          ] else if (finalizedProvider != null) ...[
                             Text('Selected therapist', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 12),
-                            TherapistDisplayCard(provider: selectedProvider),
+                            TherapistDisplayCard(provider: finalizedProvider),
                           ] else ...[
                             const EmptyPanel(text: 'Waiting for a provider response. Other available therapists can appear here later.'),
                           ],
@@ -1253,9 +1268,11 @@ class TherapistDisplayCard extends StatelessWidget {
   const TherapistDisplayCard({
     super.key,
     required this.provider,
+    this.subtitle = 'Ready for confirmation / service delivery',
   });
 
   final Map<String, dynamic> provider;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -1264,7 +1281,7 @@ class TherapistDisplayCard extends StatelessWidget {
         contentPadding: const EdgeInsets.all(12),
         leading: ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 84),
         title: Text(provider['displayName'] as String? ?? 'Provider'),
-        subtitle: const Text('Ready for confirmation / service delivery'),
+        subtitle: Text(subtitle),
       ),
     );
   }

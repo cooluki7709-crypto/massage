@@ -318,6 +318,9 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
               for (final booking in openBookings)
                 OpenBookingCard(
                   booking: booking as Map<String, dynamic>,
+                  isPreferredRequest:
+                      ((booking as Map<String, dynamic>)['selectedProvider'] as Map<String, dynamic>?)?['userId'] ==
+                      auth.userId,
                   joined: joinedBookingIds.contains(booking['id']),
                   loading: loading,
                   onJoin: () => joinBooking(booking),
@@ -419,6 +422,7 @@ class OpenBookingCard extends StatelessWidget {
   const OpenBookingCard({
     super.key,
     required this.booking,
+    required this.isPreferredRequest,
     required this.joined,
     required this.loading,
     required this.onJoin,
@@ -428,6 +432,7 @@ class OpenBookingCard extends StatelessWidget {
   });
 
   final Map<String, dynamic> booking;
+  final bool isPreferredRequest;
   final bool joined;
   final bool loading;
   final VoidCallback onJoin;
@@ -442,9 +447,10 @@ class OpenBookingCard extends StatelessWidget {
     final service = firstService['service'] as Map<String, dynamic>?;
     final participants = booking['participants'] is List<dynamic> ? booking['participants'] as List<dynamic> : [];
     final selectedProvider = booking['selectedProvider'] as Map<String, dynamic>?;
-    final isDirectRequest = selectedProvider != null;
+    final hasPreferredProvider = selectedProvider != null;
     final hasChat = booking['chatRoom'] != null;
     final isMatched = booking['status'] == 'MATCHED';
+    final preferredProviderName = selectedProvider?['displayName'] as String?;
 
     return Card(
       child: Padding(
@@ -470,11 +476,15 @@ class OpenBookingCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text('Booking ${booking['id']}'),
             Text('Scheduled: ${booking['scheduledStartAt'] ?? 'soon'}'),
-            Text(isDirectRequest
-                ? 'This request came directly from a customer who chose your profile.'
-                : 'Payment opens as authorization, customer selects final provider.'),
+            Text(
+              isPreferredRequest
+                  ? 'The customer picked your profile first and is waiting for your response.'
+                  : hasPreferredProvider
+                      ? 'Another therapist was chosen first. You can still join as an alternative option.'
+                      : 'This request is open to nearby therapists. The customer will pick the final provider.',
+            ),
             const SizedBox(height: 12),
-            if (isDirectRequest)
+            if (isPreferredRequest)
               InfoCard(
                 text: isMatched
                     ? (hasChat
@@ -482,10 +492,12 @@ class OpenBookingCard extends StatelessWidget {
                         : 'You accepted this request. Start service to unlock chat.')
                     : 'The customer already chose you. Accept or decline this request.',
               )
+            else if (hasPreferredProvider)
+              InfoCard(text: 'Preferred therapist: ${preferredProviderName ?? 'Another provider'}. Join if you can cover this request.')
             else
-              const InfoCard(text: 'Customer opens a public request and providers may join.'),
+              const InfoCard(text: 'Customer is waiting and nearby therapists may volunteer for this request.'),
             const SizedBox(height: 12),
-            if (isDirectRequest && !isMatched)
+            if (isPreferredRequest && !isMatched)
               Row(
                 children: [
                   Expanded(
@@ -505,41 +517,27 @@ class OpenBookingCard extends StatelessWidget {
                   ),
                 ],
               )
-            else if (isDirectRequest && isMatched && !hasChat)
+            else if (isPreferredRequest && isMatched && !hasChat)
               FilledButton.icon(
                 onPressed: loading ? null : onStart,
                 icon: const Icon(Icons.play_arrow_outlined),
                 label: const Text('Start service chat'),
               )
-            else if (isDirectRequest && hasChat)
+            else if (isPreferredRequest && hasChat)
               const InfoCard(text: 'Chat is ready. Continue from the Chat tab.')
             else if (!joined)
               FilledButton.icon(
                 onPressed: loading ? null : onJoin,
                 icon: const Icon(Icons.add_circle_outline),
-                label: const Text('Join open matching'),
+                label: Text(hasPreferredProvider ? 'Offer backup support' : 'Join open matching'),
               )
             else ...[
-              const InfoCard(text: 'Joined. The customer can now select you as final provider.'),
+              const InfoCard(text: 'You are visible to the customer now. Wait for the final selection.'),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.tonalIcon(
-                      onPressed: loading ? null : onReject,
-                      icon: const Icon(Icons.close),
-                      label: const Text('Reject'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: loading ? null : onAccept,
-                      icon: const Icon(Icons.check),
-                      label: const Text('Accept'),
-                    ),
-                  ),
-                ],
+              FilledButton.tonalIcon(
+                onPressed: loading ? null : onReject,
+                icon: const Icon(Icons.close),
+                label: const Text('Withdraw from shortlist'),
               ),
             ],
           ],

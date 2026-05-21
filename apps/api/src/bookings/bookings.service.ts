@@ -248,9 +248,16 @@ export class BookingsService {
         ...(provider
           ? {
               OR: [
-                { selectedProviderId: provider.id },
                 {
-                  selectedProviderId: null,
+                  selectedProviderId: provider.id,
+                  participants: {
+                    none: {
+                      providerProfileId: provider.id,
+                      status: ParticipantStatus.REJECTED,
+                    },
+                  },
+                },
+                {
                   participants: {
                     none: {
                       providerProfileId: provider.id,
@@ -298,9 +305,6 @@ export class BookingsService {
     const booking = await this.prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
     if (booking.status !== BookingStatus.OPEN_MATCHING) {
       throw new BadRequestException('Booking is not open for matching');
-    }
-    if (booking.selectedProviderId && booking.selectedProviderId !== provider.id) {
-      throw new BadRequestException('This booking request targets another provider');
     }
 
     const participant = await this.prisma.bookingParticipant.upsert({
@@ -420,7 +424,8 @@ export class BookingsService {
         const updated = await this.prisma.booking.update({
           where: { id: bookingId },
           data: {
-            status: BookingStatus.EXPIRED,
+            status: BookingStatus.OPEN_MATCHING,
+            selectedProviderId: null,
             participants: {
               update: {
                 where: { bookingId_providerProfileId: { bookingId, providerProfileId: provider.id } },
@@ -435,10 +440,13 @@ export class BookingsService {
           userId: booking.customerProfile.userId,
           type: 'booking.rejected',
           title: 'Provider declined your booking',
-          body: 'Please choose another provider.',
+          body: 'We are still looking for another available therapist.',
           data: { bookingId, providerProfileId: provider.id },
         });
-        this.matchingGateway.emitBookingExpired(bookingId, updated);
+        const result = this.matching.openBooking({ booking: updated });
+        await this.matching.registerActiveBooking(bookingId, result);
+        await this.matching.scheduleBookingTimeout(bookingId, updated.expiresAt ?? new Date(Date.now() + 10 * 60_000));
+        this.matchingGateway.emitBookingOpened(bookingId, result);
         return updated;
       }
     }
