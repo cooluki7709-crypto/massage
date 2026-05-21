@@ -11,12 +11,15 @@ import 'features/chat/presentation/providers/chat_providers.dart';
 import 'features/map/data/datasources/provider_device_location_datasource.dart';
 import 'features/map/domain/services/provider_location_heartbeat.dart';
 import 'features/map/presentation/providers/map_providers.dart';
+import 'features/verification/domain/repositories/provider_verification_repository.dart';
+import 'features/verification/presentation/providers/verification_providers.dart';
 
 export 'core/providers.dart';
 export 'features/auth/presentation/providers/auth_providers.dart';
 export 'features/booking/presentation/providers/booking_providers.dart';
 export 'features/chat/presentation/providers/chat_providers.dart';
 export 'features/map/presentation/providers/map_providers.dart';
+export 'features/verification/presentation/providers/verification_providers.dart';
 
 final providerRepositoryProvider = Provider<ProviderRepository>((ref) {
   return ProviderRepository(
@@ -25,6 +28,7 @@ final providerRepositoryProvider = Provider<ProviderRepository>((ref) {
     ref.read(providerDeviceLocationDataSourceProvider),
     ref.read(providerBookingRepositoryProvider),
     ref.read(chatRepositoryProvider),
+    ref.read(providerVerificationRepositoryProvider),
   );
 });
 
@@ -41,14 +45,20 @@ const double demoProviderLat = 10.7769;
 const double demoProviderLng = 106.7009;
 
 class ProviderRepository {
-  ProviderRepository(this._api, this._socket, this._locationDataSource,
-      this._bookingRepository, this._chatRepository);
+  ProviderRepository(
+      this._api,
+      this._socket,
+      this._locationDataSource,
+      this._bookingRepository,
+      this._chatRepository,
+      this._verificationRepository);
 
   final ApiClient _api;
   final RealtimeSocket _socket;
   final ProviderDeviceLocationDataSource _locationDataSource;
   final ProviderBookingRepository _bookingRepository;
   final ChatRepository _chatRepository;
+  final ProviderVerificationRepository _verificationRepository;
 
   Future<void> goOnline() async {
     await _api.postJson('/provider/online', {});
@@ -158,25 +168,19 @@ class ProviderRepository {
   }
 
   Future<Map<String, dynamic>> verification() async {
-    final result = await _api.getJson('/provider/verification');
-    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+    return _verificationRepository.verification();
   }
 
   Future<Map<String, dynamic>> createVerificationUpload(
       {String contentType = 'image/jpeg'}) async {
-    final result = await _api.postJson('/files/presign', {
-      'contentType': contentType,
-      'visibility': 'PRIVATE',
-      'purpose': 'provider-verification',
-    });
-    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+    return _verificationRepository.createVerificationUpload(
+      contentType: contentType,
+    );
   }
 
   Future<Map<String, dynamic>> submitVerification(
       {List<String> fileIds = const []}) async {
-    final result = await _api
-        .postJson('/provider/verification/submit', {'fileIds': fileIds});
-    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+    return _verificationRepository.submitVerification(fileIds: fileIds);
   }
 }
 
