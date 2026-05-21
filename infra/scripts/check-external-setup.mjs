@@ -55,7 +55,7 @@ const requiredFailures = checks.filter((check) => check.required && check.status
 const recommendedFailures = checks.filter((check) => !check.required && check.status !== 'PASS');
 
 const result = {
-  ok: strict ? requiredFailures.length === 0 && recommendedFailures.length === 0 : true,
+  ok: requiredFailures.length === 0 && (!strict || recommendedFailures.length === 0),
   mode: strict ? 'strict' : 'advisory',
   envFile: existsSync(envPath) ? envPath : null,
   checks,

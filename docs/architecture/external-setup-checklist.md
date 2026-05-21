@@ -207,6 +207,26 @@ Run strict mode before production-like E2E testing:
 node .\infra\scripts\check-external-setup.mjs --strict
 ```
 
+## Current Local Status
+
+Last checked from `C:\dev\massage-vn-workspace\repo`:
+
+- Firebase customer `google-services.json`: ready
+- Firebase provider `google-services.json`: ready
+- Firebase service account file: ready at `C:\dev\massage-vn-workspace\secrets\massage-vn-firebase-adminsdk.json`
+- FCM project id: ready in local `.env`
+- Google Maps API key: missing
+- Local MinIO storage: ready for MVP
+- Production SMS provider: not selected
+- MoMo / VNPay merchant credentials: not filled
+- Production S3 or Cloudflare R2: not filled, local MinIO is enough for MVP
+
+The next external setup item to complete is Google Maps. The key should allow:
+
+- Android package `com.massagevn.customer.customer_app`
+- Android package `com.massagevn.provider.provider_app`
+- Current debug SHA-1 `E3:8D:6A:41:B9:0E:6D:E0:1C:8E:BA:5E:2D:4B:22:1E:0A:63:4E:18`
+
 ## Recommended Fill Order
 
 1. Firebase / FCM Android app configs
