@@ -87,6 +87,9 @@ export class PaymentsService {
     if (!payment.providerRef) {
       return { skipped: true, reason: 'NO_PROVIDER_REF' };
     }
+    if (isTerminalPaymentStatus(payment.status)) {
+      return { skipped: true, reason: 'TERMINAL_STATUS', paymentId, status: payment.status };
+    }
 
     const status = this.adapterFor(payment.method).checkStatus(payment.providerRef);
     const updated = await this.prisma.payment.update({
@@ -180,6 +183,10 @@ export class PaymentsService {
     }
     return this.cash;
   }
+}
+
+function isTerminalPaymentStatus(status: PaymentStatus) {
+  return status === PaymentStatus.CAPTURED || status === PaymentStatus.REFUNDED || status === PaymentStatus.RELEASED;
 }
 
 function toJsonOrUndefined(value: unknown): Prisma.InputJsonValue | undefined {

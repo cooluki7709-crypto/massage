@@ -187,6 +187,16 @@ const cancelledMomoBooking = await postJson(
 if (cancelledMomoBooking.status !== 'CANCELLED' || cancelledMomoBooking.payment?.status !== 'RELEASED') {
   throw new Error(`Cancelled booking did not release payment hold: ${JSON.stringify(cancelledMomoBooking)}`);
 }
+const cancelledPaymentSync = await postJson(
+  `/admin/payments/${cancelledMomoBooking.payment.id}/sync`,
+  adminAuth.accessToken,
+);
+const cancelledPaymentAfterSync = await getJson('/admin/payments', adminAuth.accessToken).then((payments) =>
+  payments.find((item) => item.bookingId === cancellableMomoBooking.id),
+);
+if (cancelledPaymentAfterSync?.status !== 'RELEASED') {
+  throw new Error(`Released payment was overwritten by sync: ${JSON.stringify({ cancelledPaymentSync, cancelledPaymentAfterSync })}`);
+}
 
 await postJson(`/provider/bookings/${booking.id}/join`, providerAuth.accessToken);
 await postJson(`/provider/bookings/${hybridBooking.id}/join`, backupProviderAuth.accessToken);
@@ -319,6 +329,7 @@ console.log({
   cancelledBookingId: cancellableMomoBooking.id,
   cancelledBookingStatus: cancelledMomoBooking.status,
   cancelledPaymentStatus: cancelledMomoBooking.payment?.status ?? null,
+  cancelledPaymentSyncSkipped: cancelledPaymentSync?.skipped ?? false,
   syncedMomoStatus: syncedMomo?.status ?? null,
   releasedMomoStatus: releasedMomo?.status ?? null,
   capturedCashStatus: capturedCash?.status ?? null,
