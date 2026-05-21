@@ -8,7 +8,8 @@ HANDS will move away from Firebase and keep the Flutter apps behind Clean Archit
 
 - Customer and Provider apps now have feature repositories for auth, discovery, booking, chat, map, notification, coupons, provider profile, earnings, and verification.
 - `app_state.dart` is now a compatibility facade for existing screens rather than a direct API integration layer.
-- Firebase is still used only by `firebase_push_token_datasource.dart` in each Flutter app.
+- Mobile Firebase packages, Android Google Services config, and Flutter Firebase imports have been removed.
+- Mobile apps currently use in-app notifications instead of OS-level push tokens.
 - `supabase_flutter` is installed but no production flow depends on direct Supabase calls yet.
 
 ## Client Environment
@@ -57,10 +58,10 @@ The schema includes:
 1. Keep NestJS OTP/JWT login as the mobile auth boundary.
 2. Add Supabase PostgreSQL as the backing database under the API.
 3. Move file metadata and verification uploads to Supabase Storage through the API.
-4. Replace FCM token datasource with in-app notifications first.
+4. Keep mobile notifications as in-app rows first.
 5. Add OneSignal or another push provider later for OS-level push.
 6. Move chat history to Supabase tables, while keeping Socket.IO events until delivery semantics are validated.
-7. Remove Firebase packages and `google-services.json` only after push replacement is verified on emulator and real device.
+7. Remove the API FCM adapter after OneSignal or another production push provider is selected and verified.
 
 ## Risk Notes
 

@@ -16,30 +16,15 @@ C:\dev\massage-vn-workspace\secrets
 - Provider app language planned later: Vietnamese
 - Admin languages planned later: Korean, Vietnamese, English
 
-## 1. Firebase Cloud Messaging
+## 1. Push Notifications
 
-Use one Firebase project and register two Android apps:
+The Flutter apps no longer use Firebase mobile SDKs. MVP notification behavior is in-app first, backed by persisted notification records.
 
-- Customer package: `com.massagevn.customer.customer_app`
-- Provider package: `com.massagevn.provider.provider_app`
+Future OS-level push still needs a provider decision:
 
-Required files:
-
-- `C:\dev\massage-vn-workspace\repo\apps\customer_app\android\app\google-services.json`
-- `C:\dev\massage-vn-workspace\repo\apps\provider_app\android\app\google-services.json`
-
-Recommended service account path:
-
-```powershell
-C:\dev\massage-vn-workspace\secrets\hands-firebase-adminsdk.json
-```
-
-Runtime `.env` values:
-
-```dotenv
-FCM_PROJECT_ID=your-firebase-project-id
-FCM_SERVICE_ACCOUNT_FILE=C:\dev\massage-vn-workspace\secrets\hands-firebase-adminsdk.json
-```
+- Recommended direction: OneSignal or another push provider with a backend adapter
+- Legacy backend adapter still present: FCM HTTP v1 in `apps/api/src/notifications/fcm-push.service.ts`
+- Mobile apps should not restore `google-services.json` unless the push strategy changes intentionally
 
 Verification:
 
@@ -209,10 +194,8 @@ node .\infra\scripts\check-external-setup.mjs --strict
 
 Last checked from `C:\dev\massage-vn-workspace\repo`:
 
-- Firebase customer `google-services.json`: ready
-- Firebase provider `google-services.json`: ready
-- Firebase service account file: ready at `C:\dev\massage-vn-workspace\secrets\massage-vn-firebase-adminsdk.json`
-- FCM project id: ready in local `.env`
+- Mobile Firebase dependencies/config: removed
+- OS-level push provider: not selected
 - MapTiler API key: pending
 - Geoapify API key: pending
 - Supabase URL / anon key: optional for later direct Supabase location storage
@@ -226,13 +209,14 @@ The next external setup items to complete are:
 - MapTiler API key
 - Geoapify API key
 - optional Supabase project if direct client storage is preferred later
+- production push provider decision
 
 ## Recommended Fill Order
 
-1. Firebase / FCM Android app configs
-2. Firebase service account file
-3. MapTiler and Geoapify keys
-4. SMS provider
-5. MoMo and VNPay credentials
-6. Storage / CDN credentials
+1. MapTiler and Geoapify keys
+2. Supabase project URL / anon key when direct client reads are enabled
+3. SMS provider
+4. MoMo and VNPay credentials
+5. Storage / CDN credentials
+6. Production push provider
 7. Production domains and TLS

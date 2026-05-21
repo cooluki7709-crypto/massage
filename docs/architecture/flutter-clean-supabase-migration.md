@@ -6,17 +6,15 @@ Move the HANDS customer and provider Flutter apps from the current mixed app-sta
 
 ## Current Firebase Usage
 
-The Flutter apps currently use Firebase only for FCM device token registration.
+The Flutter apps no longer use Firebase.
 
 | App | File | Current responsibility |
 | --- | --- | --- |
-| Customer | `apps/customer_app/lib/src/features/notification/data/datasources/firebase_push_token_datasource.dart` | Initializes Firebase Messaging and reads the current device token. |
-| Provider | `apps/provider_app/lib/src/features/notification/data/datasources/firebase_push_token_datasource.dart` | Initializes Firebase Messaging and reads the current device token. |
-| Customer Android | `apps/customer_app/android/app/google-services.json` | Firebase Android client config. |
-| Provider Android | `apps/provider_app/android/app/google-services.json` | Firebase Android client config. |
+| Customer | `apps/customer_app/lib/src/features/notification/data/datasources/in_app_notification_token_datasource.dart` | Keeps notification setup behind the existing repository boundary without registering an OS push token. |
+| Provider | `apps/provider_app/lib/src/features/notification/data/datasources/in_app_notification_token_datasource.dart` | Keeps notification setup behind the existing repository boundary without registering an OS push token. |
 | API | `apps/api/src/notifications/fcm-push.service.ts` | Sends FCM HTTP v1 push messages and records delivery state. |
 
-No Flutter code currently uses Firebase Auth, Firestore, Firebase Storage, Realtime Database, or Cloud Functions.
+No Flutter code currently uses Firebase Auth, Firestore, Firebase Storage, Realtime Database, Cloud Functions, Cloud Messaging, or Firebase Core. The API FCM adapter is still present as a legacy backend adapter until a production push provider is selected.
 
 ## Target Client Structure
 
@@ -52,13 +50,13 @@ lib/
 
 ## Migration Strategy
 
-Do not remove Firebase immediately. First isolate each external dependency behind feature repositories and use cases.
+Firebase has been removed from the Flutter apps after isolating notification behavior behind feature repositories and use cases.
 
 1. Notification boundary
-   - Keep Firebase Messaging temporarily.
-   - Hide Firebase behind `PushTokenDataSource`.
    - Keep UI calling `RegisterCurrentDevicePushToken`.
-   - Later replace Firebase datasource with an internal notification or OneSignal datasource.
+   - Keep notification setup behind `PushTokenDataSource`.
+   - Use in-app notifications for the MVP.
+   - Later add OneSignal or another production push datasource without changing screens.
 
 2. Auth boundary
    - Keep current NestJS OTP/JWT login during MVP stabilization.
@@ -84,7 +82,7 @@ Do not remove Firebase immediately. First isolate each external dependency behin
    - Replace S3/MinIO adapter with Supabase Storage adapter when verification UX is stable.
 
 7. Firebase removal
-   - Remove mobile Firebase packages and Gradle plugin only after notification behavior is fully replaced.
+   - Mobile Firebase packages, Gradle plugin, and `google-services.json` files are removed.
    - Remove API FCM service after the replacement push adapter is verified.
 
 ## Supabase Data Model Direction

@@ -11,9 +11,11 @@ The API creates persistent `Notification` rows for booking lifecycle events:
 
 Each notification schedules a `notification-retry` BullMQ job. The worker records one `NotificationDelivery` attempt per enabled device token.
 
-## Device Tokens
+## In-App Notifications
 
-Mobile apps can register FCM/APNs/web push tokens through:
+The Flutter apps currently use in-app notification state only. They no longer bundle Firebase packages, `google-services.json`, or the Google Services Gradle plugin.
+
+The backend route for registering OS push tokens still exists for a future push provider adapter:
 
 ```http
 PATCH /api/notifications/device-token/register
@@ -26,7 +28,7 @@ Content-Type: application/json
 }
 ```
 
-Tokens are stored in `PushDevice` and are now wired to the Android Firebase setup path used by both Flutter apps.
+Tokens are stored in `PushDevice` when a production push provider is enabled. The current mobile apps do not call this route during automatic notification setup.
 
 ## FCM Adapter
 
@@ -53,23 +55,9 @@ Without `FCM_PROJECT_ID` and one of the credentials above, the worker records `F
 
 For permanent FCM token failures such as `UNREGISTERED` and token-specific `INVALID_ARGUMENT`, the retry worker now disables that `PushDevice` so the same dead token stops consuming future retry jobs. Re-registering the token from the app enables it again.
 
-## Android App Setup
+## Mobile Firebase Removal Check
 
-Both Flutter Android apps now apply the Google Services Gradle plugin:
-
-- `apps/customer_app/android/app/google-services.json`
-- `apps/provider_app/android/app/google-services.json`
-
-Expected Android package names:
-
-- `com.massagevn.customer.customer_app`
-- `com.massagevn.provider.provider_app`
-
-The repository includes `node infra/scripts/check-mobile-firebase.mjs` and the full local verifier runs it automatically. The check fails when:
-
-- `google-services.json` is missing
-- the Google Services Gradle plugin is not applied
-- the Firebase package name does not match the app `applicationId`
+The repository includes `node infra/scripts/check-mobile-firebase.mjs` and the full local verifier runs it automatically. The check fails when either Flutter app still has Firebase packages, Google Services Gradle plugin usage, or `google-services.json`.
 
 ## Next Adapter Step
 

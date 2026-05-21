@@ -4,15 +4,17 @@ import { resolve } from 'node:path';
 const apps = [
   {
     name: 'customer_app',
+    pubspecPath: 'apps/customer_app/pubspec.yaml',
+    rootGradlePath: 'apps/customer_app/android/build.gradle.kts',
+    appGradlePath: 'apps/customer_app/android/app/build.gradle.kts',
     configPath: 'apps/customer_app/android/app/google-services.json',
-    gradlePath: 'apps/customer_app/android/app/build.gradle.kts',
-    expectedApplicationId: 'com.massagevn.customer.customer_app',
   },
   {
     name: 'provider_app',
+    pubspecPath: 'apps/provider_app/pubspec.yaml',
+    rootGradlePath: 'apps/provider_app/android/build.gradle.kts',
+    appGradlePath: 'apps/provider_app/android/app/build.gradle.kts',
     configPath: 'apps/provider_app/android/app/google-services.json',
-    gradlePath: 'apps/provider_app/android/app/build.gradle.kts',
-    expectedApplicationId: 'com.massagevn.provider.provider_app',
   },
 ];
 
@@ -20,42 +22,29 @@ const optional = process.argv.includes('--optional');
 const result = {
   ok: true,
   optional,
+  mode: 'firebase_removed',
   apps: [],
 };
 
 for (const app of apps) {
-  const configFile = resolve(app.configPath);
-  const gradleFile = resolve(app.gradlePath);
-  const gradleSource = readFileSync(gradleFile, 'utf8');
-  const hasGoogleServicesPlugin = gradleSource.includes('com.google.gms.google-services');
-  const hasConfig = existsSync(configFile);
-  let packageName = null;
-  let packageMatches = false;
-  let matchedMobileSdkAppId = null;
-
-  if (hasConfig) {
-    const config = JSON.parse(readFileSync(configFile, 'utf8'));
-    const clients = Array.isArray(config?.client) ? config.client : [];
-    const matchedClient =
-      clients.find(
-        (client) => client?.client_info?.android_client_info?.package_name === app.expectedApplicationId,
-      ) ?? null;
-    packageName = matchedClient?.client_info?.android_client_info?.package_name ?? null;
-    matchedMobileSdkAppId = matchedClient?.client_info?.mobilesdk_app_id ?? null;
-    packageMatches = matchedClient !== null;
-  }
+  const pubspecSource = readIfExists(app.pubspecPath);
+  const rootGradleSource = readIfExists(app.rootGradlePath);
+  const appGradleSource = readIfExists(app.appGradlePath);
 
   const appResult = {
     name: app.name,
-    hasGoogleServicesPlugin,
-    hasConfig,
-    expectedApplicationId: app.expectedApplicationId,
-    packageName,
-    matchedMobileSdkAppId,
-    packageMatches: hasConfig ? packageMatches : false,
+    hasFirebasePackages: /firebase_core|firebase_messaging/.test(pubspecSource),
+    hasGoogleServicesPlugin: /com\.google\.gms\.google-services/.test(
+      `${rootGradleSource}\n${appGradleSource}`,
+    ),
+    hasGoogleServicesConfig: existsSync(resolve(app.configPath)),
   };
 
-  if (!hasGoogleServicesPlugin || !hasConfig || (hasConfig && !packageMatches)) {
+  if (
+    appResult.hasFirebasePackages ||
+    appResult.hasGoogleServicesPlugin ||
+    appResult.hasGoogleServicesConfig
+  ) {
     result.ok = false;
   }
 
@@ -66,4 +55,9 @@ console.log(JSON.stringify(result, null, 2));
 
 if (!result.ok && !optional) {
   process.exitCode = 1;
+}
+
+function readIfExists(path) {
+  const filePath = resolve(path);
+  return existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
 }

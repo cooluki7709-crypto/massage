@@ -10,33 +10,20 @@ const env = { ...fileEnv, ...process.env };
 const checks = [];
 
 addCheck('workspace', 'project root', existsSync(resolve('package.json')), 'Run this script from C:\\dev\\massage-vn-workspace\\repo.');
-addCheck(
-  'firebase',
-  'customer google-services.json',
-  firebaseClientMatches('apps/customer_app/android/app/google-services.json', 'com.massagevn.customer.customer_app'),
-  'Download the Customer Android google-services.json from Firebase and place it in apps/customer_app/android/app.',
-);
-addCheck(
-  'firebase',
-  'provider google-services.json',
-  firebaseClientMatches('apps/provider_app/android/app/google-services.json', 'com.massagevn.provider.provider_app'),
-  'Download the Provider Android google-services.json from Firebase and place it in apps/provider_app/android/app.',
-);
-addCheck('firebase', 'FCM_PROJECT_ID', hasValue('FCM_PROJECT_ID'), 'Set FCM_PROJECT_ID in .env.');
-addCheck(
-  'firebase',
-  'service account file',
-  hasReadableServiceAccount(),
-  'Set FCM_SERVICE_ACCOUNT_FILE to a readable JSON file under C:\\dev\\massage-vn-workspace\\secrets.',
+addRecommended(
+  'push',
+  'FCM backend adapter credentials',
+  hasValue('FCM_PROJECT_ID') && hasReadableServiceAccount(),
+  'Optional only while the legacy API FCM adapter exists. Mobile apps now use in-app notifications and no longer need google-services.json.',
 );
 
-addCheck(
+addRecommended(
   'maps',
   'MAPTILER_API_KEY',
   hasValue('MAPTILER_API_KEY'),
   'Set MAPTILER_API_KEY in .env or the shell before running Flutter with the MapTiler map.',
 );
-addCheck(
+addRecommended(
   'geocoding',
   'GEOAPIFY_API_KEY',
   hasValue('GEOAPIFY_API_KEY'),
@@ -111,20 +98,6 @@ function hasReadableServiceAccount() {
     return true;
   }
   return hasValue('FCM_SERVICE_ACCOUNT_JSON') || hasValue('FCM_SERVICE_ACCOUNT_JSON_BASE64');
-}
-
-function firebaseClientMatches(path, packageName) {
-  const filePath = resolve(path);
-  if (!existsSync(filePath)) {
-    return false;
-  }
-  try {
-    const config = JSON.parse(readFileSync(filePath, 'utf8'));
-    const clients = Array.isArray(config?.client) ? config.client : [];
-    return clients.some((client) => client?.client_info?.android_client_info?.package_name === packageName);
-  } catch {
-    return false;
-  }
 }
 
 function parseEnv(source) {

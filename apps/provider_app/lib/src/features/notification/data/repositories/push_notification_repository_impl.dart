@@ -24,6 +24,13 @@ class PushNotificationRepositoryImpl implements PushNotificationRepository {
         );
       }
 
+      if (!deviceToken.remoteRegistrationRequired) {
+        return const PushTokenRegistrationResult(
+          registered: true,
+          message: 'In-app notifications enabled.',
+        );
+      }
+
       await _remoteDataSource.registerDeviceToken(
         token: deviceToken.token,
         platform: deviceToken.platform,

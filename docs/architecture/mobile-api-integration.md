@@ -49,23 +49,15 @@ The provider Flutter app now includes:
 - Tokens are runtime-only and not persisted securely yet.
 - UI is intentionally MVP-plain and close to the reference flow hierarchy, not final branding.
 - Google Maps has been replaced for MVP by MapTiler/MapLibre map rendering and Geoapify address search.
-- Push notification token registration now runs after login and reports setup state in the app UI, but real Firebase project files and production FCM credentials still need to be provided.
+- Notification setup now runs after login and reports setup state in the app UI without Firebase mobile dependencies. OS-level push will be added later through a replacement provider such as OneSignal.
 - `flutter pub get`, `flutter analyze`, and widget smoke tests pass for both customer and provider apps in the local Windows environment.
 - Android platform folders are generated for both Flutter apps.
 - Customer and Provider apps have been build-installed-launched on `emulator-5554` from an ASCII-only path.
 - Windows Android builds should run from an ASCII-only path such as `C:\dev\massage-vn-workspace\repo`; the original workspace path contains Korean characters and can trigger Android/Flutter toolchain failures.
 
-## Firebase Android Setup
+## Mobile Firebase Removal Check
 
-Customer app:
-
-- package/applicationId: `com.massagevn.customer.customer_app`
-- place Firebase config at `apps/customer_app/android/app/google-services.json`
-
-Provider app:
-
-- package/applicationId: `com.massagevn.provider.provider_app`
-- place Firebase config at `apps/provider_app/android/app/google-services.json`
+The Flutter apps should not contain Firebase packages, Google Services Gradle plugins, or `google-services.json` files.
 
 Verification command:
 

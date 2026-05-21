@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers.dart';
-import '../../data/datasources/firebase_push_token_datasource.dart';
+import '../../data/datasources/in_app_notification_token_datasource.dart';
 import '../../data/datasources/notification_remote_datasource.dart';
 import '../../data/datasources/push_token_datasource.dart';
 import '../../data/repositories/push_notification_repository_impl.dart';
@@ -9,7 +9,7 @@ import '../../domain/repositories/push_notification_repository.dart';
 import '../../domain/usecases/register_current_device_push_token.dart';
 
 final pushTokenDataSourceProvider = Provider<PushTokenDataSource>((ref) {
-  return FirebasePushTokenDataSource();
+  return InAppNotificationTokenDataSource();
 });
 
 final notificationRemoteDataSourceProvider =
