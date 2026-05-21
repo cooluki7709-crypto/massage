@@ -13,6 +13,8 @@ import 'features/earnings/presentation/providers/earnings_providers.dart';
 import 'features/map/data/datasources/provider_device_location_datasource.dart';
 import 'features/map/domain/services/provider_location_heartbeat.dart';
 import 'features/map/presentation/providers/map_providers.dart';
+import 'features/notification/domain/repositories/push_notification_repository.dart';
+import 'features/notification/presentation/providers/notification_providers.dart';
 import 'features/verification/domain/repositories/provider_verification_repository.dart';
 import 'features/verification/presentation/providers/verification_providers.dart';
 
@@ -22,6 +24,7 @@ export 'features/booking/presentation/providers/booking_providers.dart';
 export 'features/chat/presentation/providers/chat_providers.dart';
 export 'features/earnings/presentation/providers/earnings_providers.dart';
 export 'features/map/presentation/providers/map_providers.dart';
+export 'features/notification/presentation/providers/notification_providers.dart';
 export 'features/verification/presentation/providers/verification_providers.dart';
 
 final providerRepositoryProvider = Provider<ProviderRepository>((ref) {
@@ -32,6 +35,7 @@ final providerRepositoryProvider = Provider<ProviderRepository>((ref) {
     ref.read(providerBookingRepositoryProvider),
     ref.read(chatRepositoryProvider),
     ref.read(providerEarningsRepositoryProvider),
+    ref.read(pushNotificationRepositoryProvider),
     ref.read(providerVerificationRepositoryProvider),
   );
 });
@@ -56,6 +60,7 @@ class ProviderRepository {
       this._bookingRepository,
       this._chatRepository,
       this._earningsRepository,
+      this._notificationRepository,
       this._verificationRepository);
 
   final ApiClient _api;
@@ -64,6 +69,7 @@ class ProviderRepository {
   final ProviderBookingRepository _bookingRepository;
   final ChatRepository _chatRepository;
   final ProviderEarningsRepository _earningsRepository;
+  final PushNotificationRepository _notificationRepository;
   final ProviderVerificationRepository _verificationRepository;
 
   Future<void> goOnline() async {
@@ -152,10 +158,7 @@ class ProviderRepository {
   }
 
   Future<void> registerPushToken(String token) async {
-    await _api.postJson('/notifications/device-token/register', {
-      'token': token,
-      'platform': 'android',
-    });
+    await _notificationRepository.registerDeviceToken(token: token);
   }
 
   Future<Map<String, dynamic>> earningsSummary() async {

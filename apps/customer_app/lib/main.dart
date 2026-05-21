@@ -7,7 +7,6 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import 'src/app_state.dart';
 import 'src/core/app_config.dart';
 import 'src/core/realtime_socket.dart';
-import 'src/features/notification/presentation/providers/notification_providers.dart';
 
 void main() {
   runApp(const ProviderScope(child: CustomerApp()));
@@ -61,10 +60,14 @@ class _CustomerShellState extends ConsumerState<CustomerShell> {
         onDestinationSelected: (value) => setState(() => index = value),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.spa_outlined), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.groups_outlined), label: 'Providers'),
-          NavigationDestination(icon: Icon(Icons.receipt_long_outlined), label: 'Bookings'),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+          NavigationDestination(
+              icon: Icon(Icons.groups_outlined), label: 'Providers'),
+          NavigationDestination(
+              icon: Icon(Icons.receipt_long_outlined), label: 'Bookings'),
+          NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
+          NavigationDestination(
+              icon: Icon(Icons.person_outline), label: 'Profile'),
         ],
       ),
     );
@@ -140,7 +143,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
     try {
       await ref.read(authControllerProvider.notifier).signInDemoCustomer();
-      final pushResult = await ref.read(registerCurrentDevicePushTokenProvider).call();
+      final pushResult =
+          await ref.read(registerCurrentDevicePushTokenProvider).call();
       await loadHome();
       if (mounted) {
         setState(() => notice = pushResult.message);
@@ -164,7 +168,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       MaterialPageRoute(
         builder: (context) => ProviderDetailPage(
           providerPreview: provider,
-          loader: () => ref.read(customerRepositoryProvider).getProviderDetail(providerId),
+          loader: () => ref
+              .read(customerRepositoryProvider)
+              .getProviderDetail(providerId),
           onBookService: (detail, service) async {
             final navigator = Navigator.of(context);
             final booked = await navigator.push<Map<String, dynamic>>(
@@ -207,7 +213,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               MaterialPageRoute(
                 builder: (context) => BookingWaitingPage(
                   initialBooking: booked,
-                  onBookingUpdated: (booking) => setState(() => activeBooking = booking),
+                  onBookingUpdated: (booking) =>
+                      setState(() => activeBooking = booking),
                 ),
               ),
             );
@@ -227,7 +234,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       MaterialPageRoute(
         builder: (context) => BookingWaitingPage(
           initialBooking: booking,
-          onBookingUpdated: (updated) => setState(() => activeBooking = updated),
+          onBookingUpdated: (updated) =>
+              setState(() => activeBooking = updated),
         ),
       ),
     );
@@ -246,7 +254,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               const Icon(Icons.arrow_back_outlined),
               const SizedBox(width: 10),
-              Text(demoCustomerCity, style: Theme.of(context).textTheme.titleLarge),
+              Text(demoCustomerCity,
+                  style: Theme.of(context).textTheme.titleLarge),
               const Spacer(),
               const Icon(Icons.favorite_border),
             ],
@@ -258,7 +267,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: FilledButton.icon(
                   onPressed: auth == null ? signInAndLoad : loadHome,
                   icon: const Icon(Icons.search),
-                  label: Text(auth == null ? 'Demo customer login' : 'Refresh providers'),
+                  label: Text(auth == null
+                      ? 'Demo customer login'
+                      : 'Refresh providers'),
                 ),
               ),
             ],
@@ -275,7 +286,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
           if (auth == null) ...[
             const SizedBox(height: 12),
-            const EmptyPanel(text: 'Login to load the nearby therapist list, provider detail pages, and booking flow.'),
+            const EmptyPanel(
+                text:
+                    'Login to load the nearby therapist list, provider detail pages, and booking flow.'),
           ] else ...[
             if (activeBooking != null) ...[
               const SizedBox(height: 12),
@@ -288,7 +301,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const FilterChipRow(),
             const SizedBox(height: 16),
             if (providers.isEmpty)
-              const EmptyPanel(text: 'Nearby providers will appear here after refresh.')
+              const EmptyPanel(
+                  text: 'Nearby providers will appear here after refresh.')
             else
               for (final item in providers)
                 ProviderListCard(
@@ -318,8 +332,11 @@ class ProviderListCard extends StatelessWidget {
     final distanceMeters = asDouble(provider['distanceMeters']);
     final rating = providerAverageRating(provider);
     final reviewCount = providerReviewCount(provider);
-    final availableLabel = provider['status'] == 'ONLINE_AVAILABLE' ? 'Available now' : 'Available soon';
-    final etaLabel = provider['status'] == 'ONLINE_AVAILABLE' ? 'Start now' : 'Starts soon';
+    final availableLabel = provider['status'] == 'ONLINE_AVAILABLE'
+        ? 'Available now'
+        : 'Available soon';
+    final etaLabel =
+        provider['status'] == 'ONLINE_AVAILABLE' ? 'Start now' : 'Starts soon';
     final isRecentLocation = provider['isRecentLocation'] != false;
 
     return Card(
@@ -340,12 +357,15 @@ class ProviderListCard extends StatelessWidget {
                     left: 8,
                     top: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF7E0A3),
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: const Text('Top', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      child: const Text('Top',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
@@ -360,7 +380,10 @@ class ProviderListCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             displayName,
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -377,11 +400,15 @@ class ProviderListCard extends StatelessWidget {
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        const Icon(Icons.star_rounded, size: 22, color: Color(0xFFF59E0B)),
+                        const Icon(Icons.star_rounded,
+                            size: 22, color: Color(0xFFF59E0B)),
                         const SizedBox(width: 4),
                         Text(
                           rating.toStringAsFixed(1),
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(width: 4),
                         Text('($reviewCount reviews)'),
@@ -393,7 +420,9 @@ class ProviderListCard extends StatelessWidget {
                         Icon(
                           Icons.location_on_outlined,
                           size: 20,
-                          color: isRecentLocation ? Colors.grey : Colors.grey.shade500,
+                          color: isRecentLocation
+                              ? Colors.grey
+                              : Colors.grey.shade500,
                         ),
                         const SizedBox(width: 4),
                         Text(formatDistance(distanceMeters)),
@@ -405,8 +434,12 @@ class ProviderListCard extends StatelessWidget {
                           ? 'Location ${formatLastLocation(provider['currentLocationUpdatedAt'])}'
                           : 'Last location not recent',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isRecentLocation ? Colors.black54 : Colors.grey.shade700,
-                            fontWeight: isRecentLocation ? FontWeight.w400 : FontWeight.w700,
+                            color: isRecentLocation
+                                ? Colors.black54
+                                : Colors.grey.shade700,
+                            fontWeight: isRecentLocation
+                                ? FontWeight.w400
+                                : FontWeight.w700,
                           ),
                     ),
                     const SizedBox(height: 8),
@@ -415,7 +448,10 @@ class ProviderListCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             availableLabel,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
                                   color: const Color(0xFF5E8E4A),
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -512,7 +548,9 @@ class ActiveBookingBanner extends StatelessWidget {
       color: Theme.of(context).colorScheme.primaryContainer,
       child: ListTile(
         title: Text(service?['name'] as String? ?? 'Active booking'),
-        subtitle: Text(provider == null ? 'Waiting for provider response' : 'Provider: ${provider['displayName']}'),
+        subtitle: Text(provider == null
+            ? 'Waiting for provider response'
+            : 'Provider: ${provider['displayName']}'),
         trailing: FilledButton.tonal(
           onPressed: onOpen,
           child: const Text('Open'),
@@ -532,7 +570,8 @@ class ProviderDetailPage extends StatelessWidget {
 
   final Map<String, dynamic> providerPreview;
   final Future<Map<String, dynamic>> Function() loader;
-  final Future<void> Function(Map<String, dynamic> detail, Map<String, dynamic> service) onBookService;
+  final Future<void> Function(
+      Map<String, dynamic> detail, Map<String, dynamic> service) onBookService;
 
   @override
   Widget build(BuildContext context) {
@@ -548,8 +587,12 @@ class ProviderDetailPage extends StatelessWidget {
             ...providerPreview,
             ...(snapshot.data ?? const <String, dynamic>{}),
           };
-          final reviews = detail['reviews'] is List<dynamic> ? detail['reviews'] as List<dynamic> : [];
-          final services = detail['services'] is List<dynamic> ? detail['services'] as List<dynamic> : [];
+          final reviews = detail['reviews'] is List<dynamic>
+              ? detail['reviews'] as List<dynamic>
+              : [];
+          final services = detail['services'] is List<dynamic>
+              ? detail['services'] as List<dynamic>
+              : [];
           final displayName = detail['displayName'] as String? ?? 'Provider';
           final rating = providerAverageRating(detail);
           final reviewCount = providerReviewCount(detail);
@@ -562,9 +605,15 @@ class ProviderDetailPage extends StatelessWidget {
                 leading: const BackButton(color: Colors.black),
                 backgroundColor: Colors.white,
                 actions: const [
-                  CircleAvatar(radius: 18, backgroundColor: Colors.white, child: Icon(Icons.favorite_border, color: Colors.black)),
+                  CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Colors.white,
+                      child: Icon(Icons.favorite_border, color: Colors.black)),
                   SizedBox(width: 8),
-                  CircleAvatar(radius: 18, backgroundColor: Colors.white, child: Icon(Icons.share_outlined, color: Colors.black)),
+                  CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Colors.white,
+                      child: Icon(Icons.share_outlined, color: Colors.black)),
                   SizedBox(width: 12),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
@@ -576,21 +625,31 @@ class ProviderDetailPage extends StatelessWidget {
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [Color(0xFFF7E8C8), Color(0xFFE9DCC7), Color(0xFFD6E2CF)],
+                            colors: [
+                              Color(0xFFF7E8C8),
+                              Color(0xFFE9DCC7),
+                              Color(0xFFD6E2CF)
+                            ],
                           ),
                         ),
                       ),
-                      Center(child: ProviderThumbnail(name: displayName, size: 210)),
+                      Center(
+                          child:
+                              ProviderThumbnail(name: displayName, size: 210)),
                       Positioned(
                         right: 20,
                         bottom: 20,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: Colors.black54,
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: const Text('1 / 2', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                          child: const Text('1 / 2',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700)),
                         ),
                       ),
                     ],
@@ -603,17 +662,25 @@ class ProviderDetailPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(displayName, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
+                      Text(displayName,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.location_on_outlined, size: 22, color: Colors.grey),
+                          const Icon(Icons.location_on_outlined,
+                              size: 22, color: Colors.grey),
                           const SizedBox(width: 4),
-                          Text(formatDistance(asDouble(providerPreview['distanceMeters']))),
+                          Text(formatDistance(
+                              asDouble(providerPreview['distanceMeters']))),
                           const SizedBox(width: 14),
-                          const Icon(Icons.star_rounded, size: 22, color: Color(0xFFF59E0B)),
+                          const Icon(Icons.star_rounded,
+                              size: 22, color: Color(0xFFF59E0B)),
                           const SizedBox(width: 4),
-                          Text('${rating.toStringAsFixed(1)} ($reviewCount reviews)'),
+                          Text(
+                              '${rating.toStringAsFixed(1)} ($reviewCount reviews)'),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -638,7 +705,8 @@ class ProviderDetailPage extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.verified_user_outlined, color: Color(0xFF5E8E4A)),
+                                Icon(Icons.verified_user_outlined,
+                                    color: Color(0xFF5E8E4A)),
                                 SizedBox(width: 10),
                                 Expanded(child: Text('No tip, no travel fee')),
                               ],
@@ -646,9 +714,12 @@ class ProviderDetailPage extends StatelessWidget {
                             SizedBox(height: 10),
                             Row(
                               children: [
-                                Icon(Icons.shield_outlined, color: Color(0xFF5E8E4A)),
+                                Icon(Icons.shield_outlined,
+                                    color: Color(0xFF5E8E4A)),
                                 SizedBox(width: 10),
-                                Expanded(child: Text('Protected when the assigned therapist changes')),
+                                Expanded(
+                                    child: Text(
+                                        'Protected when the assigned therapist changes')),
                               ],
                             ),
                           ],
@@ -657,12 +728,14 @@ class ProviderDetailPage extends StatelessWidget {
                       const SizedBox(height: 24),
                       const SectionHeader(
                         title: 'About me',
-                        subtitle: 'Profile, service style, and guest expectations before booking.',
+                        subtitle:
+                            'Profile, service style, and guest expectations before booking.',
                       ),
                       const SizedBox(height: 12),
                       DetailInfoCard(
                         child: Text(
-                          (detail['bio'] as String?) ?? 'Experienced therapist profile ready for booking.',
+                          (detail['bio'] as String?) ??
+                              'Experienced therapist profile ready for booking.',
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),
                       ),
@@ -690,14 +763,18 @@ class ProviderDetailPage extends StatelessWidget {
                       const SizedBox(height: 28),
                       const SectionHeader(
                         title: 'My services',
-                        subtitle: 'Choose one service to open a booking request with this therapist first.',
+                        subtitle:
+                            'Choose one service to open a booking request with this therapist first.',
                       ),
                       const SizedBox(height: 12),
                       for (final item in services)
                         Builder(
                           builder: (context) {
-                            final providerService = item as Map<String, dynamic>;
-                            final service = providerService['service'] as Map<String, dynamic>? ?? <String, dynamic>{};
+                            final providerService =
+                                item as Map<String, dynamic>;
+                            final service = providerService['service']
+                                    as Map<String, dynamic>? ??
+                                <String, dynamic>{};
                             return ServiceCard(
                               service: service,
                               onBook: () => onBookService(detail, service),
@@ -710,10 +787,12 @@ class ProviderDetailPage extends StatelessWidget {
                           const Expanded(
                             child: SectionHeader(
                               title: 'Reviews',
-                              subtitle: 'Recent guest feedback and overall rating distribution.',
+                              subtitle:
+                                  'Recent guest feedback and overall rating distribution.',
                             ),
                           ),
-                          TextButton(onPressed: () {}, child: const Text('View all')),
+                          TextButton(
+                              onPressed: () {}, child: const Text('View all')),
                         ],
                       ),
                       ReviewSummaryCard(
@@ -760,7 +839,11 @@ class ServiceCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(service['name'] as String? ?? 'Service', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            Text(service['name'] as String? ?? 'Service',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 14),
             Wrap(
               spacing: 8,
@@ -776,7 +859,10 @@ class ServiceCard extends StatelessWidget {
               children: [
                 Text(
                   '${formatCurrency(price)} VND',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const Spacer(),
                 FilledButton(
@@ -832,12 +918,18 @@ class SectionHeader extends StatelessWidget {
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+          style: Theme.of(context)
+              .textTheme
+              .headlineSmall
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 6),
         Text(
           subtitle,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(color: Colors.black54),
         ),
       ],
     );
@@ -892,7 +984,10 @@ class DetailFactChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -923,7 +1018,10 @@ class ReviewSummaryCard extends StatelessWidget {
                 children: [
                   Text(
                     '${rating.toStringAsFixed(1)} / 5',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -953,7 +1051,8 @@ class ReviewSummaryCard extends StatelessWidget {
                         children: [
                           Text('$stars'),
                           const SizedBox(width: 8),
-                          const Icon(Icons.star_rounded, size: 18, color: Color(0xFFF59E0B)),
+                          const Icon(Icons.star_rounded,
+                              size: 18, color: Color(0xFFF59E0B)),
                           const SizedBox(width: 8),
                           Expanded(
                             child: LinearProgressIndicator(
@@ -994,7 +1093,11 @@ class ReviewCard extends StatelessWidget {
               children: [
                 const CircleAvatar(child: Icon(Icons.person_outline)),
                 const SizedBox(width: 12),
-                Text('Customer', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                Text('Customer',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700)),
                 const Spacer(),
                 Text(review['createdAt']?.toString().split('T').first ?? ''),
               ],
@@ -1004,7 +1107,9 @@ class ReviewCard extends StatelessWidget {
               children: List.generate(
                 5,
                 (index) => Icon(
-                  index < (asNum(review['rating'])?.toInt() ?? 0) ? Icons.star_rounded : Icons.star_outline_rounded,
+                  index < (asNum(review['rating'])?.toInt() ?? 0)
+                      ? Icons.star_rounded
+                      : Icons.star_outline_rounded,
                   size: 18,
                   color: const Color(0xFFF59E0B),
                 ),
@@ -1042,10 +1147,12 @@ class BookingConfirmationPage extends ConsumerStatefulWidget {
   }) onConfirm;
 
   @override
-  ConsumerState<BookingConfirmationPage> createState() => _BookingConfirmationPageState();
+  ConsumerState<BookingConfirmationPage> createState() =>
+      _BookingConfirmationPageState();
 }
 
-class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPage> {
+class _BookingConfirmationPageState
+    extends ConsumerState<BookingConfirmationPage> {
   final nameController = TextEditingController(text: 'Demo Customer');
   final phoneController = TextEditingController(text: '0865907184');
   final addressController = TextEditingController(text: demoCustomerAddress);
@@ -1111,7 +1218,9 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
         builder: (context) => LocationSelectionPage(
           initialLatitude: customerLat ?? demoCustomerLat,
           initialLongitude: customerLng ?? demoCustomerLng,
-          initialAddress: addressController.text.trim().isEmpty ? demoCustomerAddress : addressController.text.trim(),
+          initialAddress: addressController.text.trim().isEmpty
+              ? demoCustomerAddress
+              : addressController.text.trim(),
         ),
       ),
     );
@@ -1191,7 +1300,8 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
         couponDiscountAmount = asNum(preview['discountAmount'])?.toInt() ?? 0;
         if (appliedCouponCode != null) {
           couponController.text = appliedCouponCode!;
-          couponController.selection = TextSelection.collapsed(offset: couponController.text.length);
+          couponController.selection =
+              TextSelection.collapsed(offset: couponController.text.length);
         }
         final description = preview['description'] as String?;
         couponMessage = description == null || description.isEmpty
@@ -1226,7 +1336,9 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
     final rawTotalAmount = basePrice + platformFee - couponDiscountAmount;
     final totalAmount = rawTotalAmount < 0 ? 0 : rawTotalAmount;
     final couponApplied = appliedCouponCode != null && couponDiscountAmount > 0;
-    final customerPoint = customerLat == null || customerLng == null ? null : LatLng(customerLat!, customerLng!);
+    final customerPoint = customerLat == null || customerLng == null
+        ? null
+        : LatLng(customerLat!, customerLng!);
     final providerPoint = deriveProviderLatLng(provider);
     return Scaffold(
       appBar: AppBar(title: const Text('Booking information')),
@@ -1265,12 +1377,16 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.call_outlined, size: 18, color: Colors.black54),
+                      const Icon(Icons.call_outlined,
+                          size: 18, color: Colors.black54),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           phoneController.text,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(color: Colors.black54),
                         ),
                       ),
                     ],
@@ -1300,7 +1416,8 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 20, color: Colors.grey),
+                      const Icon(Icons.location_on_outlined,
+                          size: 20, color: Colors.grey),
                       const SizedBox(width: 6),
                       Expanded(child: Text(addressController.text)),
                     ],
@@ -1308,7 +1425,10 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                   const SizedBox(height: 8),
                   Text(
                     'Customer pin: ${formatCoordinate(customerLat)}, ${formatCoordinate(customerLng)}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: Colors.black54),
                   ),
                   if (loadingLocation) ...[
                     const SizedBox(height: 6),
@@ -1317,7 +1437,10 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                   const SizedBox(height: 4),
                   Text(
                     'Therapist distance: ${formatDistance(distanceMeters)}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: Colors.black54),
                   ),
                   const SizedBox(height: 12),
                   FilledButton.tonalIcon(
@@ -1336,7 +1459,10 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                 children: [
                   Row(
                     children: [
-                      ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 72),
+                      ProviderThumbnail(
+                          name:
+                              provider['displayName'] as String? ?? 'Provider',
+                          size: 72),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
@@ -1353,7 +1479,10 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                             const SizedBox(height: 4),
                             Text(
                               formatDistance(distanceMeters),
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(color: Colors.black54),
                             ),
                           ],
                         ),
@@ -1373,15 +1502,20 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                       children: [
                         Text(
                           service['name'] as String? ?? 'Selected service',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 10),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            ServiceTag(label: '${service['durationMin'] ?? '-'} min'),
-                            ServiceTag(label: '${formatCurrency(basePrice)} VND'),
+                            ServiceTag(
+                                label: '${service['durationMin'] ?? '-'} min'),
+                            ServiceTag(
+                                label: '${formatCurrency(basePrice)} VND'),
                             const ServiceTag(label: '1 therapist'),
                           ],
                         ),
@@ -1397,7 +1531,8 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
               child: Row(
                 children: [
                   const Expanded(child: Text('Cash payment on service start')),
-                  FilledButton.tonal(onPressed: () {}, child: const Text('View all')),
+                  FilledButton.tonal(
+                      onPressed: () {}, child: const Text('View all')),
                 ],
               ),
             ),
@@ -1413,7 +1548,8 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                       Expanded(
                         child: TextField(
                           controller: couponController,
-                          decoration: const InputDecoration(hintText: 'Enter coupon code'),
+                          decoration: const InputDecoration(
+                              hintText: 'Enter coupon code'),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -1428,7 +1564,9 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                     Text(
                       couponMessage!,
                       style: TextStyle(
-                        color: appliedCouponCode != null ? const Color(0xFF5E8E4A) : const Color(0xFFB3261E),
+                        color: appliedCouponCode != null
+                            ? const Color(0xFF5E8E4A)
+                            : const Color(0xFFB3261E),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1448,7 +1586,10 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                         children: [
                           Text(
                             'Discount applied',
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
                                   color: const Color(0xFF3F6F2D),
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -1456,7 +1597,10 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                           const SizedBox(height: 6),
                           Text(
                             '$appliedCouponCode saves ${formatCurrency(couponDiscountAmount)} VND. Final cash amount is ${formatCurrency(totalAmount)} VND.',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF3F6F2D)),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(color: const Color(0xFF3F6F2D)),
                           ),
                         ],
                       ),
@@ -1521,7 +1665,9 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
             padding: const EdgeInsets.symmetric(vertical: 18),
           ),
           child: Text(
-            submitting ? 'Creating booking...' : 'Book now - ${formatCurrency(totalAmount)} VND',
+            submitting
+                ? 'Creating booking...'
+                : 'Book now - ${formatCurrency(totalAmount)} VND',
           ),
         ),
       ),
@@ -1548,7 +1694,11 @@ class BookingSectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            Text(title,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
             child,
           ],
@@ -1575,10 +1725,16 @@ class BookingSummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final labelStyle = emphasized
-        ? Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)
+        ? Theme.of(context)
+            .textTheme
+            .titleMedium
+            ?.copyWith(fontWeight: FontWeight.w800)
         : Theme.of(context).textTheme.bodyLarge;
     final valueStyle = emphasized
-        ? Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)
+        ? Theme.of(context)
+            .textTheme
+            .titleLarge
+            ?.copyWith(fontWeight: FontWeight.w800)
         : Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: highlighted ? const Color(0xFF5E8E4A) : null,
               fontWeight: highlighted ? FontWeight.w700 : FontWeight.w500,
@@ -1620,7 +1776,10 @@ class ServiceTag extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        style: Theme.of(context)
+            .textTheme
+            .bodyMedium
+            ?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -1658,7 +1817,8 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
       ref.read(customerRepositoryProvider).joinBookingRoom(bookingId);
     }
     attachRealtimeListeners();
-    timer = Timer.periodic(const Duration(seconds: 5), (_) => refreshBooking(showLoading: false));
+    timer = Timer.periodic(
+        const Duration(seconds: 5), (_) => refreshBooking(showLoading: false));
   }
 
   @override
@@ -1672,11 +1832,14 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
     _socket.offEvent('provider.location.updated');
     _socket.onEvent('provider.location.updated', (payload) {
       final activeBookingId = booking?['id'];
-      if (!mounted || payload is! Map || payload['bookingId'] != activeBookingId) {
+      if (!mounted ||
+          payload is! Map ||
+          payload['bookingId'] != activeBookingId) {
         return;
       }
       setState(() {
-        latestProviderLocation = Map<String, dynamic>.from(payload.cast<String, dynamic>());
+        latestProviderLocation =
+            Map<String, dynamic>.from(payload.cast<String, dynamic>());
       });
     });
   }
@@ -1693,7 +1856,8 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
       });
     }
     try {
-      final updated = await ref.read(customerRepositoryProvider).getBooking(bookingId);
+      final updated =
+          await ref.read(customerRepositoryProvider).getBooking(bookingId);
       if (!mounted) {
         return;
       }
@@ -1720,7 +1884,8 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
       error = null;
     });
     try {
-      final updated = await ref.read(customerRepositoryProvider).cancelBooking(bookingId);
+      final updated =
+          await ref.read(customerRepositoryProvider).cancelBooking(bookingId);
       if (!mounted) {
         return;
       }
@@ -1746,7 +1911,9 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
       error = null;
     });
     try {
-      final updated = await ref.read(customerRepositoryProvider).selectProvider(bookingId, providerId);
+      final updated = await ref
+          .read(customerRepositoryProvider)
+          .selectProvider(bookingId, providerId);
       if (!mounted) {
         return;
       }
@@ -1767,16 +1934,22 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
     final participants = currentBooking?['participants'] is List<dynamic>
         ? currentBooking!['participants'] as List<dynamic>
         : <dynamic>[];
-    final preferredProviderData = currentBooking?['preferredProvider'] as Map<String, dynamic>?;
-    final selectedProvider = currentBooking?['selectedProvider'] as Map<String, dynamic>?;
-    final service = currentBooking == null ? null : firstBookingService(currentBooking);
+    final preferredProviderData =
+        currentBooking?['preferredProvider'] as Map<String, dynamic>?;
+    final selectedProvider =
+        currentBooking?['selectedProvider'] as Map<String, dynamic>?;
+    final service =
+        currentBooking == null ? null : firstBookingService(currentBooking);
     final status = currentBooking?['status'] as String? ?? 'OPEN_MATCHING';
-    final preferredProvider = status == 'OPEN_MATCHING' ? preferredProviderData : null;
-    final finalizedProvider = status == 'OPEN_MATCHING' ? null : selectedProvider;
+    final preferredProvider =
+        status == 'OPEN_MATCHING' ? preferredProviderData : null;
+    final finalizedProvider =
+        status == 'OPEN_MATCHING' ? null : selectedProvider;
     final alternativeParticipants = status == 'OPEN_MATCHING'
         ? participants
             .whereType<Map<String, dynamic>>()
-            .where((item) => item['providerProfileId'] != preferredProvider?['id'])
+            .where(
+                (item) => item['providerProfileId'] != preferredProvider?['id'])
             .toList()
         : <Map<String, dynamic>>[];
     final expiresAt = currentBooking?['expiresAt'] as String?;
@@ -1797,7 +1970,7 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
             : 'Waiting for ${preferredProvider['displayName'] ?? 'your therapist'} to confirm. Other therapists may join too.')
         : status == 'MATCHED'
             ? 'Provider accepted. Waiting for service start...'
-                : status == 'IN_SERVICE'
+            : status == 'IN_SERVICE'
                 ? 'Service started. Continue in Chat.'
                 : 'Status: $status';
 
@@ -1812,7 +1985,9 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                     customerPoint: customerPoint,
                     providerPoint: providerPoint,
                     customerLabel: 'You',
-                    providerLabel: latestProviderLocation == null ? 'Waiting' : 'Therapist',
+                    providerLabel: latestProviderLocation == null
+                        ? 'Waiting'
+                        : 'Therapist',
                     fallbackShowProviderMarker: latestProviderLocation != null,
                   ),
                   Positioned(
@@ -1843,7 +2018,8 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                     child: Container(
                       decoration: const BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(24)),
                       ),
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
                       child: Column(
@@ -1852,12 +2028,17 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                         children: [
                           Text(
                             waitingHeadline,
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 8),
-                          Text(waitingText, style: Theme.of(context).textTheme.bodyLarge),
+                          Text(waitingText,
+                              style: Theme.of(context).textTheme.bodyLarge),
                           const SizedBox(height: 8),
-                          Text('This request closes automatically at ${formatExpiry(expiresAt)}'),
+                          Text(
+                              'This request closes automatically at ${formatExpiry(expiresAt)}'),
                           const SizedBox(height: 16),
                           if (loading) const LinearProgressIndicator(),
                           if (error != null) ...[
@@ -1877,15 +2058,20 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                             children: [
                               BookingTimelineChip(
                                 icon: Icons.tag_rounded,
-                                label: 'Booking ${shortCode(currentBooking?['id'])}',
+                                label:
+                                    'Booking ${shortCode(currentBooking?['id'])}',
                               ),
                               BookingTimelineChip(
                                 icon: Icons.schedule_rounded,
-                                label: status == 'OPEN_MATCHING' ? timeLeft : waitingStepLabel(status),
+                                label: status == 'OPEN_MATCHING'
+                                    ? timeLeft
+                                    : waitingStepLabel(status),
                               ),
                               BookingTimelineChip(
                                 icon: Icons.groups_rounded,
-                                label: fallbackCount == 0 ? 'No backup yet' : '$fallbackCount backup ready',
+                                label: fallbackCount == 0
+                                    ? 'No backup yet'
+                                    : '$fallbackCount backup ready',
                               ),
                             ],
                           ),
@@ -1928,7 +2114,8 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                                     width: cardWidth,
                                     child: WaitingStatCard(
                                       label: 'Signal',
-                                      value: waitingSignalLabel(status, fallbackCount),
+                                      value: waitingSignalLabel(
+                                          status, fallbackCount),
                                     ),
                                   ),
                                 ],
@@ -1939,12 +2126,15 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                           WaitingStagePanel(
                             status: status,
                             fallbackCount: fallbackCount,
-                            preferredProviderName: preferredProvider?['displayName'] as String?,
+                            preferredProviderName:
+                                preferredProvider?['displayName'] as String?,
                             expiresAt: expiresAt,
                           ),
                           const SizedBox(height: 12),
                           WaitingInfoBanner(
-                            title: status == 'OPEN_MATCHING' ? 'Therapist confirmation window' : 'Booking progress',
+                            title: status == 'OPEN_MATCHING'
+                                ? 'Therapist confirmation window'
+                                : 'Booking progress',
                             body: status == 'OPEN_MATCHING'
                                 ? 'Your chosen therapist gets the first response window. If they take too long, other nearby therapists can appear below.'
                                 : 'Your therapist is confirmed. Keep this page open until service start, or move to Chat when the room is ready.',
@@ -1953,9 +2143,11 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                           BookingSectionCard(
                             title: 'Live location',
                             child: latestProviderLocation == null
-                                ? const Text('Provider location will appear here after the therapist shares it.')
+                                ? const Text(
+                                    'Provider location will appear here after the therapist shares it.')
                                 : Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text('Therapist location shared'),
                                       const SizedBox(height: 6),
@@ -1965,19 +2157,27 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                                       const SizedBox(height: 4),
                                       Text(
                                         'Updated ${latestProviderLocation?['recordedAt']?.toString() ?? 'just now'}',
-                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(color: Colors.black54),
                                       ),
                                     ],
                                   ),
                           ),
                           const SizedBox(height: 18),
                           if (preferredProvider != null) ...[
-                            Text('Chosen therapist', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            Text('Chosen therapist',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 12),
                             TherapistDisplayCard(
                               provider: preferredProvider,
                               badgeLabel: 'Chosen first',
-                              detail: 'This therapist is getting the first confirmation window for your request.',
+                              detail:
+                                  'This therapist is getting the first confirmation window for your request.',
                               subtitle: fallbackCount == 0
                                   ? 'Checking availability - $timeLeft remaining'
                                   : 'Checking availability - $timeLeft remaining before backup options open',
@@ -1985,11 +2185,18 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                             const SizedBox(height: 16),
                           ],
                           if (alternativeParticipants.isNotEmpty) ...[
-                            Text('Backup therapists', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            Text('Backup therapists',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 4),
                             Text(
                               '$fallbackCount therapist(s) can take this request if you want to switch.',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(color: Colors.black54),
                             ),
                             const SizedBox(height: 12),
                             for (final item in alternativeParticipants)
@@ -1998,15 +2205,22 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                                 onSelect: () => selectProvider(item),
                               ),
                           ] else if (finalizedProvider != null) ...[
-                            Text('Confirmed therapist', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            Text('Confirmed therapist',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 12),
                             TherapistDisplayCard(
                               provider: finalizedProvider,
                               badgeLabel: 'Confirmed',
-                              detail: 'Your booking is now locked to this therapist.',
+                              detail:
+                                  'Your booking is now locked to this therapist.',
                             ),
                           ] else ...[
-                            const EmptyPanel(text: 'Waiting for a therapist response. Backup options can appear here if the first therapist is slow to confirm.'),
+                            const EmptyPanel(
+                                text:
+                                    'Waiting for a therapist response. Backup options can appear here if the first therapist is slow to confirm.'),
                           ],
                           const SizedBox(height: 10),
                           FilledButton.tonalIcon(
@@ -2040,7 +2254,8 @@ class TherapistSelectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = participant['providerProfile'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final provider = participant['providerProfile'] as Map<String, dynamic>? ??
+        <String, dynamic>{};
     final distance = formatDistance(asDouble(participant['distanceMeters']));
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -2052,7 +2267,9 @@ class TherapistSelectionCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 84),
+                ProviderThumbnail(
+                    name: provider['displayName'] as String? ?? 'Provider',
+                    size: 84),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -2066,7 +2283,10 @@ class TherapistSelectionCard extends StatelessWidget {
                               provider['displayName'] as String? ?? 'Provider',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -2085,7 +2305,10 @@ class TherapistSelectionCard extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         'This therapist can replace your preferred therapist if you want to switch.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: Colors.black54),
                       ),
                     ],
                   ),
@@ -2133,7 +2356,9 @@ class TherapistDisplayCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 84),
+            ProviderThumbnail(
+                name: provider['displayName'] as String? ?? 'Provider',
+                size: 84),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -2144,14 +2369,21 @@ class TherapistDisplayCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           provider['displayName'] as String? ?? 'Provider',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ),
                       if (badgeLabel != null)
                         TherapistRoleTag(
                           label: badgeLabel!,
-                          backgroundColor: badgeLabel == 'Final' ? const Color(0xFFE8F4E3) : const Color(0xFFE7F2DE),
-                          foregroundColor: badgeLabel == 'Final' ? const Color(0xFF2E6A2B) : const Color(0xFF446B2A),
+                          backgroundColor: badgeLabel == 'Final'
+                              ? const Color(0xFFE8F4E3)
+                              : const Color(0xFFE7F2DE),
+                          foregroundColor: badgeLabel == 'Final'
+                              ? const Color(0xFF2E6A2B)
+                              : const Color(0xFF446B2A),
                         ),
                     ],
                   ),
@@ -2161,7 +2393,10 @@ class TherapistDisplayCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       detail!,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: Colors.black54),
                     ),
                   ],
                 ],
@@ -2197,9 +2432,9 @@ class TherapistRoleTag extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: foregroundColor,
-          fontWeight: FontWeight.w700,
-        ),
+              color: foregroundColor,
+              fontWeight: FontWeight.w700,
+            ),
       ),
     );
   }
@@ -2226,9 +2461,17 @@ class WaitingStatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54)),
+          Text(label,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: Colors.black54)),
           const SizedBox(height: 8),
-          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+          Text(value,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w800)),
         ],
       ),
     );
@@ -2261,7 +2504,10 @@ class BookingTimelineChip extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -2287,20 +2533,28 @@ class WaitingStagePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final stageItems = [
       WaitingStageItem(
-        title: preferredProviderName == null ? 'Finding a therapist' : 'Chosen therapist first',
+        title: preferredProviderName == null
+            ? 'Finding a therapist'
+            : 'Chosen therapist first',
         body: preferredProviderName == null
             ? 'Nearby therapists are being checked now.'
             : '$preferredProviderName gets the first response window before backup therapists are invited in.',
         accent: const Color(0xFF5E8E4A),
-        caption: preferredProviderName == null ? 'Stage 1' : 'Stage 1 - direct request',
+        caption: preferredProviderName == null
+            ? 'Stage 1'
+            : 'Stage 1 - direct request',
       ),
       WaitingStageItem(
-        title: fallbackCount == 0 ? 'No backup yet' : '$fallbackCount backup option(s) ready',
+        title: fallbackCount == 0
+            ? 'No backup yet'
+            : '$fallbackCount backup option(s) ready',
         body: fallbackCount == 0
             ? 'If the chosen therapist is slow, backup therapists can join this request.'
             : 'You can switch to another available therapist below without restarting the booking.',
         accent: const Color(0xFFB9852F),
-        caption: fallbackCount == 0 ? 'Stage 2 - standby' : 'Stage 2 - alternatives ready',
+        caption: fallbackCount == 0
+            ? 'Stage 2 - standby'
+            : 'Stage 2 - alternatives ready',
       ),
       WaitingStageItem(
         title: status == 'MATCHED' ? 'Confirmed' : 'Auto-close timer',
@@ -2308,7 +2562,9 @@ class WaitingStagePanel extends StatelessWidget {
             ? 'The therapist is confirmed. Next step is service start and chat.'
             : 'This request closes automatically at ${formatExpiry(expiresAt)} if no therapist is selected.',
         accent: const Color(0xFF2563EB),
-        caption: status == 'MATCHED' ? 'Stage 3 - locked in' : 'Stage 3 - timeout protection',
+        caption: status == 'MATCHED'
+            ? 'Stage 3 - locked in'
+            : 'Stage 3 - timeout protection',
       ),
     ];
 
@@ -2367,19 +2623,25 @@ class WaitingStageItem extends StatelessWidget {
                 Text(
                   caption,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: accent,
-                    fontWeight: FontWeight.w700,
-                  ),
+                        color: accent,
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   body,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: Colors.black54),
                 ),
               ],
             ),
@@ -2413,7 +2675,11 @@ class WaitingInfoBanner extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text(title,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Text(body, style: Theme.of(context).textTheme.bodyMedium),
         ],
@@ -2552,7 +2818,8 @@ class LocationSelectionPage extends ConsumerStatefulWidget {
   final String initialAddress;
 
   @override
-  ConsumerState<LocationSelectionPage> createState() => _LocationSelectionPageState();
+  ConsumerState<LocationSelectionPage> createState() =>
+      _LocationSelectionPageState();
 }
 
 class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
@@ -2572,7 +2839,8 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
     super.initState();
     selectedPoint = LatLng(widget.initialLatitude, widget.initialLongitude);
     selectedAddress = widget.initialAddress;
-    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(useCurrentLocation(initialLoad: true)));
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => unawaited(useCurrentLocation(initialLoad: true)));
   }
 
   @override
@@ -2584,7 +2852,8 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
 
   void onSearchChanged(String value) {
     debounce?.cancel();
-    debounce = Timer(const Duration(milliseconds: 500), () => unawaited(searchAddress(value)));
+    debounce = Timer(const Duration(milliseconds: 500),
+        () => unawaited(searchAddress(value)));
   }
 
   Future<void> searchAddress(String query) async {
@@ -2604,7 +2873,9 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
       }
       setState(() {
         searchResults = results;
-        statusMessage = AppConfig.geoapifyEnabled ? null : 'Geoapify key is missing. Use GPS or manual map adjustment.';
+        statusMessage = AppConfig.geoapifyEnabled
+            ? null
+            : 'Geoapify key is missing. Use GPS or manual map adjustment.';
       });
     } catch (exception) {
       if (mounted) {
@@ -2625,7 +2896,8 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
     final point = LatLng(location.latitude, location.longitude);
     setState(() {
       selectedPoint = point;
-      selectedAddress = location.isDemoLocation ? demoCustomerAddress : selectedAddress;
+      selectedAddress =
+          location.isDemoLocation ? demoCustomerAddress : selectedAddress;
       statusMessage = location.isDemoLocation
           ? 'GPS unavailable or outside Vietnam. Using demo Ho Chi Minh City; search or drag the map to adjust.'
           : 'Current GPS location loaded. Drag the map to fine tune the pin.';
@@ -2642,8 +2914,10 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
       selectedAddress = result.label;
       searchResults = [];
       searchController.text = result.label;
-      searchController.selection = TextSelection.collapsed(offset: searchController.text.length);
-      statusMessage = 'Address selected. Drag the map if the pin needs adjustment.';
+      searchController.selection =
+          TextSelection.collapsed(offset: searchController.text.length);
+      statusMessage =
+          'Address selected. Drag the map if the pin needs adjustment.';
     });
     await controller?.animateCamera(CameraUpdate.newLatLngZoom(point, 15));
   }
@@ -2655,7 +2929,8 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
     }
     setState(() {
       selectedPoint = target;
-      statusMessage = 'Pin adjusted to ${formatCoordinate(target.latitude)}, ${formatCoordinate(target.longitude)}.';
+      statusMessage =
+          'Pin adjusted to ${formatCoordinate(target.latitude)}, ${formatCoordinate(target.longitude)}.';
     });
   }
 
@@ -2664,7 +2939,9 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
       SelectedCustomerLocation(
         latitude: selectedPoint.latitude,
         longitude: selectedPoint.longitude,
-        addressText: selectedAddress.trim().isEmpty ? demoCustomerAddress : selectedAddress.trim(),
+        addressText: selectedAddress.trim().isEmpty
+            ? demoCustomerAddress
+            : selectedAddress.trim(),
       ),
     );
   }
@@ -2681,9 +2958,11 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
               child: mapEnabled
                   ? MapLibreMap(
                       styleString: AppConfig.mapTilerStyleUrl,
-                      initialCameraPosition: CameraPosition(target: selectedPoint, zoom: 15),
+                      initialCameraPosition:
+                          CameraPosition(target: selectedPoint, zoom: 15),
                       onMapCreated: (value) => controller = value,
-                      onStyleLoadedCallback: () => setState(() => styleLoaded = true),
+                      onStyleLoadedCallback: () =>
+                          setState(() => styleLoaded = true),
                       onCameraIdle: onCameraIdle,
                       compassEnabled: false,
                       logoEnabled: false,
@@ -2728,10 +3007,15 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
                         suffixIcon: searching
                             ? const Padding(
                                 padding: EdgeInsets.all(14),
-                                child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                                child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2)),
                               )
                             : IconButton(
-                                onPressed: () => unawaited(useCurrentLocation()),
+                                onPressed: () =>
+                                    unawaited(useCurrentLocation()),
                                 icon: const Icon(Icons.my_location_outlined),
                               ),
                         filled: true,
@@ -2756,8 +3040,10 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
                             final item = searchResults[index];
                             return ListTile(
                               leading: const Icon(Icons.place_outlined),
-                              title: Text(item.label, maxLines: 2, overflow: TextOverflow.ellipsis),
-                              subtitle: Text('${formatCoordinate(item.latitude)}, ${formatCoordinate(item.longitude)}'),
+                              title: Text(item.label,
+                                  maxLines: 2, overflow: TextOverflow.ellipsis),
+                              subtitle: Text(
+                                  '${formatCoordinate(item.latitude)}, ${formatCoordinate(item.longitude)}'),
                               onTap: () => unawaited(selectSearchResult(item)),
                             );
                           },
@@ -2779,7 +3065,9 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
                 children: [
                   if (statusMessage != null || error != null)
                     Card(
-                      color: error == null ? Colors.white : Theme.of(context).colorScheme.errorContainer,
+                      color: error == null
+                          ? Colors.white
+                          : Theme.of(context).colorScheme.errorContainer,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Text(error ?? statusMessage!),
@@ -2791,9 +3079,11 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Selected pin', style: Theme.of(context).textTheme.titleMedium),
+                          Text('Selected pin',
+                              style: Theme.of(context).textTheme.titleMedium),
                           const SizedBox(height: 4),
-                          Text('${formatCoordinate(selectedPoint.latitude)}, ${formatCoordinate(selectedPoint.longitude)}'),
+                          Text(
+                              '${formatCoordinate(selectedPoint.latitude)}, ${formatCoordinate(selectedPoint.longitude)}'),
                           if (!styleLoaded && mapEnabled) ...[
                             const SizedBox(height: 8),
                             const LinearProgressIndicator(minHeight: 4),
@@ -2852,12 +3142,14 @@ class _MapPlaceholder extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.92),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text(customerLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  child: Text(customerLabel,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
                 ),
                 const SizedBox(height: 6),
                 Container(
@@ -2878,12 +3170,14 @@ class _MapPlaceholder extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.92),
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: Text(providerLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    child: Text(providerLabel,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
                   const SizedBox(height: 6),
                   Container(
@@ -2973,7 +3267,8 @@ class _NearbyProvidersMapState extends State<NearbyProvidersMap> {
       }
       final isRecent = provider['isRecentLocation'] != false;
       final displayName = provider['displayName'] as String? ?? 'Provider';
-      final updatedAt = formatLastLocation(provider['currentLocationUpdatedAt']);
+      final updatedAt =
+          formatLastLocation(provider['currentLocationUpdatedAt']);
       await map.addCircle(CircleOptions(
         geometry: point,
         circleColor: isRecent ? '#2563EB' : '#9CA3AF',
@@ -2999,7 +3294,8 @@ class _NearbyProvidersMapState extends State<NearbyProvidersMap> {
     if (AppConfig.mapTilerEnabled && customerPoint != null) {
       return MapLibreMap(
         styleString: AppConfig.mapTilerStyleUrl,
-        initialCameraPosition: CameraPosition(target: customerPoint, zoom: 13.5),
+        initialCameraPosition:
+            CameraPosition(target: customerPoint, zoom: 13.5),
         onMapCreated: (value) => controller = value,
         onStyleLoadedCallback: () {
           styleLoaded = true;
@@ -3035,18 +3331,22 @@ class MapPainter extends CustomPainter {
 
     final mainRoad = Path()
       ..moveTo(size.width * 0.1, size.height * 0.65)
-      ..quadraticBezierTo(size.width * 0.35, size.height * 0.55, size.width * 0.5, size.height * 0.35)
-      ..quadraticBezierTo(size.width * 0.68, size.height * 0.15, size.width * 0.9, size.height * 0.2);
+      ..quadraticBezierTo(size.width * 0.35, size.height * 0.55,
+          size.width * 0.5, size.height * 0.35)
+      ..quadraticBezierTo(size.width * 0.68, size.height * 0.15,
+          size.width * 0.9, size.height * 0.2);
     canvas.drawPath(mainRoad, roadPaint);
 
     final branch = Path()
       ..moveTo(size.width * 0.42, size.height * 0.58)
-      ..quadraticBezierTo(size.width * 0.32, size.height * 0.45, size.width * 0.24, size.height * 0.28);
+      ..quadraticBezierTo(size.width * 0.32, size.height * 0.45,
+          size.width * 0.24, size.height * 0.28);
     canvas.drawPath(branch, thinPaint);
 
     final branchTwo = Path()
       ..moveTo(size.width * 0.55, size.height * 0.42)
-      ..quadraticBezierTo(size.width * 0.64, size.height * 0.55, size.width * 0.78, size.height * 0.72);
+      ..quadraticBezierTo(size.width * 0.64, size.height * 0.55,
+          size.width * 0.78, size.height * 0.72);
     canvas.drawPath(branchTwo, thinPaint);
   }
 
@@ -3163,7 +3463,8 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
     });
     try {
       await ref.read(authControllerProvider.notifier).signInDemoCustomer();
-      final pushResult = await ref.read(registerCurrentDevicePushTokenProvider).call();
+      final pushResult =
+          await ref.read(registerCurrentDevicePushTokenProvider).call();
       await loadProviders();
       if (mounted) {
         setState(() => notice = pushResult.message);
@@ -3190,7 +3491,9 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
       MaterialPageRoute(
         builder: (context) => ProviderDetailPage(
           providerPreview: provider,
-          loader: () => ref.read(customerRepositoryProvider).getProviderDetail(providerId),
+          loader: () => ref
+              .read(customerRepositoryProvider)
+              .getProviderDetail(providerId),
           onBookService: (detail, service) async {
             final navigator = Navigator.of(context);
             final booked = await navigator.push<Map<String, dynamic>>(
@@ -3256,7 +3559,8 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
           FilledButton.icon(
             onPressed: auth == null ? signInAndLoad : loadProviders,
             icon: const Icon(Icons.search),
-            label: Text(auth == null ? 'Demo customer login' : 'Refresh providers'),
+            label: Text(
+                auth == null ? 'Demo customer login' : 'Refresh providers'),
           ),
           if (loading) ...[
             const SizedBox(height: 12),
@@ -3274,15 +3578,20 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
           if (auth == null)
             const EmptyPanel(text: 'Login first to load nearby provider cards.')
           else if (providers.isEmpty)
-            const EmptyPanel(text: 'No nearby therapists loaded yet. Refresh to fetch the latest queue.')
+            const EmptyPanel(
+                text:
+                    'No nearby therapists loaded yet. Refresh to fetch the latest queue.')
           else ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(18),
               child: SizedBox(
                 height: 220,
                 child: NearbyProvidersMap(
-                  customerPoint: customerLat == null || customerLng == null ? null : LatLng(customerLat!, customerLng!),
-                  providers: providers.whereType<Map<String, dynamic>>().toList(),
+                  customerPoint: customerLat == null || customerLng == null
+                      ? null
+                      : LatLng(customerLat!, customerLng!),
+                  providers:
+                      providers.whereType<Map<String, dynamic>>().toList(),
                 ),
               ),
             ),
@@ -3368,10 +3677,12 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
     final items = bookings.whereType<Map<String, dynamic>>().toList()
-      ..sort((left, right) => customerBookingTimestamp(right).compareTo(customerBookingTimestamp(left)));
+      ..sort((left, right) => customerBookingTimestamp(right)
+          .compareTo(customerBookingTimestamp(left)));
     final activeCount = items.where(isCustomerActiveBooking).length;
     final closedCount = items.where(isCustomerClosedBooking).length;
-    final chatReadyCount = items.where((booking) => booking['chatRoom'] != null).length;
+    final chatReadyCount =
+        items.where((booking) => booking['chatRoom'] != null).length;
 
     return SafeArea(
       child: ListView(
@@ -3379,12 +3690,16 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
         children: [
           Text('Bookings', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
-          Text('Recent requests, assigned therapists, payment state, and chat readiness.', style: Theme.of(context).textTheme.bodyLarge),
+          Text(
+              'Recent requests, assigned therapists, payment state, and chat readiness.',
+              style: Theme.of(context).textTheme.bodyLarge),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: loading ? null : (auth == null ? signInAndLoad : loadBookings),
+            onPressed:
+                loading ? null : (auth == null ? signInAndLoad : loadBookings),
             icon: const Icon(Icons.receipt_long_outlined),
-            label: Text(auth == null ? 'Demo customer login' : 'Refresh bookings'),
+            label:
+                Text(auth == null ? 'Demo customer login' : 'Refresh bookings'),
           ),
           if (loading) ...[
             const SizedBox(height: 12),
@@ -3399,14 +3714,20 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
             ErrorPanel(text: error!),
           ],
           const SizedBox(height: 16),
-          CustomerBookingSummary(active: activeCount, chatReady: chatReadyCount, closed: closedCount),
+          CustomerBookingSummary(
+              active: activeCount,
+              chatReady: chatReadyCount,
+              closed: closedCount),
           const SizedBox(height: 16),
           if (auth == null)
             const EmptyPanel(text: 'Login first to load customer bookings.')
           else if (items.isEmpty)
-            const EmptyPanel(text: 'No bookings yet. Choose a therapist and book a service to start.')
+            const EmptyPanel(
+                text:
+                    'No bookings yet. Choose a therapist and book a service to start.')
           else
-            for (final booking in items) CustomerBookingHistoryCard(booking: booking),
+            for (final booking in items)
+              CustomerBookingHistoryCard(booking: booking),
         ],
       ),
     );
@@ -3431,9 +3752,18 @@ class CustomerBookingSummary extends StatelessWidget {
       spacing: 10,
       runSpacing: 10,
       children: [
-        CustomerSummaryTile(label: 'Active', value: '$active live', color: const Color(0xFFEAF5E3)),
-        CustomerSummaryTile(label: 'Chat', value: '$chatReady ready', color: const Color(0xFFEAF2FF)),
-        CustomerSummaryTile(label: 'Closed', value: '$closed done', color: const Color(0xFFF8ECD4)),
+        CustomerSummaryTile(
+            label: 'Active',
+            value: '$active live',
+            color: const Color(0xFFEAF5E3)),
+        CustomerSummaryTile(
+            label: 'Chat',
+            value: '$chatReady ready',
+            color: const Color(0xFFEAF2FF)),
+        CustomerSummaryTile(
+            label: 'Closed',
+            value: '$closed done',
+            color: const Color(0xFFF8ECD4)),
       ],
     );
   }
@@ -3457,13 +3787,22 @@ class CustomerSummaryTile extends StatelessWidget {
       width: 150,
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(18)),
+        decoration: BoxDecoration(
+            color: color, borderRadius: BorderRadius.circular(18)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.black54)),
+            Text(label,
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(color: Colors.black54)),
             const SizedBox(height: 6),
-            Text(value, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+            Text(value,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800)),
           ],
         ),
       ),
@@ -3490,19 +3829,24 @@ class CustomerBookingHistoryCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                ProviderThumbnail(name: provider?['displayName'] as String? ?? 'HANDS', size: 52),
+                ProviderThumbnail(
+                    name: provider?['displayName'] as String? ?? 'HANDS',
+                    size: 52),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(service?['name'] as String? ?? 'Massage booking', style: Theme.of(context).textTheme.titleLarge),
+                      Text(service?['name'] as String? ?? 'Massage booking',
+                          style: Theme.of(context).textTheme.titleLarge),
                       const SizedBox(height: 2),
-                      Text(provider?['displayName'] as String? ?? 'Therapist pending'),
+                      Text(provider?['displayName'] as String? ??
+                          'Therapist pending'),
                     ],
                   ),
                 ),
-                BookingHistoryPill(label: booking['status']?.toString() ?? 'UNKNOWN'),
+                BookingHistoryPill(
+                    label: booking['status']?.toString() ?? 'UNKNOWN'),
               ],
             ),
             const SizedBox(height: 12),
@@ -3510,17 +3854,28 @@ class CustomerBookingHistoryCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                BookingHistoryPill(label: formatCustomerScheduleMoment(booking['scheduledStartAt'])),
-                BookingHistoryPill(label: '${service?['durationMin'] ?? '-'} min'),
-                BookingHistoryPill(label: '${formatCurrency(payment?['amount'] ?? service?['basePrice'])} VND'),
-                BookingHistoryPill(label: payment?['status']?.toString() ?? 'NO_PAYMENT'),
-                if (chatRoom != null) const BookingHistoryPill(label: 'Chat ready', highlighted: true),
+                BookingHistoryPill(
+                    label: formatCustomerScheduleMoment(
+                        booking['scheduledStartAt'])),
+                BookingHistoryPill(
+                    label: '${service?['durationMin'] ?? '-'} min'),
+                BookingHistoryPill(
+                    label:
+                        '${formatCurrency(payment?['amount'] ?? service?['basePrice'])} VND'),
+                BookingHistoryPill(
+                    label: payment?['status']?.toString() ?? 'NO_PAYMENT'),
+                if (chatRoom != null)
+                  const BookingHistoryPill(
+                      label: 'Chat ready', highlighted: true),
               ],
             ),
             const SizedBox(height: 10),
             Text(
               customerBookingNextAction(booking),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: Colors.black54),
             ),
           ],
         ),
@@ -3530,7 +3885,8 @@ class CustomerBookingHistoryCard extends StatelessWidget {
 }
 
 class BookingHistoryPill extends StatelessWidget {
-  const BookingHistoryPill({super.key, required this.label, this.highlighted = false});
+  const BookingHistoryPill(
+      {super.key, required this.label, this.highlighted = false});
 
   final String label;
   final bool highlighted;
@@ -3542,15 +3898,24 @@ class BookingHistoryPill extends StatelessWidget {
       decoration: BoxDecoration(
         color: highlighted ? const Color(0xFFEAF5E3) : Colors.white,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: highlighted ? const Color(0xFFBFD6AA) : Theme.of(context).colorScheme.outlineVariant),
+        border: Border.all(
+            color: highlighted
+                ? const Color(0xFFBFD6AA)
+                : Theme.of(context).colorScheme.outlineVariant),
       ),
-      child: Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700)),
+      child: Text(label,
+          style: Theme.of(context)
+              .textTheme
+              .labelLarge
+              ?.copyWith(fontWeight: FontWeight.w700)),
     );
   }
 }
 
 int customerBookingTimestamp(Map<String, dynamic> booking) {
-  final value = booking['updatedAt'] ?? booking['createdAt'] ?? booking['scheduledStartAt'];
+  final value = booking['updatedAt'] ??
+      booking['createdAt'] ??
+      booking['scheduledStartAt'];
   if (value is String) {
     return DateTime.tryParse(value)?.millisecondsSinceEpoch ?? 0;
   }
@@ -3558,11 +3923,18 @@ int customerBookingTimestamp(Map<String, dynamic> booking) {
 }
 
 bool isCustomerActiveBooking(Map<String, dynamic> booking) {
-  return const {'OPEN_MATCHING', 'MATCHED', 'PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE'}.contains(booking['status']);
+  return const {
+    'OPEN_MATCHING',
+    'MATCHED',
+    'PROVIDER_ON_THE_WAY',
+    'ARRIVED',
+    'IN_SERVICE'
+  }.contains(booking['status']);
 }
 
 bool isCustomerClosedBooking(Map<String, dynamic> booking) {
-  return const {'COMPLETED', 'CANCELLED', 'EXPIRED', 'REFUNDED'}.contains(booking['status']);
+  return const {'COMPLETED', 'CANCELLED', 'EXPIRED', 'REFUNDED'}
+      .contains(booking['status']);
 }
 
 String formatCustomerScheduleMoment(dynamic value) {
@@ -3581,9 +3953,12 @@ String formatCustomerScheduleMoment(dynamic value) {
 
 String customerBookingNextAction(Map<String, dynamic> booking) {
   return switch (booking['status']) {
-    'OPEN_MATCHING' => 'Waiting for the selected therapist or backup therapists to respond.',
-    'MATCHED' => 'Therapist confirmed. Chat opens when the provider starts the service.',
-    'PROVIDER_ON_THE_WAY' => 'Track the therapist location and keep your phone nearby.',
+    'OPEN_MATCHING' =>
+      'Waiting for the selected therapist or backup therapists to respond.',
+    'MATCHED' =>
+      'Therapist confirmed. Chat opens when the provider starts the service.',
+    'PROVIDER_ON_THE_WAY' =>
+      'Track the therapist location and keep your phone nearby.',
     'ARRIVED' => 'Therapist arrived. Confirm details before service starts.',
     'IN_SERVICE' => 'Service is in progress. Use Chat if you need help.',
     'COMPLETED' => 'Service complete. Review and tip when ready.',
@@ -3661,20 +4036,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           (item) => item?['chatRoom'] != null,
           orElse: () => null,
         );
-    final latestBooking = bookings.isNotEmpty && bookings.first is Map<String, dynamic>
-        ? bookings.first as Map<String, dynamic>
-        : null;
+    final latestBooking =
+        bookings.isNotEmpty && bookings.first is Map<String, dynamic>
+            ? bookings.first as Map<String, dynamic>
+            : null;
     final booking = bookingWithChat ?? latestBooking;
     final room = bookingWithChat?['chatRoom'] as Map<String, dynamic>?;
     if (room == null) {
       final status = booking?['status']?.toString();
       final providerName = providerDisplayName(booking);
       final nextMessage = switch (status) {
-        'OPEN_MATCHING' => '$providerName has not been locked in yet. Stay on the waiting screen until a therapist is selected.',
-        'MATCHED' => '$providerName is confirmed. Chat opens when the therapist starts the service.',
-        'PROVIDER_ON_THE_WAY' => '$providerName is on the way. Chat will open as soon as service start is triggered.',
-        'IN_SERVICE' => 'The service is already in progress. Reload chat to join the live room.',
-        _ => 'No service chat yet. The provider has to start the service first.',
+        'OPEN_MATCHING' =>
+          '$providerName has not been locked in yet. Stay on the waiting screen until a therapist is selected.',
+        'MATCHED' =>
+          '$providerName is confirmed. Chat opens when the therapist starts the service.',
+        'PROVIDER_ON_THE_WAY' =>
+          '$providerName is on the way. Chat will open as soon as service start is triggered.',
+        'IN_SERVICE' =>
+          'The service is already in progress. Reload chat to join the live room.',
+        _ =>
+          'No service chat yet. The provider has to start the service first.',
       };
       setState(() => statusMessage = nextMessage);
       return;
@@ -3682,7 +4063,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final roomId = room['id'] as String;
     ref.read(customerRepositoryProvider).joinChat(roomId);
-    final loadedMessages = await ref.read(customerRepositoryProvider).listChatMessages(roomId);
+    final loadedMessages =
+        await ref.read(customerRepositoryProvider).listChatMessages(roomId);
     setState(() {
       chatRoomId = roomId;
       messages = loadedMessages;
@@ -3711,14 +4093,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Text('Chat', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            auth == null ? 'Login to load the latest booking chat.' : 'Realtime messages with your assigned therapist.',
+            auth == null
+                ? 'Login to load the latest booking chat.'
+                : 'Realtime messages with your assigned therapist.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: loading ? null : signInAndLoadChat,
             icon: const Icon(Icons.chat_bubble_outline),
-            label: Text(chatRoomId == null ? 'Open latest chat' : 'Refresh chat'),
+            label:
+                Text(chatRoomId == null ? 'Open latest chat' : 'Refresh chat'),
           ),
           if (loading) ...[
             const SizedBox(height: 12),
@@ -3734,12 +4119,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
           const SizedBox(height: 16),
           if (chatRoomId == null)
-            const EmptyPanel(text: 'Chat opens after a therapist is selected and the service start step begins.')
+            const EmptyPanel(
+                text:
+                    'Chat opens after a therapist is selected and the service start step begins.')
           else ...[
-            Text('Room $chatRoomId', style: Theme.of(context).textTheme.titleMedium),
+            Text('Room $chatRoomId',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             if (messages.isEmpty)
-              const EmptyPanel(text: 'No messages yet. Send the first message when you are ready.')
+              const EmptyPanel(
+                  text:
+                      'No messages yet. Send the first message when you are ready.')
             else
               for (final message in messages)
                 MessageTile(message: message as Map<String, dynamic>),
@@ -3792,7 +4182,8 @@ class ProfileScreen extends ConsumerWidget {
     final auth = ref.watch(authControllerProvider);
     return MvpScreen(
       title: 'Profile',
-      subtitle: auth == null ? 'Not signed in' : 'Signed in as ${auth.user['phone']}',
+      subtitle:
+          auth == null ? 'Not signed in' : 'Signed in as ${auth.user['phone']}',
       items: const ['Saved addresses', 'Wallet', 'Reviews', 'Support'],
     );
   }
@@ -3859,7 +4250,11 @@ class MvpAsyncList extends StatelessWidget {
 }
 
 class MvpScreen extends StatelessWidget {
-  const MvpScreen({super.key, required this.title, required this.subtitle, required this.items});
+  const MvpScreen(
+      {super.key,
+      required this.title,
+      required this.subtitle,
+      required this.items});
 
   final String title;
   final String subtitle;
@@ -3932,7 +4327,9 @@ class ErrorPanel extends StatelessWidget {
       color: Theme.of(context).colorScheme.errorContainer,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Text(text, style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)),
+        child: Text(text,
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onErrorContainer)),
       ),
     );
   }
@@ -3952,14 +4349,17 @@ Map<String, dynamic>? latestActiveBooking(List<dynamic> bookings) {
       .toList()
     ..sort((left, right) {
       final leftValue = (left['openedAt'] ?? left['createdAt'] ?? '') as String;
-      final rightValue = (right['openedAt'] ?? right['createdAt'] ?? '') as String;
+      final rightValue =
+          (right['openedAt'] ?? right['createdAt'] ?? '') as String;
       return rightValue.compareTo(leftValue);
     });
   return items.isEmpty ? null : items.first;
 }
 
 Map<String, dynamic>? firstBookingService(Map<String, dynamic> booking) {
-  final services = booking['services'] is List<dynamic> ? booking['services'] as List<dynamic> : [];
+  final services = booking['services'] is List<dynamic>
+      ? booking['services'] as List<dynamic>
+      : [];
   if (services.isEmpty) {
     return null;
   }
@@ -3976,7 +4376,9 @@ String providerDisplayName(Map<String, dynamic>? booking) {
   if (provider != null) {
     return provider['displayName'] as String? ?? 'Selected provider';
   }
-  final participants = booking['participants'] is List<dynamic> ? booking['participants'] as List<dynamic> : [];
+  final participants = booking['participants'] is List<dynamic>
+      ? booking['participants'] as List<dynamic>
+      : [];
   if (participants.isNotEmpty) {
     final first = participants.first as Map<String, dynamic>;
     final providerProfile = first['providerProfile'] as Map<String, dynamic>?;
@@ -4005,7 +4407,9 @@ Map<String, dynamic>? activeBookingProvider(Map<String, dynamic>? booking) {
 }
 
 double providerAverageRating(Map<String, dynamic> provider) {
-  final reviews = provider['reviews'] is List<dynamic> ? provider['reviews'] as List<dynamic> : [];
+  final reviews = provider['reviews'] is List<dynamic>
+      ? provider['reviews'] as List<dynamic>
+      : [];
   if (reviews.isEmpty) {
     return 5;
   }
@@ -4236,5 +4640,3 @@ String formatRemainingTime(String? isoValue) {
   }
   return '${difference.inMinutes}m left';
 }
-
-

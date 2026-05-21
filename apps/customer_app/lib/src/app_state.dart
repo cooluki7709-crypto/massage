@@ -8,6 +8,8 @@ import 'features/chat/domain/repositories/chat_repository.dart';
 import 'features/chat/presentation/providers/chat_providers.dart';
 import 'features/discovery/domain/repositories/customer_discovery_repository.dart';
 import 'features/discovery/presentation/providers/discovery_providers.dart';
+import 'features/notification/domain/repositories/push_notification_repository.dart';
+import 'features/notification/presentation/providers/notification_providers.dart';
 
 export 'core/providers.dart';
 export 'features/auth/presentation/providers/auth_providers.dart';
@@ -15,6 +17,7 @@ export 'features/booking/presentation/providers/booking_providers.dart';
 export 'features/chat/presentation/providers/chat_providers.dart';
 export 'features/discovery/presentation/providers/discovery_providers.dart';
 export 'features/map/presentation/providers/map_providers.dart';
+export 'features/notification/presentation/providers/notification_providers.dart';
 
 final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
   return CustomerRepository(
@@ -22,17 +25,23 @@ final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
     ref.read(customerDiscoveryRepositoryProvider),
     ref.read(customerBookingRepositoryProvider),
     ref.read(chatRepositoryProvider),
+    ref.read(pushNotificationRepositoryProvider),
   );
 });
 
 class CustomerRepository {
-  CustomerRepository(this._api, this._discoveryRepository,
-      this._bookingRepository, this._chatRepository);
+  CustomerRepository(
+      this._api,
+      this._discoveryRepository,
+      this._bookingRepository,
+      this._chatRepository,
+      this._notificationRepository);
 
   final ApiClient _api;
   final CustomerDiscoveryRepository _discoveryRepository;
   final CustomerBookingRepository _bookingRepository;
   final ChatRepository _chatRepository;
+  final PushNotificationRepository _notificationRepository;
 
   Future<List<dynamic>> listServices() async {
     return _discoveryRepository.listServices();
@@ -117,10 +126,7 @@ class CustomerRepository {
   }
 
   Future<void> registerPushToken(String token) async {
-    await _api.postJson('/notifications/device-token/register', {
-      'token': token,
-      'platform': 'android',
-    });
+    await _notificationRepository.registerDeviceToken(token: token);
   }
 
   Future<Map<String, dynamic>> previewCoupon({

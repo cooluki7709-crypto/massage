@@ -7,7 +7,6 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import 'src/app_state.dart';
 import 'src/core/app_config.dart';
 import 'src/core/realtime_socket.dart';
-import 'src/features/notification/presentation/providers/notification_providers.dart';
 
 void main() {
   runApp(const ProviderScope(child: ProviderApp()));
@@ -55,11 +54,16 @@ class _ProviderShellState extends ConsumerState<ProviderShell> {
         selectedIndex: index,
         onDestinationSelected: (value) => setState(() => index = value),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.radar_outlined), label: 'Requests'),
-          NavigationDestination(icon: Icon(Icons.calendar_month_outlined), label: 'Schedule'),
-          NavigationDestination(icon: Icon(Icons.payments_outlined), label: 'Earnings'),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
-          NavigationDestination(icon: Icon(Icons.verified_user_outlined), label: 'Profile'),
+          NavigationDestination(
+              icon: Icon(Icons.radar_outlined), label: 'Requests'),
+          NavigationDestination(
+              icon: Icon(Icons.calendar_month_outlined), label: 'Schedule'),
+          NavigationDestination(
+              icon: Icon(Icons.payments_outlined), label: 'Earnings'),
+          NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
+          NavigationDestination(
+              icon: Icon(Icons.verified_user_outlined), label: 'Profile'),
         ],
       ),
     );
@@ -102,7 +106,8 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       if (!mounted) {
         return;
       }
-      setState(() => statusMessage = 'A new direct booking request just arrived.');
+      setState(
+          () => statusMessage = 'A new direct booking request just arrived.');
       unawaited(loadOpenBookings(showLoading: false));
     });
 
@@ -110,7 +115,8 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       if (!mounted) {
         return;
       }
-      setState(() => statusMessage = 'A booking was confirmed. Review the selected therapist state.');
+      setState(() => statusMessage =
+          'A booking was confirmed. Review the selected therapist state.');
       unawaited(loadOpenBookings(showLoading: false));
     });
 
@@ -118,7 +124,8 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       if (!mounted) {
         return;
       }
-      final booking = payload is Map<String, dynamic> ? payload : const <String, dynamic>{};
+      final booking =
+          payload is Map<String, dynamic> ? payload : const <String, dynamic>{};
       final isCancelled = booking['status'] == 'CANCELLED';
       setState(() {
         statusMessage = isCancelled
@@ -130,7 +137,11 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
   }
 
   void detachRealtimeListeners() {
-    for (final event in ['booking.opened', 'booking.matched', 'booking.expired']) {
+    for (final event in [
+      'booking.opened',
+      'booking.matched',
+      'booking.expired'
+    ]) {
       _socket.offEvent(event);
     }
   }
@@ -143,7 +154,8 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
     });
     try {
       await ref.read(authControllerProvider.notifier).signInDemoProvider();
-      final pushResult = await ref.read(registerCurrentDevicePushTokenProvider).call();
+      final pushResult =
+          await ref.read(registerCurrentDevicePushTokenProvider).call();
       attachRealtimeListeners();
       await goOnline();
       await ref.read(providerLocationHeartbeatProvider).start();
@@ -176,7 +188,8 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       });
     }
     try {
-      final bookings = await ref.read(providerRepositoryProvider).requestBookings();
+      final bookings =
+          await ref.read(providerRepositoryProvider).requestBookings();
       setState(() => openBookings = bookings);
     } catch (exception) {
       setState(() => error = '$exception');
@@ -198,7 +211,8 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       await ref.read(providerRepositoryProvider).joinBooking(bookingId);
       setState(() {
         joinedBookingIds = {...joinedBookingIds, bookingId};
-        statusMessage = 'You joined this request. Waiting for the customer to choose a therapist.';
+        statusMessage =
+            'You joined this request. Waiting for the customer to choose a therapist.';
       });
       await loadOpenBookings();
     } catch (exception) {
@@ -210,7 +224,8 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
     }
   }
 
-  Future<void> respondToBooking(Map<String, dynamic> booking, bool accepted) async {
+  Future<void> respondToBooking(
+      Map<String, dynamic> booking, bool accepted) async {
     final bookingId = booking['id'] as String;
     setState(() {
       loading = true;
@@ -222,9 +237,12 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
         await ref.read(providerRepositoryProvider).acceptBooking(bookingId);
       } else {
         await ref.read(providerRepositoryProvider).rejectBooking(bookingId);
-        joinedBookingIds = joinedBookingIds.where((id) => id != bookingId).toSet();
+        joinedBookingIds =
+            joinedBookingIds.where((id) => id != bookingId).toSet();
       }
-      setState(() => statusMessage = accepted ? 'You accepted the booking request.' : 'You declined the booking request.');
+      setState(() => statusMessage = accepted
+          ? 'You accepted the booking request.'
+          : 'You declined the booking request.');
       await loadOpenBookings();
     } catch (exception) {
       setState(() => error = '$exception');
@@ -244,7 +262,8 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
     });
     try {
       await ref.read(providerRepositoryProvider).startBooking(bookingId);
-      setState(() => statusMessage = 'Service started. The chat room is now live.');
+      setState(
+          () => statusMessage = 'Service started. The chat room is now live.');
       await loadOpenBookings();
     } catch (exception) {
       setState(() => error = '$exception');
@@ -281,17 +300,21 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Direct booking requests', style: Theme.of(context).textTheme.headlineMedium),
+          Text('Direct booking requests',
+              style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            auth == null ? 'Login to receive direct booking requests.' : 'Accept or reject bookings sent directly to you.',
+            auth == null
+                ? 'Login to receive direct booking requests.'
+                : 'Accept or reject bookings sent directly to you.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: auth == null ? signInAndLoad : () => loadOpenBookings(),
             icon: const Icon(Icons.login),
-            label: Text(auth == null ? 'Demo provider login' : 'Refresh requests'),
+            label:
+                Text(auth == null ? 'Demo provider login' : 'Refresh requests'),
           ),
           const SizedBox(height: 12),
           ProviderStatusPanel(
@@ -332,31 +355,35 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
           ],
           const SizedBox(height: 20),
           if (auth == null)
-            const InfoCard(text: 'Login first to load direct booking requests from the API.')
+            const InfoCard(
+                text:
+                    'Login first to load direct booking requests from the API.')
           else ...[
             RequestFlowBar(
               activeStep: !isOnline
                   ? 0
                   : (bookingItems.any((item) => item['chatRoom'] != null)
                       ? 3
-                      : (bookingItems.any((item) => item['status'] == 'MATCHED') ? 2 : 1)),
+                      : (bookingItems.any((item) => item['status'] == 'MATCHED')
+                          ? 2
+                          : 1)),
             ),
             const SizedBox(height: 16),
             RequestQueueSummary(
               totalRequests: bookingItems.length,
-              preferredRequests: bookingItems
-                  .where((booking) {
-                    final preferredProvider = booking['preferredProvider'];
-                    return preferredProvider is Map<String, dynamic> && preferredProvider['userId'] == auth.userId;
-                  })
+              preferredRequests: bookingItems.where((booking) {
+                final preferredProvider = booking['preferredProvider'];
+                return preferredProvider is Map<String, dynamic> &&
+                    preferredProvider['userId'] == auth.userId;
+              }).length,
+              backupRequests: bookingItems.where((booking) {
+                final preferredProvider = booking['preferredProvider'];
+                return preferredProvider is Map<String, dynamic> &&
+                    preferredProvider['userId'] != auth.userId;
+              }).length,
+              chatReady: bookingItems
+                  .where((booking) => booking['chatRoom'] != null)
                   .length,
-              backupRequests: bookingItems
-                  .where((booking) {
-                    final preferredProvider = booking['preferredProvider'];
-                    return preferredProvider is Map<String, dynamic> && preferredProvider['userId'] != auth.userId;
-                  })
-                  .length,
-              chatReady: bookingItems.where((booking) => booking['chatRoom'] != null).length,
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -387,16 +414,21 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
             ),
             const SizedBox(height: 16),
             if (bookingItems.isEmpty)
-              const InfoCard(text: 'No direct requests yet. Once a customer books your profile, it will appear here.')
+              const InfoCard(
+                  text:
+                      'No direct requests yet. Once a customer books your profile, it will appear here.')
             else if (visibleBookings.isEmpty)
-              const InfoCard(text: 'No requests match this filter right now. Switch filters to review older items.')
+              const InfoCard(
+                  text:
+                      'No requests match this filter right now. Switch filters to review older items.')
             else
               for (final booking in visibleBookings)
                 Builder(
                   builder: (context) {
                     final preferredProvider = booking['preferredProvider'];
                     final isPreferredRequest =
-                        preferredProvider is Map<String, dynamic> && preferredProvider['userId'] == auth.userId;
+                        preferredProvider is Map<String, dynamic> &&
+                            preferredProvider['userId'] == auth.userId;
                     return OpenBookingCard(
                       booking: booking,
                       isPreferredRequest: isPreferredRequest,
@@ -441,16 +473,20 @@ class ProviderStatusPanel extends StatelessWidget {
               backgroundColor: isOnline
                   ? Theme.of(context).colorScheme.primaryContainer
                   : Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: Icon(isOnline ? Icons.radar_outlined : Icons.power_settings_new),
+              child: Icon(
+                  isOnline ? Icons.radar_outlined : Icons.power_settings_new),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(isOnline ? 'Online available' : 'Offline', style: Theme.of(context).textTheme.titleMedium),
+                  Text(isOnline ? 'Online available' : 'Offline',
+                      style: Theme.of(context).textTheme.titleMedium),
                   Text(
-                    isOnline ? 'Location is shared for booking requests.' : 'Go online to receive direct booking requests.',
+                    isOnline
+                        ? 'Location is shared for booking requests.'
+                        : 'Go online to receive direct booking requests.',
                   ),
                 ],
               ),
@@ -470,10 +506,12 @@ class ProviderScheduleScreen extends ConsumerStatefulWidget {
   const ProviderScheduleScreen({super.key});
 
   @override
-  ConsumerState<ProviderScheduleScreen> createState() => _ProviderScheduleScreenState();
+  ConsumerState<ProviderScheduleScreen> createState() =>
+      _ProviderScheduleScreenState();
 }
 
-class _ProviderScheduleScreenState extends ConsumerState<ProviderScheduleScreen> {
+class _ProviderScheduleScreenState
+    extends ConsumerState<ProviderScheduleScreen> {
   List<dynamic> bookings = [];
   bool loading = false;
   String? error;
@@ -530,9 +568,11 @@ class _ProviderScheduleScreenState extends ConsumerState<ProviderScheduleScreen>
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
     final items = bookings.whereType<Map<String, dynamic>>().toList()
-      ..sort((left, right) => bookingTimestamp(right).compareTo(bookingTimestamp(left)));
+      ..sort((left, right) =>
+          bookingTimestamp(right).compareTo(bookingTimestamp(left)));
     final activeCount = items.where(isProviderActiveBooking).length;
-    final completedCount = items.where((booking) => booking['status'] == 'COMPLETED').length;
+    final completedCount =
+        items.where((booking) => booking['status'] == 'COMPLETED').length;
     final closedCount = items.where(isProviderClosedBooking).length;
 
     return SafeArea(
@@ -547,9 +587,11 @@ class _ProviderScheduleScreenState extends ConsumerState<ProviderScheduleScreen>
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: loading ? null : (auth == null ? signInAndLoad : loadSchedule),
+            onPressed:
+                loading ? null : (auth == null ? signInAndLoad : loadSchedule),
             icon: const Icon(Icons.calendar_month_outlined),
-            label: Text(auth == null ? 'Demo provider login' : 'Refresh schedule'),
+            label:
+                Text(auth == null ? 'Demo provider login' : 'Refresh schedule'),
           ),
           if (loading) ...[
             const SizedBox(height: 12),
@@ -564,12 +606,17 @@ class _ProviderScheduleScreenState extends ConsumerState<ProviderScheduleScreen>
             ErrorCard(text: error!),
           ],
           const SizedBox(height: 16),
-          ProviderScheduleSummary(active: activeCount, completed: completedCount, closed: closedCount),
+          ProviderScheduleSummary(
+              active: activeCount,
+              completed: completedCount,
+              closed: closedCount),
           const SizedBox(height: 16),
           if (auth == null)
-            const InfoCard(text: 'Login first to load your provider booking schedule.')
+            const InfoCard(
+                text: 'Login first to load your provider booking schedule.')
           else if (items.isEmpty)
-            const InfoCard(text: 'No assigned, joined, or completed bookings yet.')
+            const InfoCard(
+                text: 'No assigned, joined, or completed bookings yet.')
           else
             for (final booking in items) ProviderScheduleCard(booking: booking),
         ],
@@ -598,15 +645,24 @@ class ProviderScheduleSummary extends StatelessWidget {
       children: [
         SizedBox(
           width: 150,
-          child: RequestSummaryCard(label: 'Active', value: '$active live', tone: const Color(0xFFEAF2FF)),
+          child: RequestSummaryCard(
+              label: 'Active',
+              value: '$active live',
+              tone: const Color(0xFFEAF2FF)),
         ),
         SizedBox(
           width: 150,
-          child: RequestSummaryCard(label: 'Done', value: '$completed complete', tone: const Color(0xFFEAF5E3)),
+          child: RequestSummaryCard(
+              label: 'Done',
+              value: '$completed complete',
+              tone: const Color(0xFFEAF5E3)),
         ),
         SizedBox(
           width: 150,
-          child: RequestSummaryCard(label: 'Closed', value: '$closed closed', tone: const Color(0xFFF8ECD4)),
+          child: RequestSummaryCard(
+              label: 'Closed',
+              value: '$closed closed',
+              tone: const Color(0xFFF8ECD4)),
         ),
       ],
     );
@@ -623,7 +679,8 @@ class ProviderScheduleCard extends StatelessWidget {
     final service = providerBookingService(booking);
     final address = booking['address'] as Map<String, dynamic>?;
     final payment = booking['payment'] as Map<String, dynamic>?;
-    final selectedProvider = booking['selectedProvider'] as Map<String, dynamic>?;
+    final selectedProvider =
+        booking['selectedProvider'] as Map<String, dynamic>?;
     final isAssigned = selectedProvider != null;
     return Card(
       child: Padding(
@@ -641,7 +698,9 @@ class ProviderScheduleCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
-                ProviderRequestTag(label: booking['status']?.toString() ?? 'UNKNOWN', highlighted: isAssigned),
+                ProviderRequestTag(
+                    label: booking['status']?.toString() ?? 'UNKNOWN',
+                    highlighted: isAssigned),
               ],
             ),
             const SizedBox(height: 12),
@@ -649,10 +708,15 @@ class ProviderScheduleCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                ProviderRequestTag(label: formatScheduleMoment(booking['scheduledStartAt'])),
-                ProviderRequestTag(label: '${service?['durationMin'] ?? '-'} min'),
-                ProviderRequestTag(label: '${formatCurrency(payment?['amount'] ?? service?['basePrice'])} VND'),
-                ProviderRequestTag(label: payment?['status']?.toString() ?? 'NO_PAYMENT'),
+                ProviderRequestTag(
+                    label: formatScheduleMoment(booking['scheduledStartAt'])),
+                ProviderRequestTag(
+                    label: '${service?['durationMin'] ?? '-'} min'),
+                ProviderRequestTag(
+                    label:
+                        '${formatCurrency(payment?['amount'] ?? service?['basePrice'])} VND'),
+                ProviderRequestTag(
+                    label: payment?['status']?.toString() ?? 'NO_PAYMENT'),
               ],
             ),
             const SizedBox(height: 10),
@@ -660,7 +724,10 @@ class ProviderScheduleCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               providerScheduleNextAction(booking),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: Colors.black54),
             ),
           ],
         ),
@@ -670,7 +737,9 @@ class ProviderScheduleCard extends StatelessWidget {
 }
 
 Map<String, dynamic>? providerBookingService(Map<String, dynamic> booking) {
-  final services = booking['services'] is List<dynamic> ? booking['services'] as List<dynamic> : [];
+  final services = booking['services'] is List<dynamic>
+      ? booking['services'] as List<dynamic>
+      : [];
   if (services.isEmpty || services.first is! Map<String, dynamic>) {
     return null;
   }
@@ -679,11 +748,18 @@ Map<String, dynamic>? providerBookingService(Map<String, dynamic> booking) {
 }
 
 bool isProviderActiveBooking(Map<String, dynamic> booking) {
-  return const {'OPEN_MATCHING', 'MATCHED', 'PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE'}.contains(booking['status']);
+  return const {
+    'OPEN_MATCHING',
+    'MATCHED',
+    'PROVIDER_ON_THE_WAY',
+    'ARRIVED',
+    'IN_SERVICE'
+  }.contains(booking['status']);
 }
 
 bool isProviderClosedBooking(Map<String, dynamic> booking) {
-  return const {'COMPLETED', 'CANCELLED', 'EXPIRED', 'REFUNDED'}.contains(booking['status']);
+  return const {'COMPLETED', 'CANCELLED', 'EXPIRED', 'REFUNDED'}
+      .contains(booking['status']);
 }
 
 String providerScheduleNextAction(Map<String, dynamic> booking) {
@@ -700,9 +776,11 @@ String providerScheduleNextAction(Map<String, dynamic> booking) {
   };
 }
 
-int providerRequestPriority(Map<String, dynamic> booking, String? currentUserId) {
+int providerRequestPriority(
+    Map<String, dynamic> booking, String? currentUserId) {
   final preferredProvider = booking['preferredProvider'];
-  final isPreferredRequest = preferredProvider is Map<String, dynamic> && preferredProvider['userId'] == currentUserId;
+  final isPreferredRequest = preferredProvider is Map<String, dynamic> &&
+      preferredProvider['userId'] == currentUserId;
   if (booking['chatRoom'] != null) {
     return 1;
   }
@@ -722,7 +800,9 @@ int providerRequestPriority(Map<String, dynamic> booking, String? currentUserId)
 }
 
 int bookingTimestamp(Map<String, dynamic> booking) {
-  final value = booking['updatedAt'] ?? booking['createdAt'] ?? booking['scheduledStartAt'];
+  final value = booking['updatedAt'] ??
+      booking['createdAt'] ??
+      booking['scheduledStartAt'];
   if (value is String) {
     return DateTime.tryParse(value)?.millisecondsSinceEpoch ?? 0;
   }
@@ -778,7 +858,8 @@ class RequestFlowBar extends StatelessWidget {
         for (var index = 0; index < steps.length; index++)
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(right: index == steps.length - 1 ? 0 : 6),
+              padding:
+                  EdgeInsets.only(right: index == steps.length - 1 ? 0 : 6),
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: index <= activeStep
@@ -885,12 +966,18 @@ class RequestSummaryCard extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.black54, fontWeight: FontWeight.w700),
+            style: Theme.of(context)
+                .textTheme
+                .labelLarge
+                ?.copyWith(color: Colors.black54, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           Text(
             value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
         ],
       ),
@@ -924,7 +1011,10 @@ class InlineRequestFact extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           value,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
       ],
     );
@@ -955,11 +1045,18 @@ class OpenBookingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final services = booking['services'] is List<dynamic> ? booking['services'] as List<dynamic> : [];
-    final firstService = services.isNotEmpty ? services.first as Map<String, dynamic> : <String, dynamic>{};
+    final services = booking['services'] is List<dynamic>
+        ? booking['services'] as List<dynamic>
+        : [];
+    final firstService = services.isNotEmpty
+        ? services.first as Map<String, dynamic>
+        : <String, dynamic>{};
     final service = firstService['service'] as Map<String, dynamic>?;
-    final participants = booking['participants'] is List<dynamic> ? booking['participants'] as List<dynamic> : [];
-    final preferredProvider = booking['preferredProvider'] as Map<String, dynamic>?;
+    final participants = booking['participants'] is List<dynamic>
+        ? booking['participants'] as List<dynamic>
+        : [];
+    final preferredProvider =
+        booking['preferredProvider'] as Map<String, dynamic>?;
     final hasPreferredProvider = preferredProvider != null;
     final hasChat = booking['chatRoom'] != null;
     final isMatched = booking['status'] == 'MATCHED';
@@ -968,8 +1065,10 @@ class OpenBookingCard extends StatelessWidget {
     final customerName = customerAddress?['name']?.toString() ?? 'Guest';
     final customerPhone = customerAddress?['phone']?.toString();
     final bookingId = booking['id']?.toString() ?? '';
-    final shortBookingId = bookingId.length <= 8 ? bookingId : bookingId.substring(0, 8);
-    final updatedLabel = formatRelativeMoment(booking['updatedAt'] ?? booking['createdAt']);
+    final shortBookingId =
+        bookingId.length <= 8 ? bookingId : bookingId.substring(0, 8);
+    final updatedLabel =
+        formatRelativeMoment(booking['updatedAt'] ?? booking['createdAt']);
     final scheduledLabel = formatScheduleMoment(booking['scheduledStartAt']);
     final requestModeLabel = isPreferredRequest
         ? 'Direct request'
@@ -1002,27 +1101,40 @@ class OpenBookingCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(service?['name'] as String? ?? 'Massage booking', style: Theme.of(context).textTheme.titleLarge),
+                      Text(service?['name'] as String? ?? 'Massage booking',
+                          style: Theme.of(context).textTheme.titleLarge),
                       const SizedBox(height: 2),
                       Text(
                         '$customerName${customerPhone == null ? '' : ' • $customerPhone'}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: Colors.black54),
                       ),
-                      Text('${booking['status']} - ${participants.length} provider(s) joined'),
+                      Text(
+                          '${booking['status']} - ${participants.length} provider(s) joined'),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: isPreferredRequest
                         ? const Color(0xFFE7F2DE)
-                        : (hasPreferredProvider ? const Color(0xFFF8ECD4) : const Color(0xFFE5ECFB)),
+                        : (hasPreferredProvider
+                            ? const Color(0xFFF8ECD4)
+                            : const Color(0xFFE5ECFB)),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    isPreferredRequest ? 'Preferred' : (hasPreferredProvider ? 'Backup' : 'Open'),
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+                    isPreferredRequest
+                        ? 'Preferred'
+                        : (hasPreferredProvider ? 'Backup' : 'Open'),
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -1033,10 +1145,14 @@ class OpenBookingCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 ProviderRequestTag(label: requestModeLabel),
-                ProviderRequestTag(label: 'Booking $shortBookingId', highlighted: true),
-                ProviderRequestTag(label: '${service?['durationMin'] ?? '-'} min'),
-                ProviderRequestTag(label: '${formatCurrency(service?['basePrice'])} VND'),
-                if (updatedLabel != 'Updated just now') ProviderRequestTag(label: updatedLabel),
+                ProviderRequestTag(
+                    label: 'Booking $shortBookingId', highlighted: true),
+                ProviderRequestTag(
+                    label: '${service?['durationMin'] ?? '-'} min'),
+                ProviderRequestTag(
+                    label: '${formatCurrency(service?['basePrice'])} VND'),
+                if (updatedLabel != 'Updated just now')
+                  ProviderRequestTag(label: updatedLabel),
               ],
             ),
             const SizedBox(height: 10),
@@ -1045,7 +1161,10 @@ class OpenBookingCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 'Guest address: ${customerAddress['line1'] ?? 'Address pending'}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Colors.black54),
               ),
             ],
             const SizedBox(height: 10),
@@ -1074,7 +1193,11 @@ class OpenBookingCard extends StatelessWidget {
                   Expanded(
                     child: InlineRequestFact(
                       label: 'Priority',
-                      value: isPreferredRequest ? 'Reply first' : (hasPreferredProvider ? 'Backup option' : 'Open queue'),
+                      value: isPreferredRequest
+                          ? 'Reply first'
+                          : (hasPreferredProvider
+                              ? 'Backup option'
+                              : 'Open queue'),
                     ),
                   ),
                 ],
@@ -1086,8 +1209,16 @@ class OpenBookingCard extends StatelessWidget {
                 Expanded(
                   child: RequestSummaryCard(
                     label: 'Role',
-                    value: isPreferredRequest ? 'First therapist' : (hasPreferredProvider ? 'Backup option' : 'Open candidate'),
-                    tone: isPreferredRequest ? const Color(0xFFEAF5E3) : (hasPreferredProvider ? const Color(0xFFFBF0DE) : const Color(0xFFEAF2FF)),
+                    value: isPreferredRequest
+                        ? 'First therapist'
+                        : (hasPreferredProvider
+                            ? 'Backup option'
+                            : 'Open candidate'),
+                    tone: isPreferredRequest
+                        ? const Color(0xFFEAF5E3)
+                        : (hasPreferredProvider
+                            ? const Color(0xFFFBF0DE)
+                            : const Color(0xFFEAF2FF)),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -1095,9 +1226,13 @@ class OpenBookingCard extends StatelessWidget {
                   child: RequestSummaryCard(
                     label: 'Decision',
                     value: isPreferredRequest
-                        ? (isMatched ? (hasChat ? 'Chat live' : 'Accepted') : 'Reply now')
+                        ? (isMatched
+                            ? (hasChat ? 'Chat live' : 'Accepted')
+                            : 'Reply now')
                         : (joined ? 'Visible now' : 'Can join'),
-                    tone: isMatched ? const Color(0xFFF2EAFE) : const Color(0xFFF7F8FA),
+                    tone: isMatched
+                        ? const Color(0xFFF2EAFE)
+                        : const Color(0xFFF7F8FA),
                   ),
                 ),
               ],
@@ -1115,7 +1250,10 @@ class OpenBookingCard extends StatelessWidget {
                 children: [
                   Text(
                     'Next action',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -1142,10 +1280,14 @@ class OpenBookingCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isPreferredRequest ? const Color(0xFFF1F8EC) : const Color(0xFFF8F6EC),
+                color: isPreferredRequest
+                    ? const Color(0xFFF1F8EC)
+                    : const Color(0xFFF8F6EC),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: isPreferredRequest ? const Color(0xFFD6E9C8) : const Color(0xFFE7D9B7),
+                  color: isPreferredRequest
+                      ? const Color(0xFFD6E9C8)
+                      : const Color(0xFFE7D9B7),
                 ),
               ),
               child: Text(
@@ -1171,9 +1313,13 @@ class OpenBookingCard extends StatelessWidget {
                     : 'The customer already chose you. Accept or decline this request.',
               )
             else if (hasPreferredProvider)
-              InfoCard(text: 'Preferred therapist: ${preferredProviderName ?? 'Another provider'}. Join if you can cover this request.')
+              InfoCard(
+                  text:
+                      'Preferred therapist: ${preferredProviderName ?? 'Another provider'}. Join if you can cover this request.')
             else
-              const InfoCard(text: 'Customer is waiting and nearby therapists may volunteer for this request.'),
+              const InfoCard(
+                  text:
+                      'Customer is waiting and nearby therapists may volunteer for this request.'),
             const SizedBox(height: 12),
             if (isPreferredRequest && !isMatched)
               Row(
@@ -1207,10 +1353,14 @@ class OpenBookingCard extends StatelessWidget {
               FilledButton.icon(
                 onPressed: loading ? null : onJoin,
                 icon: const Icon(Icons.add_circle_outline),
-                label: Text(hasPreferredProvider ? 'Offer backup support' : 'Join open matching'),
+                label: Text(hasPreferredProvider
+                    ? 'Offer backup support'
+                    : 'Join open matching'),
               )
             else ...[
-              const InfoCard(text: 'You are visible to the customer now. Wait for the final selection.'),
+              const InfoCard(
+                  text:
+                      'You are visible to the customer now. Wait for the final selection.'),
               const SizedBox(height: 8),
               FilledButton.tonalIcon(
                 onPressed: loading ? null : onReject,
@@ -1239,21 +1389,27 @@ class EarningsScreen extends ConsumerWidget {
           Text('Earnings', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            auth == null ? 'Login to view completed service earnings.' : 'Track gross, tips, fees, and net payout.',
+            auth == null
+                ? 'Login to view completed service earnings.'
+                : 'Track gross, tips, fees, and net payout.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 16),
           if (auth == null)
-            const InfoCard(text: 'Demo provider login is available on the Requests tab.')
+            const InfoCard(
+                text: 'Demo provider login is available on the Requests tab.')
           else
             FutureBuilder<List<dynamic>>(
               future: ref.read(providerRepositoryProvider).earnings(),
               builder: (context, earningsSnapshot) {
                 return FutureBuilder<Map<String, dynamic>>(
-                  future: ref.read(providerRepositoryProvider).earningsSummary(),
+                  future:
+                      ref.read(providerRepositoryProvider).earningsSummary(),
                   builder: (context, summarySnapshot) {
-                    if (earningsSnapshot.connectionState == ConnectionState.waiting ||
-                        summarySnapshot.connectionState == ConnectionState.waiting) {
+                    if (earningsSnapshot.connectionState ==
+                            ConnectionState.waiting ||
+                        summarySnapshot.connectionState ==
+                            ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
 
@@ -1262,7 +1418,8 @@ class EarningsScreen extends ConsumerWidget {
                     final currency = summary['currency'] ?? 'VND';
 
                     return FutureBuilder<List<dynamic>>(
-                      future: ref.read(providerRepositoryProvider).payoutBatches(),
+                      future:
+                          ref.read(providerRepositoryProvider).payoutBatches(),
                       builder: (context, payoutSnapshot) {
                         final batches = payoutSnapshot.data ?? [];
                         return Column(
@@ -1274,15 +1431,22 @@ class EarningsScreen extends ConsumerWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Net payout', style: Theme.of(context).textTheme.titleMedium),
+                                    Text('Net payout',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium),
                                     const SizedBox(height: 8),
                                     Text(
                                       '${summary['netAmount'] ?? 0} $currency',
-                                      style: Theme.of(context).textTheme.headlineSmall,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineSmall,
                                     ),
                                     const SizedBox(height: 8),
-                                    Text('Tips ${summary['tipAmount'] ?? 0} $currency'),
-                                    Text('Platform fee ${summary['platformFee'] ?? 0} $currency'),
+                                    Text(
+                                        'Tips ${summary['tipAmount'] ?? 0} $currency'),
+                                    Text(
+                                        'Platform fee ${summary['platformFee'] ?? 0} $currency'),
                                     Text('Payout batches ${batches.length}'),
                                   ],
                                 ),
@@ -1290,14 +1454,18 @@ class EarningsScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 12),
                             if (earnings.isEmpty)
-                              const InfoCard(text: 'Completed jobs will appear here.')
+                              const InfoCard(
+                                  text: 'Completed jobs will appear here.')
                             else
                               for (final earning in earnings)
                                 Card(
                                   child: ListTile(
-                                    title: Text('${earning['netAmount']} ${earning['currency'] ?? currency}'),
-                                    subtitle: Text('Booking ${earning['bookingId']} - ${earning['status']}'),
-                                    trailing: Text('+${earning['tipAmount'] ?? 0} tip'),
+                                    title: Text(
+                                        '${earning['netAmount']} ${earning['currency'] ?? currency}'),
+                                    subtitle: Text(
+                                        'Booking ${earning['bookingId']} - ${earning['status']}'),
+                                    trailing: Text(
+                                        '+${earning['tipAmount'] ?? 0} tip'),
                                   ),
                                 ),
                           ],
@@ -1387,20 +1555,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           (item) => item?['chatRoom'] != null,
           orElse: () => null,
         );
-    final latestBooking = bookings.isNotEmpty && bookings.first is Map<String, dynamic>
-        ? bookings.first as Map<String, dynamic>
-        : null;
+    final latestBooking =
+        bookings.isNotEmpty && bookings.first is Map<String, dynamic>
+            ? bookings.first as Map<String, dynamic>
+            : null;
     final booking = bookingWithChat ?? latestBooking;
     final room = bookingWithChat?['chatRoom'] as Map<String, dynamic>?;
     if (room == null) {
       final status = booking?['status']?.toString();
-      final preferredProvider = booking?['preferredProvider'] as Map<String, dynamic>?;
-      final selectedProvider = booking?['selectedProvider'] as Map<String, dynamic>?;
+      final preferredProvider =
+          booking?['preferredProvider'] as Map<String, dynamic>?;
+      final selectedProvider =
+          booking?['selectedProvider'] as Map<String, dynamic>?;
       final selectedProviderId = selectedProvider?['id']?.toString();
       final preferredProviderId = preferredProvider?['id']?.toString();
-      final myProviderId = ref.read(authControllerProvider)?.user['providerProfile']?['id']?.toString();
-      final isPreferredRequest = myProviderId != null && preferredProviderId == myProviderId;
-      final isFinalProvider = myProviderId != null && selectedProviderId == myProviderId;
+      final myProviderId = ref
+          .read(authControllerProvider)
+          ?.user['providerProfile']?['id']
+          ?.toString();
+      final isPreferredRequest =
+          myProviderId != null && preferredProviderId == myProviderId;
+      final isFinalProvider =
+          myProviderId != null && selectedProviderId == myProviderId;
       final nextMessage = switch (status) {
         'OPEN_MATCHING' => isPreferredRequest
             ? 'You were picked first. Accept the request from Requests to move this booking forward.'
@@ -1408,7 +1584,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         'MATCHED' => isFinalProvider
             ? 'The guest picked you. Start the service from Requests to unlock chat.'
             : 'A therapist was selected already, so this chat room is not yours.',
-        'IN_SERVICE' => 'Service is already in progress. Reload chat to join the live room.',
+        'IN_SERVICE' =>
+          'Service is already in progress. Reload chat to join the live room.',
         _ => 'No selected booking chat yet.',
       };
       setState(() => statusMessage = nextMessage);
@@ -1417,7 +1594,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final roomId = room['id'] as String;
     ref.read(providerRepositoryProvider).joinChat(roomId);
-    final loadedMessages = await ref.read(providerRepositoryProvider).listChatMessages(roomId);
+    final loadedMessages =
+        await ref.read(providerRepositoryProvider).listChatMessages(roomId);
     setState(() {
       chatRoomId = roomId;
       bookingId = booking?['id'] as String?;
@@ -1449,7 +1627,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       error = null;
     });
     try {
-      final location = await ref.read(providerRepositoryProvider).updateLocation(bookingId: activeBookingId);
+      final location = await ref
+          .read(providerRepositoryProvider)
+          .updateLocation(bookingId: activeBookingId);
       setState(() {
         lastSharedLat = location['lat'];
         lastSharedLng = location['lng'];
@@ -1475,14 +1655,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Text('Chat', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            auth == null ? 'Login to load your latest service chat.' : 'Realtime messages with the customer during service.',
+            auth == null
+                ? 'Login to load your latest service chat.'
+                : 'Realtime messages with the customer during service.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: loading ? null : signInAndLoadChat,
             icon: const Icon(Icons.chat_bubble_outline),
-            label: Text(chatRoomId == null ? 'Open latest chat' : 'Refresh chat'),
+            label:
+                Text(chatRoomId == null ? 'Open latest chat' : 'Refresh chat'),
           ),
           if (loading) ...[
             const SizedBox(height: 12),
@@ -1498,9 +1681,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
           const SizedBox(height: 16),
           if (chatRoomId == null)
-            const InfoCard(text: 'Chat opens after the guest confirms you and the service start step begins.')
+            const InfoCard(
+                text:
+                    'Chat opens after the guest confirms you and the service start step begins.')
           else ...[
-            Text('Room $chatRoomId', style: Theme.of(context).textTheme.titleMedium),
+            Text('Room $chatRoomId',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             ProviderLocationPreviewCard(
               customerLatitude: customerLat,
@@ -1516,7 +1702,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             const SizedBox(height: 8),
             if (messages.isEmpty)
-              const InfoCard(text: 'No messages yet. The first message will appear here as soon as either side sends one.')
+              const InfoCard(
+                  text:
+                      'No messages yet. The first message will appear here as soon as either side sends one.')
             else
               for (final message in messages)
                 MessageTile(message: message as Map<String, dynamic>),
@@ -1579,12 +1767,17 @@ class ProviderRequestTag extends StatelessWidget {
         color: highlighted ? const Color(0xFFE8F2DF) : Colors.white,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: highlighted ? const Color(0xFFBFD6AA) : Theme.of(context).colorScheme.outlineVariant,
+          color: highlighted
+              ? const Color(0xFFBFD6AA)
+              : Theme.of(context).colorScheme.outlineVariant,
         ),
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+        style: Theme.of(context)
+            .textTheme
+            .labelLarge
+            ?.copyWith(fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -1613,7 +1806,8 @@ class ProviderLocationPreviewCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Live route preview', style: Theme.of(context).textTheme.titleMedium),
+            Text('Live route preview',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(18),
@@ -1633,7 +1827,10 @@ class ProviderLocationPreviewCard extends StatelessWidget {
               hasLocation
                   ? 'Shared pin: ${formatCoordinate(latitude)}, ${formatCoordinate(longitude)}'
                   : 'Share your current location so the customer can track your approach.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: Colors.black54),
             ),
           ],
         ),
@@ -1674,13 +1871,15 @@ class _ProviderMapSurfaceState extends State<ProviderMapSurface> {
     }
   }
 
-  LatLng? get customerPoint => widget.customerLatitude == null || widget.customerLongitude == null
-      ? null
-      : LatLng(widget.customerLatitude!, widget.customerLongitude!);
+  LatLng? get customerPoint =>
+      widget.customerLatitude == null || widget.customerLongitude == null
+          ? null
+          : LatLng(widget.customerLatitude!, widget.customerLongitude!);
 
-  LatLng? get providerPoint => widget.providerLatitude == null || widget.providerLongitude == null
-      ? null
-      : LatLng(widget.providerLatitude!, widget.providerLongitude!);
+  LatLng? get providerPoint =>
+      widget.providerLatitude == null || widget.providerLongitude == null
+          ? null
+          : LatLng(widget.providerLatitude!, widget.providerLongitude!);
 
   Future<void> syncMarkers() async {
     final map = controller;
@@ -1752,7 +1951,8 @@ class _ProviderMapSurfaceState extends State<ProviderMapSurface> {
       );
     }
 
-    return _ProviderMapPlaceholder(showProviderPin: widget.fallbackShowProviderPin);
+    return _ProviderMapPlaceholder(
+        showProviderPin: widget.fallbackShowProviderPin);
   }
 }
 
@@ -1831,7 +2031,8 @@ class _MapPinChip extends StatelessWidget {
             color: Colors.white.withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(999),
           ),
-          child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+          child:
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
         ),
         const SizedBox(height: 6),
         Container(
@@ -1861,18 +2062,22 @@ class ProviderMapPainter extends CustomPainter {
 
     final mainRoad = Path()
       ..moveTo(size.width * 0.12, size.height * 0.68)
-      ..quadraticBezierTo(size.width * 0.34, size.height * 0.56, size.width * 0.48, size.height * 0.38)
-      ..quadraticBezierTo(size.width * 0.7, size.height * 0.18, size.width * 0.9, size.height * 0.22);
+      ..quadraticBezierTo(size.width * 0.34, size.height * 0.56,
+          size.width * 0.48, size.height * 0.38)
+      ..quadraticBezierTo(size.width * 0.7, size.height * 0.18,
+          size.width * 0.9, size.height * 0.22);
     canvas.drawPath(mainRoad, roadPaint);
 
     final branch = Path()
       ..moveTo(size.width * 0.44, size.height * 0.56)
-      ..quadraticBezierTo(size.width * 0.34, size.height * 0.42, size.width * 0.24, size.height * 0.24);
+      ..quadraticBezierTo(size.width * 0.34, size.height * 0.42,
+          size.width * 0.24, size.height * 0.24);
     canvas.drawPath(branch, thinPaint);
 
     final branchTwo = Path()
       ..moveTo(size.width * 0.56, size.height * 0.44)
-      ..quadraticBezierTo(size.width * 0.66, size.height * 0.58, size.width * 0.8, size.height * 0.74);
+      ..quadraticBezierTo(size.width * 0.66, size.height * 0.58,
+          size.width * 0.8, size.height * 0.74);
     canvas.drawPath(branchTwo, thinPaint);
   }
 
@@ -1900,7 +2105,9 @@ class ProfileScreen extends ConsumerWidget {
           Text('Profile', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            auth == null ? 'Not signed in' : 'Signed in as ${auth.user['phone']}',
+            auth == null
+                ? 'Not signed in'
+                : 'Signed in as ${auth.user['phone']}',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 16),
@@ -1915,13 +2122,16 @@ class ProfileScreen extends ConsumerWidget {
                 }
 
                 final verification = snapshot.data ?? <String, dynamic>{};
-                final files = verification['files'] is List<dynamic> ? verification['files'] as List<dynamic> : [];
+                final files = verification['files'] is List<dynamic>
+                    ? verification['files'] as List<dynamic>
+                    : [];
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Card(
                       child: ListTile(
-                        title: Text('Verification ${verification['status'] ?? 'DRAFT'}'),
+                        title: Text(
+                            'Verification ${verification['status'] ?? 'DRAFT'}'),
                         subtitle: Text(
                           verification['rejectionReason'] == null
                               ? '${files.length} file(s) attached'
@@ -1933,11 +2143,15 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     FilledButton.tonalIcon(
                       onPressed: () async {
-                        final upload = await ref.read(providerRepositoryProvider).createVerificationUpload();
+                        final upload = await ref
+                            .read(providerRepositoryProvider)
+                            .createVerificationUpload();
                         final file = upload['file'] as Map<String, dynamic>?;
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Upload contract created for ${file?['key'] ?? 'file'}')),
+                            SnackBar(
+                                content: Text(
+                                    'Upload contract created for ${file?['key'] ?? 'file'}')),
                           );
                         }
                       },
@@ -1947,10 +2161,13 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 8),
                     FilledButton.icon(
                       onPressed: () async {
-                        await ref.read(providerRepositoryProvider).submitVerification();
+                        await ref
+                            .read(providerRepositoryProvider)
+                            .submitVerification();
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Verification submitted')),
+                            const SnackBar(
+                                content: Text('Verification submitted')),
                           );
                         }
                       },
@@ -1958,7 +2175,11 @@ class ProfileScreen extends ConsumerWidget {
                       label: const Text('Submit for review'),
                     ),
                     const SizedBox(height: 12),
-                    for (final item in ['Massage menu', 'Pricing', 'Online toggle'])
+                    for (final item in [
+                      'Massage menu',
+                      'Pricing',
+                      'Online toggle'
+                    ])
                       Card(
                         child: ListTile(
                           title: Text(item),
@@ -1976,7 +2197,8 @@ class ProfileScreen extends ConsumerWidget {
 }
 
 class ProviderMvpScreen extends StatelessWidget {
-  const ProviderMvpScreen({super.key, required this.title, this.subtitle, required this.items});
+  const ProviderMvpScreen(
+      {super.key, required this.title, this.subtitle, required this.items});
 
   final String title;
   final String? subtitle;
@@ -2063,7 +2285,9 @@ class ErrorCard extends StatelessWidget {
       color: Theme.of(context).colorScheme.errorContainer,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Text(text, style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)),
+        child: Text(text,
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onErrorContainer)),
       ),
     );
   }

@@ -37,4 +37,15 @@ class PushNotificationRepositoryImpl implements PushNotificationRepository {
       );
     }
   }
+
+  @override
+  Future<void> registerDeviceToken({
+    required String token,
+    String platform = 'android',
+  }) async {
+    await _remoteDataSource.registerDeviceToken(
+      token: token,
+      platform: platform,
+    );
+  }
 }
