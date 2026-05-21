@@ -42,7 +42,7 @@ class _ProviderShellState extends ConsumerState<ProviderShell> {
   Widget build(BuildContext context) {
     final screens = const [
       RequestsScreen(),
-      ProviderMvpScreen(title: 'Schedule', items: ['Availability', 'Available soon', 'Busy until']),
+      ProviderScheduleScreen(),
       EarningsScreen(),
       ChatScreen(),
       ProfileScreen(),
@@ -461,6 +461,240 @@ class ProviderStatusPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+class ProviderScheduleScreen extends ConsumerStatefulWidget {
+  const ProviderScheduleScreen({super.key});
+
+  @override
+  ConsumerState<ProviderScheduleScreen> createState() => _ProviderScheduleScreenState();
+}
+
+class _ProviderScheduleScreenState extends ConsumerState<ProviderScheduleScreen> {
+  List<dynamic> bookings = [];
+  bool loading = false;
+  String? error;
+  String? statusMessage;
+
+  Future<void> signInAndLoad() async {
+    setState(() {
+      loading = true;
+      error = null;
+      statusMessage = null;
+    });
+    try {
+      if (ref.read(authControllerProvider) == null) {
+        await ref.read(authControllerProvider.notifier).signInDemoProvider();
+      }
+      await loadSchedule(showLoading: false);
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> loadSchedule({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        loading = true;
+        error = null;
+      });
+    }
+    try {
+      final loaded = await ref.read(providerRepositoryProvider).listBookings();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        bookings = loaded;
+        statusMessage = 'Schedule refreshed with ${loaded.length} booking(s).';
+      });
+    } catch (exception) {
+      if (mounted) {
+        setState(() => error = '$exception');
+      }
+    } finally {
+      if (mounted && showLoading) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = ref.watch(authControllerProvider);
+    final items = bookings.whereType<Map<String, dynamic>>().toList()
+      ..sort((left, right) => bookingTimestamp(right).compareTo(bookingTimestamp(left)));
+    final activeCount = items.where(isProviderActiveBooking).length;
+    final completedCount = items.where((booking) => booking['status'] == 'COMPLETED').length;
+    final closedCount = items.where(isProviderClosedBooking).length;
+
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text('Schedule', style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 8),
+          Text(
+            'Today, active service states, and closed booking records.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: loading ? null : (auth == null ? signInAndLoad : loadSchedule),
+            icon: const Icon(Icons.calendar_month_outlined),
+            label: Text(auth == null ? 'Demo provider login' : 'Refresh schedule'),
+          ),
+          if (loading) ...[
+            const SizedBox(height: 12),
+            const LinearProgressIndicator(),
+          ],
+          if (statusMessage != null) ...[
+            const SizedBox(height: 12),
+            InfoCard(text: statusMessage!),
+          ],
+          if (error != null) ...[
+            const SizedBox(height: 12),
+            ErrorCard(text: error!),
+          ],
+          const SizedBox(height: 16),
+          ProviderScheduleSummary(active: activeCount, completed: completedCount, closed: closedCount),
+          const SizedBox(height: 16),
+          if (auth == null)
+            const InfoCard(text: 'Login first to load your provider booking schedule.')
+          else if (items.isEmpty)
+            const InfoCard(text: 'No assigned, joined, or completed bookings yet.')
+          else
+            for (final booking in items) ProviderScheduleCard(booking: booking),
+        ],
+      ),
+    );
+  }
+}
+
+class ProviderScheduleSummary extends StatelessWidget {
+  const ProviderScheduleSummary({
+    super.key,
+    required this.active,
+    required this.completed,
+    required this.closed,
+  });
+
+  final int active;
+  final int completed;
+  final int closed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        SizedBox(
+          width: 150,
+          child: RequestSummaryCard(label: 'Active', value: '$active live', tone: const Color(0xFFEAF2FF)),
+        ),
+        SizedBox(
+          width: 150,
+          child: RequestSummaryCard(label: 'Done', value: '$completed complete', tone: const Color(0xFFEAF5E3)),
+        ),
+        SizedBox(
+          width: 150,
+          child: RequestSummaryCard(label: 'Closed', value: '$closed closed', tone: const Color(0xFFF8ECD4)),
+        ),
+      ],
+    );
+  }
+}
+
+class ProviderScheduleCard extends StatelessWidget {
+  const ProviderScheduleCard({super.key, required this.booking});
+
+  final Map<String, dynamic> booking;
+
+  @override
+  Widget build(BuildContext context) {
+    final service = providerBookingService(booking);
+    final address = booking['address'] as Map<String, dynamic>?;
+    final payment = booking['payment'] as Map<String, dynamic>?;
+    final selectedProvider = booking['selectedProvider'] as Map<String, dynamic>?;
+    final isAssigned = selectedProvider != null;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const CircleAvatar(child: Icon(Icons.event_available_outlined)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    service?['name']?.toString() ?? 'Massage booking',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                ProviderRequestTag(label: booking['status']?.toString() ?? 'UNKNOWN', highlighted: isAssigned),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ProviderRequestTag(label: formatScheduleMoment(booking['scheduledStartAt'])),
+                ProviderRequestTag(label: '${service?['durationMin'] ?? '-'} min'),
+                ProviderRequestTag(label: '${formatCurrency(payment?['amount'] ?? service?['basePrice'])} VND'),
+                ProviderRequestTag(label: payment?['status']?.toString() ?? 'NO_PAYMENT'),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(address?['line1']?.toString() ?? 'Guest address pending'),
+            const SizedBox(height: 6),
+            Text(
+              providerScheduleNextAction(booking),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Map<String, dynamic>? providerBookingService(Map<String, dynamic> booking) {
+  final services = booking['services'] is List<dynamic> ? booking['services'] as List<dynamic> : [];
+  if (services.isEmpty || services.first is! Map<String, dynamic>) {
+    return null;
+  }
+  final service = (services.first as Map<String, dynamic>)['service'];
+  return service is Map<String, dynamic> ? service : null;
+}
+
+bool isProviderActiveBooking(Map<String, dynamic> booking) {
+  return const {'OPEN_MATCHING', 'MATCHED', 'PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE'}.contains(booking['status']);
+}
+
+bool isProviderClosedBooking(Map<String, dynamic> booking) {
+  return const {'COMPLETED', 'CANCELLED', 'EXPIRED', 'REFUNDED'}.contains(booking['status']);
+}
+
+String providerScheduleNextAction(Map<String, dynamic> booking) {
+  return switch (booking['status']) {
+    'OPEN_MATCHING' => 'Waiting for the guest to confirm a therapist.',
+    'MATCHED' => 'Prepare to start the service and unlock chat.',
+    'PROVIDER_ON_THE_WAY' => 'Keep location sharing active until arrival.',
+    'ARRIVED' => 'Mark the service started when the guest is ready.',
+    'IN_SERVICE' => 'Complete the service after work is finished.',
+    'COMPLETED' => 'Service complete. Check earnings and payout status.',
+    'CANCELLED' => 'Customer cancelled. No service action is needed.',
+    'REFUNDED' => 'Refunded booking. Review any admin notes if needed.',
+    _ => 'Monitor this booking from Requests if action is required.',
+  };
 }
 
 int providerRequestPriority(Map<String, dynamic> booking, String? currentUserId) {

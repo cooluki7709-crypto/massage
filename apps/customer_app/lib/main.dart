@@ -2799,25 +2799,293 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
   }
 }
 
-class BookingsScreen extends ConsumerWidget {
+class BookingsScreen extends ConsumerStatefulWidget {
   const BookingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BookingsScreen> createState() => _BookingsScreenState();
+}
+
+class _BookingsScreenState extends ConsumerState<BookingsScreen> {
+  List<dynamic> bookings = [];
+  bool loading = false;
+  String? error;
+  String? statusMessage;
+
+  Future<void> signInAndLoad() async {
+    setState(() {
+      loading = true;
+      error = null;
+      statusMessage = null;
+    });
+    try {
+      if (ref.read(authControllerProvider) == null) {
+        await ref.read(authControllerProvider.notifier).signInDemoCustomer();
+      }
+      await loadBookings(showLoading: false);
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> loadBookings({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        loading = true;
+        error = null;
+      });
+    }
+    try {
+      final loaded = await ref.read(customerRepositoryProvider).listBookings();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        bookings = loaded;
+        statusMessage = 'Loaded ${loaded.length} booking(s).';
+      });
+    } catch (exception) {
+      if (mounted) {
+        setState(() => error = '$exception');
+      }
+    } finally {
+      if (mounted && showLoading) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
-    return MvpAsyncList(
-      title: 'Bookings',
-      subtitle: 'Recent customer bookings and waiting requests.',
-      enabled: auth != null,
-      disabledText: 'Login first to load customer bookings.',
-      loader: () => ref.read(customerRepositoryProvider).listBookings(),
-      labelBuilder: (booking) {
-        final item = booking as Map<String, dynamic>;
-        final service = firstBookingService(item);
-        return '${service?['name'] ?? 'Booking'} - ${item['status']}';
-      },
+    final items = bookings.whereType<Map<String, dynamic>>().toList()
+      ..sort((left, right) => customerBookingTimestamp(right).compareTo(customerBookingTimestamp(left)));
+    final activeCount = items.where(isCustomerActiveBooking).length;
+    final closedCount = items.where(isCustomerClosedBooking).length;
+    final chatReadyCount = items.where((booking) => booking['chatRoom'] != null).length;
+
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text('Bookings', style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 8),
+          Text('Recent requests, assigned therapists, payment state, and chat readiness.', style: Theme.of(context).textTheme.bodyLarge),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: loading ? null : (auth == null ? signInAndLoad : loadBookings),
+            icon: const Icon(Icons.receipt_long_outlined),
+            label: Text(auth == null ? 'Demo customer login' : 'Refresh bookings'),
+          ),
+          if (loading) ...[
+            const SizedBox(height: 12),
+            const LinearProgressIndicator(),
+          ],
+          if (statusMessage != null) ...[
+            const SizedBox(height: 12),
+            InfoBanner(text: statusMessage!),
+          ],
+          if (error != null) ...[
+            const SizedBox(height: 12),
+            ErrorPanel(text: error!),
+          ],
+          const SizedBox(height: 16),
+          CustomerBookingSummary(active: activeCount, chatReady: chatReadyCount, closed: closedCount),
+          const SizedBox(height: 16),
+          if (auth == null)
+            const EmptyPanel(text: 'Login first to load customer bookings.')
+          else if (items.isEmpty)
+            const EmptyPanel(text: 'No bookings yet. Choose a therapist and book a service to start.')
+          else
+            for (final booking in items) CustomerBookingHistoryCard(booking: booking),
+        ],
+      ),
     );
   }
+}
+
+class CustomerBookingSummary extends StatelessWidget {
+  const CustomerBookingSummary({
+    super.key,
+    required this.active,
+    required this.chatReady,
+    required this.closed,
+  });
+
+  final int active;
+  final int chatReady;
+  final int closed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        CustomerSummaryTile(label: 'Active', value: '$active live', color: const Color(0xFFEAF5E3)),
+        CustomerSummaryTile(label: 'Chat', value: '$chatReady ready', color: const Color(0xFFEAF2FF)),
+        CustomerSummaryTile(label: 'Closed', value: '$closed done', color: const Color(0xFFF8ECD4)),
+      ],
+    );
+  }
+}
+
+class CustomerSummaryTile extends StatelessWidget {
+  const CustomerSummaryTile({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 150,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(18)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.black54)),
+            const SizedBox(height: 6),
+            Text(value, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CustomerBookingHistoryCard extends StatelessWidget {
+  const CustomerBookingHistoryCard({super.key, required this.booking});
+
+  final Map<String, dynamic> booking;
+
+  @override
+  Widget build(BuildContext context) {
+    final service = firstBookingService(booking);
+    final provider = activeBookingProvider(booking);
+    final payment = booking['payment'] as Map<String, dynamic>?;
+    final chatRoom = booking['chatRoom'] as Map<String, dynamic>?;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                ProviderThumbnail(name: provider?['displayName'] as String? ?? 'HANDS', size: 52),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(service?['name'] as String? ?? 'Massage booking', style: Theme.of(context).textTheme.titleLarge),
+                      const SizedBox(height: 2),
+                      Text(provider?['displayName'] as String? ?? 'Therapist pending'),
+                    ],
+                  ),
+                ),
+                BookingHistoryPill(label: booking['status']?.toString() ?? 'UNKNOWN'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                BookingHistoryPill(label: formatCustomerScheduleMoment(booking['scheduledStartAt'])),
+                BookingHistoryPill(label: '${service?['durationMin'] ?? '-'} min'),
+                BookingHistoryPill(label: '${formatCurrency(payment?['amount'] ?? service?['basePrice'])} VND'),
+                BookingHistoryPill(label: payment?['status']?.toString() ?? 'NO_PAYMENT'),
+                if (chatRoom != null) const BookingHistoryPill(label: 'Chat ready', highlighted: true),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              customerBookingNextAction(booking),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class BookingHistoryPill extends StatelessWidget {
+  const BookingHistoryPill({super.key, required this.label, this.highlighted = false});
+
+  final String label;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: highlighted ? const Color(0xFFEAF5E3) : Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: highlighted ? const Color(0xFFBFD6AA) : Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700)),
+    );
+  }
+}
+
+int customerBookingTimestamp(Map<String, dynamic> booking) {
+  final value = booking['updatedAt'] ?? booking['createdAt'] ?? booking['scheduledStartAt'];
+  if (value is String) {
+    return DateTime.tryParse(value)?.millisecondsSinceEpoch ?? 0;
+  }
+  return 0;
+}
+
+bool isCustomerActiveBooking(Map<String, dynamic> booking) {
+  return const {'OPEN_MATCHING', 'MATCHED', 'PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE'}.contains(booking['status']);
+}
+
+bool isCustomerClosedBooking(Map<String, dynamic> booking) {
+  return const {'COMPLETED', 'CANCELLED', 'EXPIRED', 'REFUNDED'}.contains(booking['status']);
+}
+
+String formatCustomerScheduleMoment(dynamic value) {
+  final raw = value?.toString();
+  if (raw == null || raw.isEmpty) {
+    return 'Soon';
+  }
+  final parsed = DateTime.tryParse(raw)?.toLocal();
+  if (parsed == null) {
+    return 'Soon';
+  }
+  final hour = parsed.hour.toString().padLeft(2, '0');
+  final minute = parsed.minute.toString().padLeft(2, '0');
+  return '${parsed.month.toString().padLeft(2, '0')}/${parsed.day.toString().padLeft(2, '0')} $hour:$minute';
+}
+
+String customerBookingNextAction(Map<String, dynamic> booking) {
+  return switch (booking['status']) {
+    'OPEN_MATCHING' => 'Waiting for the selected therapist or backup therapists to respond.',
+    'MATCHED' => 'Therapist confirmed. Chat opens when the provider starts the service.',
+    'PROVIDER_ON_THE_WAY' => 'Track the therapist location and keep your phone nearby.',
+    'ARRIVED' => 'Therapist arrived. Confirm details before service starts.',
+    'IN_SERVICE' => 'Service is in progress. Use Chat if you need help.',
+    'COMPLETED' => 'Service complete. Review and tip when ready.',
+    'CANCELLED' => 'Cancelled. Any payment hold should be released.',
+    'REFUNDED' => 'Refund recorded. Check payment status if needed.',
+    _ => 'Review this booking status before taking action.',
+  };
 }
 
 class ChatScreen extends ConsumerStatefulWidget {
