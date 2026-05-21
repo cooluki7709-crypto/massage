@@ -9,51 +9,7 @@ import 'core/providers.dart';
 import 'core/realtime_socket.dart';
 
 export 'core/providers.dart';
-
-final authControllerProvider = StateNotifierProvider<AuthController, AuthSession?>((ref) {
-  return AuthController(ref.read(apiClientProvider), ref.read(realtimeSocketProvider));
-});
-
-class AuthSession {
-  const AuthSession({
-    required this.userId,
-    required this.accessToken,
-    required this.refreshToken,
-    required this.user,
-  });
-
-  final String userId;
-  final String accessToken;
-  final String refreshToken;
-  final Map<String, dynamic> user;
-}
-
-class AuthController extends StateNotifier<AuthSession?> {
-  AuthController(this._api, this._socket) : super(null);
-
-  final ApiClient _api;
-  final RealtimeSocket _socket;
-
-  Future<void> signInDemoCustomer() async {
-    final result = await _api.postJson('/auth/verify-otp', {
-      'phone': '+84900000001',
-      'otp': '123456',
-      'role': 'CUSTOMER',
-    });
-    final accessToken = result['accessToken'] as String;
-    final refreshToken = result['refreshToken'] as String;
-    final user = result['user'] as Map<String, dynamic>;
-    _api.accessToken = accessToken;
-    _api.refreshToken = refreshToken;
-    _socket.connect(accessToken);
-    state = AuthSession(
-      userId: user['id'] as String,
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-      user: user,
-    );
-  }
-}
+export 'features/auth/presentation/providers/auth_providers.dart';
 
 final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
   return CustomerRepository(ref.read(apiClientProvider), ref.read(realtimeSocketProvider));
