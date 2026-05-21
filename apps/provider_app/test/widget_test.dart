@@ -6,7 +6,7 @@ void main() {
   testWidgets('renders provider requests screen', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: ProviderApp()));
 
-    expect(find.text('Open booking requests'), findsOneWidget);
+    expect(find.text('Direct booking requests'), findsOneWidget);
     expect(find.text('Demo provider login'), findsOneWidget);
   });
 }

@@ -92,6 +92,8 @@ After Docker Desktop is installed and running:
 powershell -ExecutionPolicy Bypass -File .\infra\scripts\verify-local.ps1 -WithServices
 ```
 
+If the standard HANDS local API is already running on `http://localhost:3100/api`, the verification script now reuses that runtime for smoke checks instead of starting a second temporary API.
+
 Dedicated HANDS local workspace organizer:
 
 ```powershell
@@ -194,6 +196,7 @@ Nginx routing and environment validation notes are documented in:
 - `docs/architecture/dev-environment.md`
 - `docs/architecture/backup-restore.md`
 - `docs/architecture/observability.md`
+- `docs/architecture/external-setup-checklist.md`
 
 Production-style compose:
 

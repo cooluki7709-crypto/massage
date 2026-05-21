@@ -86,6 +86,17 @@ function Invoke-Check {
 }
 
 function Invoke-SmokeWithApi {
+  param(
+    [string]$ApiBaseUrl = "http://localhost:3000/api",
+    [string]$SocketBaseUrl = "http://localhost:3000"
+  )
+
+  Invoke-Check "api readiness against local services" "Invoke-RestMethod $ApiBaseUrl/health/ready | ConvertTo-Json -Depth 5"
+  Invoke-Check "api smoke against local services" "`$env:API_BASE_URL='$ApiBaseUrl'; `$env:SOCKET_BASE_URL='$SocketBaseUrl'; node infra\scripts\api-smoke.mjs"
+  Invoke-Check "realtime smoke against local services" "`$env:API_BASE_URL='$ApiBaseUrl'; `$env:SOCKET_BASE_URL='$SocketBaseUrl'; node infra\scripts\realtime-smoke.mjs"
+}
+
+function Invoke-SmokeWithManagedApi {
   $job = Start-Job -ScriptBlock {
     Set-Location $using:root
     $env:DATABASE_URL = "postgresql://massage:massage@localhost:5432/massage_vn?schema=public"
@@ -121,9 +132,7 @@ function Invoke-SmokeWithApi {
       return
     }
 
-    Invoke-Check "api readiness against local services" "Invoke-RestMethod http://localhost:3000/api/health/ready | ConvertTo-Json -Depth 5"
-    Invoke-Check "api smoke against local services" "node infra\scripts\api-smoke.mjs"
-    Invoke-Check "realtime smoke against local services" "node infra\scripts\realtime-smoke.mjs"
+    Invoke-SmokeWithApi -ApiBaseUrl "http://localhost:3000/api" -SocketBaseUrl "http://localhost:3000"
   } finally {
     Stop-Job $job -ErrorAction SilentlyContinue
     Remove-Job $job -Force -ErrorAction SilentlyContinue
@@ -185,7 +194,19 @@ if (Test-CommandExists "docker") {
     Invoke-Check "docker compose up" "docker compose up -d"
     Invoke-Check "prisma migrate deploy" "`$env:DATABASE_URL='postgresql://massage:massage@localhost:5432/massage_vn?schema=public'; npx.cmd prisma migrate deploy --schema apps/api/prisma/schema.prisma"
     Invoke-Check "prisma seed" "`$env:DATABASE_URL='postgresql://massage:massage@localhost:5432/massage_vn?schema=public'; npm.cmd run prisma:seed --workspace @massage-vn/api"
-    Invoke-SmokeWithApi
+
+    $existingHandsApiReady = $false
+    try {
+      Invoke-RestMethod "http://localhost:3100/api/health/ready" | Out-Null
+      $existingHandsApiReady = $true
+    } catch {}
+
+    if ($existingHandsApiReady) {
+      Add-Result "api runtime source" "PASS" "Using existing HANDS local API on http://localhost:3100/api"
+      Invoke-SmokeWithApi -ApiBaseUrl "http://localhost:3100/api" -SocketBaseUrl "http://localhost:3100"
+    } else {
+      Invoke-SmokeWithManagedApi
+    }
   } elseif ($WithServices) {
     Add-Result "docker compose up" "SKIP" "Docker CLI is installed, but Docker Desktop daemon is not ready or access is denied."
     Add-Result "api smoke against local services" "SKIP" "Needs a ready Docker daemon and local API services."
