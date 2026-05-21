@@ -78,6 +78,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
   Set<String> joinedBookingIds = {};
   bool isOnline = false;
   bool loading = false;
+  String requestView = 'action';
   String? statusMessage;
   String? error;
 
@@ -249,6 +250,24 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
+    final bookingItems = openBookings.whereType<Map<String, dynamic>>().toList()
+      ..sort((left, right) {
+        final leftScore = providerRequestPriority(left, auth?.userId);
+        final rightScore = providerRequestPriority(right, auth?.userId);
+        if (leftScore != rightScore) {
+          return rightScore.compareTo(leftScore);
+        }
+        return bookingTimestamp(right).compareTo(bookingTimestamp(left));
+      });
+    final visibleBookings = bookingItems.where((booking) {
+      if (requestView == 'chat') {
+        return booking['chatRoom'] != null;
+      }
+      if (requestView == 'all') {
+        return true;
+      }
+      return booking['chatRoom'] == null;
+    }).toList();
 
     return SafeArea(
       child: ListView(
@@ -309,55 +328,78 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
             RequestFlowBar(
               activeStep: !isOnline
                   ? 0
-                  : (openBookings.any((item) => item is Map<String, dynamic> && item['chatRoom'] != null)
+                  : (bookingItems.any((item) => item['chatRoom'] != null)
                       ? 3
-                      : (openBookings.any((item) => item is Map<String, dynamic> && item['status'] == 'MATCHED') ? 2 : 1)),
+                      : (bookingItems.any((item) => item['status'] == 'MATCHED') ? 2 : 1)),
             ),
             const SizedBox(height: 16),
             RequestQueueSummary(
-              totalRequests: openBookings.whereType<Map<String, dynamic>>().length,
-              preferredRequests: openBookings
-                  .whereType<Map<String, dynamic>>()
+              totalRequests: bookingItems.length,
+              preferredRequests: bookingItems
                   .where((booking) {
                     final preferredProvider = booking['preferredProvider'];
                     return preferredProvider is Map<String, dynamic> && preferredProvider['userId'] == auth.userId;
                   })
                   .length,
-              backupRequests: openBookings
-                  .whereType<Map<String, dynamic>>()
+              backupRequests: bookingItems
                   .where((booking) {
                     final preferredProvider = booking['preferredProvider'];
                     return preferredProvider is Map<String, dynamic> && preferredProvider['userId'] != auth.userId;
                   })
                   .length,
-              chatReady: openBookings
-                  .whereType<Map<String, dynamic>>()
-                  .where((booking) => booking['chatRoom'] != null)
-                  .length,
+              chatReady: bookingItems.where((booking) => booking['chatRoom'] != null).length,
             ),
             const SizedBox(height: 16),
-            if (openBookings.isEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('Action needed'),
+                  selected: requestView == 'action',
+                  onSelected: (_) => setState(() => requestView = 'action'),
+                ),
+                ChoiceChip(
+                  label: const Text('Chat ready'),
+                  selected: requestView == 'chat',
+                  onSelected: (_) => setState(() => requestView = 'chat'),
+                ),
+                ChoiceChip(
+                  label: const Text('All requests'),
+                  selected: requestView == 'all',
+                  onSelected: (_) => setState(() => requestView = 'all'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            InfoCard(
+              text:
+                  'Showing ${visibleBookings.length} of ${bookingItems.length} request(s) - ${requestView == 'action' ? 'Requests that still need action' : requestView == 'chat' ? 'Requests with chat already unlocked' : 'All loaded requests'}',
+            ),
+            const SizedBox(height: 16),
+            if (bookingItems.isEmpty)
               const InfoCard(text: 'No direct requests yet. Ask the customer to book your profile, then refresh.')
+            else if (visibleBookings.isEmpty)
+              const InfoCard(text: 'No requests match the current filter. Switch the filter to review older items.')
             else
-              for (final booking in openBookings)
-                if (booking is Map<String, dynamic>)
-                  Builder(
-                    builder: (context) {
-                      final preferredProvider = booking['preferredProvider'];
-                      final isPreferredRequest =
-                          preferredProvider is Map<String, dynamic> && preferredProvider['userId'] == auth.userId;
-                      return OpenBookingCard(
-                        booking: booking,
-                        isPreferredRequest: isPreferredRequest,
-                        joined: joinedBookingIds.contains(booking['id']),
-                        loading: loading,
-                        onJoin: () => joinBooking(booking),
-                        onAccept: () => respondToBooking(booking, true),
-                        onReject: () => respondToBooking(booking, false),
-                        onStart: () => startService(booking),
-                      );
-                    },
-                  ),
+              for (final booking in visibleBookings)
+                Builder(
+                  builder: (context) {
+                    final preferredProvider = booking['preferredProvider'];
+                    final isPreferredRequest =
+                        preferredProvider is Map<String, dynamic> && preferredProvider['userId'] == auth.userId;
+                    return OpenBookingCard(
+                      booking: booking,
+                      isPreferredRequest: isPreferredRequest,
+                      joined: joinedBookingIds.contains(booking['id']),
+                      loading: loading,
+                      onJoin: () => joinBooking(booking),
+                      onAccept: () => respondToBooking(booking, true),
+                      onReject: () => respondToBooking(booking, false),
+                      onStart: () => startService(booking),
+                    );
+                  },
+                ),
           ],
         ],
       ),
@@ -413,6 +455,35 @@ class ProviderStatusPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+int providerRequestPriority(Map<String, dynamic> booking, String? currentUserId) {
+  final preferredProvider = booking['preferredProvider'];
+  final isPreferredRequest = preferredProvider is Map<String, dynamic> && preferredProvider['userId'] == currentUserId;
+  if (booking['chatRoom'] != null) {
+    return 1;
+  }
+  if (booking['status'] == 'MATCHED' && isPreferredRequest) {
+    return 5;
+  }
+  if (booking['status'] == 'OPEN_MATCHING' && isPreferredRequest) {
+    return 4;
+  }
+  if (booking['status'] == 'OPEN_MATCHING') {
+    return 3;
+  }
+  if (booking['status'] == 'MATCHED') {
+    return 2;
+  }
+  return 0;
+}
+
+int bookingTimestamp(Map<String, dynamic> booking) {
+  final value = booking['updatedAt'] ?? booking['createdAt'] ?? booking['scheduledStartAt'];
+  if (value is String) {
+    return DateTime.tryParse(value)?.millisecondsSinceEpoch ?? 0;
+  }
+  return 0;
 }
 
 class RequestFlowBar extends StatelessWidget {

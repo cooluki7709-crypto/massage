@@ -15,6 +15,7 @@ export function BookingMonitor({ bookings }: Props) {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(() => new Date());
   const [isPending, startTransition] = useTransition();
+  const [view, setView] = useState<'active' | 'chat' | 'all'>('active');
 
   const orderedBookings = useMemo(
     () =>
@@ -50,6 +51,16 @@ export function BookingMonitor({ bookings }: Props) {
       ['Chat live', chatLive.length.toString()],
     ];
   }, [orderedBookings]);
+
+  const visibleBookings = useMemo(() => {
+    if (view === 'chat') {
+      return orderedBookings.filter((booking) => Boolean(booking.chatRoom));
+    }
+    if (view === 'all') {
+      return orderedBookings;
+    }
+    return orderedBookings.filter((booking) => activeStatuses.has(booking.status));
+  }, [orderedBookings, view]);
 
   useEffect(() => {
     if (!autoRefresh) {
@@ -105,6 +116,25 @@ export function BookingMonitor({ bookings }: Props) {
         <span>Last refresh {lastRefresh.toLocaleTimeString()}</span>
       </div>
 
+      <div className="actions" style={{ marginTop: 16 }}>
+        <button type="button" onClick={() => setView('active')} disabled={view === 'active'}>
+          Active only
+        </button>
+        <button type="button" onClick={() => setView('chat')} disabled={view === 'chat'}>
+          Chat live
+        </button>
+        <button type="button" onClick={() => setView('all')} disabled={view === 'all'}>
+          All bookings
+        </button>
+      </div>
+
+      <div className="monitor-meta">
+        <span>
+          Showing {visibleBookings.length} of {orderedBookings.length} bookings
+        </span>
+        <span>{view === 'active' ? 'Dispatch focus' : view === 'chat' ? 'Live service focus' : 'Full history'}</span>
+      </div>
+
       <section className="card" style={{ marginTop: 16 }}>
         <table className="table">
           <thead>
@@ -118,7 +148,7 @@ export function BookingMonitor({ bookings }: Props) {
             </tr>
           </thead>
           <tbody>
-            {orderedBookings.map((booking) => (
+            {visibleBookings.map((booking) => (
               <tr key={booking.id}>
                 <td>
                   <strong>{shortId(booking.id)}</strong>
@@ -185,7 +215,7 @@ export function BookingMonitor({ bookings }: Props) {
                 </td>
               </tr>
             ))}
-            {orderedBookings.length === 0 && (
+            {visibleBookings.length === 0 && (
               <tr>
                 <td colSpan={6}>No bookings loaded. Start the API and run the smoke flow to populate this table.</td>
               </tr>
