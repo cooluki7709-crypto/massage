@@ -22,7 +22,7 @@ export function BookingMonitor({ bookings }: Props) {
     const active = bookings.filter((booking) => activeStatuses.has(booking.status));
     const noParticipants = open.filter((booking) => (booking.participants?.length ?? 0) === 0);
     const waitingSelection = open.filter((booking) => fallbackParticipants(booking).length > 0);
-    const preferredPending = open.filter((booking) => booking.selectedProvider && !isSelectedProviderParticipant(booking));
+    const preferredPending = open.filter((booking) => booking.preferredProvider && isPreferredAwaitingDecision(booking));
     return [
       ['Active bookings', active.length.toString()],
       ['Open matching', open.length.toString()],
@@ -118,19 +118,25 @@ export function BookingMonitor({ bookings }: Props) {
                 </td>
                 <td>
                   <strong>{booking.participants?.length ?? 0} joined</strong>
-                  <div className="muted">Preferred {booking.selectedProvider?.displayName ?? 'none'}</div>
+                  <div className="muted">Preferred {booking.preferredProvider?.displayName ?? 'none'}</div>
                   <div className="muted">
-                    {booking.selectedProvider?.user?.phone ? `Preferred phone ${booking.selectedProvider.user.phone}` : 'Preferred provider not set'}
+                    {booking.preferredProvider?.user?.phone ? `Preferred phone ${booking.preferredProvider.user.phone}` : 'Preferred provider not set'}
                   </div>
                   <div className="participant-list" style={{ marginTop: 8 }}>
                     <span className={`pill ${selectionToneClass(booking)}`}>{selectionLabel(booking)}</span>
                     {booking.chatRoom && <span className="pill pill-success">Chat ready</span>}
                   </div>
                   <div className="participant-list" style={{ marginTop: 8 }}>
-                    {booking.selectedProvider && (
+                    {booking.preferredProvider && (
                       <span className="pill" style={{ background: '#eef6e8', borderColor: '#b9d4a8' }}>
-                        Preferred: {booking.selectedProvider.displayName ?? 'Provider'}
-                        {isSelectedProviderParticipant(booking) ? ' joined' : ' pending'}
+                        Preferred: {booking.preferredProvider.displayName ?? 'Provider'}
+                        {' '}
+                        {preferredProviderStateLabel(booking)}
+                      </span>
+                    )}
+                    {booking.selectedProvider && booking.selectedProvider.id !== booking.preferredProvider?.id && (
+                      <span className="pill pill-success">
+                        Final: {booking.selectedProvider.displayName ?? 'Provider'}
                       </span>
                     )}
                     {fallbackParticipants(booking).slice(0, 4).map((participant) => (
@@ -177,7 +183,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function opsSignal(booking: AdminBooking) {
   const participantCount = fallbackParticipants(booking).length;
-  if (booking.status === 'OPEN_MATCHING' && booking.selectedProvider && !isSelectedProviderParticipant(booking)) {
+  if (booking.status === 'OPEN_MATCHING' && booking.preferredProvider && isPreferredAwaitingDecision(booking)) {
     return <span className="signal signal-warn">Preferred provider pending</span>;
   }
   if (booking.status === 'OPEN_MATCHING' && participantCount === 0) {
@@ -197,7 +203,7 @@ function opsSignal(booking: AdminBooking) {
 
 function nextAction(booking: AdminBooking) {
   const participantCount = fallbackParticipants(booking).length;
-  if (booking.status === 'OPEN_MATCHING' && booking.selectedProvider && !isSelectedProviderParticipant(booking)) {
+  if (booking.status === 'OPEN_MATCHING' && booking.preferredProvider && isPreferredAwaitingDecision(booking)) {
     return 'Wait for the preferred provider, but monitor fallback therapist supply.';
   }
   if (booking.status === 'OPEN_MATCHING' && participantCount === 0) {
@@ -244,7 +250,7 @@ function isSelectedProviderParticipant(booking: AdminBooking) {
 }
 
 function fallbackParticipants(booking: AdminBooking) {
-  const preferredId = booking.selectedProvider?.id;
+  const preferredId = booking.preferredProvider?.id;
   return (booking.participants ?? []).filter(
     (participant) =>
       participant.status !== 'REJECTED' &&
@@ -254,12 +260,16 @@ function fallbackParticipants(booking: AdminBooking) {
 }
 
 function selectionLabel(booking: AdminBooking) {
-  if (!booking.selectedProvider) {
+  if (!booking.preferredProvider) {
     return 'No preferred therapist';
   }
 
-  if (booking.status === 'OPEN_MATCHING' && !isSelectedProviderParticipant(booking)) {
+  if (booking.status === 'OPEN_MATCHING' && isPreferredAwaitingDecision(booking)) {
     return 'Preferred therapist pending';
+  }
+
+  if (preferredProviderStateLabel(booking) == 'declined') {
+    return 'Preferred therapist declined';
   }
 
   if (booking.status === 'MATCHED') {
@@ -274,12 +284,16 @@ function selectionLabel(booking: AdminBooking) {
 }
 
 function selectionToneClass(booking: AdminBooking) {
-  if (!booking.selectedProvider) {
+  if (!booking.preferredProvider) {
     return 'pill-neutral';
   }
 
-  if (booking.status === 'OPEN_MATCHING' && !isSelectedProviderParticipant(booking)) {
+  if (booking.status === 'OPEN_MATCHING' && isPreferredAwaitingDecision(booking)) {
     return 'pill-warn';
+  }
+
+  if (preferredProviderStateLabel(booking) == 'declined') {
+    return 'pill-info';
   }
 
   if (booking.status === 'MATCHED') {
@@ -291,4 +305,38 @@ function selectionToneClass(booking: AdminBooking) {
   }
 
   return 'pill-neutral';
+}
+
+function preferredParticipantState(booking: AdminBooking) {
+  const preferredProviderId = booking.preferredProvider?.id;
+  if (!preferredProviderId) {
+    return null;
+  }
+
+  return (booking.participants ?? []).find((participant) => participant.providerProfile?.id === preferredProviderId) ?? null;
+}
+
+function isPreferredAwaitingDecision(booking: AdminBooking) {
+  const participant = preferredParticipantState(booking);
+  if (!booking.preferredProvider) {
+    return false;
+  }
+  if (!participant) {
+    return true;
+  }
+  return participant.status !== 'ACCEPTED' && participant.status !== 'SELECTED' && participant.status !== 'REJECTED';
+}
+
+function preferredProviderStateLabel(booking: AdminBooking) {
+  const participant = preferredParticipantState(booking);
+  if (!participant) {
+    return 'requested';
+  }
+  if (participant.status === 'REJECTED') {
+    return 'declined';
+  }
+  if (participant.status === 'ACCEPTED' || participant.status === 'SELECTED') {
+    return 'confirmed';
+  }
+  return 'pending';
 }

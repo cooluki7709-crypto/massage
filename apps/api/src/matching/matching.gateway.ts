@@ -100,6 +100,7 @@ export class MatchingGateway implements OnGatewayConnection {
         where: {
           id: bookingId,
           OR: [
+            { preferredProviderId: provider.id },
             { selectedProviderId: provider.id },
             { participants: { some: { providerProfileId: provider.id } } },
           ],

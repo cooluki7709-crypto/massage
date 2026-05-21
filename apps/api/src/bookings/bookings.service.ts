@@ -48,7 +48,7 @@ export class BookingsService {
     }
 
     const service = await this.prisma.massageService.findUniqueOrThrow({ where: { id: input.serviceId } });
-    const selectedProvider = input.providerId
+    const preferredProvider = input.providerId
       ? await this.prisma.providerProfile.findUniqueOrThrow({
           where: { id: input.providerId },
           include: { user: true },
@@ -68,7 +68,7 @@ export class BookingsService {
         lat: input.lat,
         lng: input.lng,
         notes: input.notes,
-        selectedProviderId: selectedProvider?.id,
+        preferredProviderId: preferredProvider?.id,
         openedAt: new Date(),
         expiresAt,
         services: {
@@ -80,12 +80,12 @@ export class BookingsService {
         payment: {
           create: this.payments.buildAuthorization(input.paymentMethod, service.basePrice),
         },
-        participants: selectedProvider
+        participants: preferredProvider
           ? {
               create: {
-                providerProfileId: selectedProvider.id,
+                providerProfileId: preferredProvider.id,
                 status: ParticipantStatus.JOINED,
-                providerStatusAtJoin: selectedProvider.status,
+                providerStatusAtJoin: preferredProvider.status,
               },
             }
           : undefined,
@@ -94,6 +94,7 @@ export class BookingsService {
         services: { include: { service: true } },
         payment: true,
         participants: { include: { providerProfile: true } },
+        preferredProvider: true,
         selectedProvider: true,
       },
     });
@@ -112,21 +113,21 @@ export class BookingsService {
     await this.notifications.create({
       userId,
       type: 'booking.opened',
-      title: selectedProvider ? 'Booking request sent' : 'Booking opened',
-      body: selectedProvider
-        ? `${selectedProvider.displayName} received your booking request.`
+      title: preferredProvider ? 'Booking request sent' : 'Booking opened',
+      body: preferredProvider
+        ? `${preferredProvider.displayName} received your booking request.`
         : 'We are looking for nearby providers.',
-      data: { bookingId: booking.id, providerProfileId: selectedProvider?.id },
+      data: { bookingId: booking.id, providerProfileId: preferredProvider?.id },
     });
-    if (selectedProvider?.userId) {
+    if (preferredProvider?.userId) {
       await this.notifications.create({
-        userId: selectedProvider.userId,
+        userId: preferredProvider.userId,
         type: 'booking.requested',
         title: 'New direct booking request',
         body: 'A customer requested one of your services.',
         data: { bookingId: booking.id, customerProfileId: customer.id },
       });
-      this.matchingGateway.emitDirectBookingRequested(selectedProvider.userId, booking.id, result);
+      this.matchingGateway.emitDirectBookingRequested(preferredProvider.userId, booking.id, result);
     } else {
       this.matchingGateway.emitBookingOpened(booking.id, result);
     }
@@ -138,6 +139,7 @@ export class BookingsService {
       where: { id },
       include: {
         services: { include: { service: true } },
+        preferredProvider: true,
         participants: { include: { providerProfile: true } },
         payment: true,
         chatRoom: true,
@@ -151,6 +153,7 @@ export class BookingsService {
       where: { id, customerProfileId: customer.id },
       include: {
         services: { include: { service: true } },
+        preferredProvider: true,
         participants: { include: { providerProfile: true } },
         payment: true,
         chatRoom: true,
@@ -164,6 +167,7 @@ export class BookingsService {
       where: { customerProfileId: customer.id },
       include: {
         services: { include: { service: true } },
+        preferredProvider: true,
         participants: { include: { providerProfile: true } },
         selectedProvider: true,
         payment: true,
@@ -179,6 +183,7 @@ export class BookingsService {
     const booking = await this.prisma.booking.findFirstOrThrow({
       where: { id: bookingId, customerProfileId: customer.id },
       include: {
+        preferredProvider: true,
         participants: { include: { providerProfile: true } },
         selectedProvider: true,
       },
@@ -199,6 +204,7 @@ export class BookingsService {
         expiresAt: new Date(),
       },
       include: {
+        preferredProvider: true,
         participants: { include: { providerProfile: true } },
         selectedProvider: true,
         chatRoom: true,
@@ -209,6 +215,9 @@ export class BookingsService {
 
     await this.matching.closeBooking(bookingId);
     const providerUserIds = new Set<string>();
+    if (updated.preferredProvider?.userId) {
+      providerUserIds.add(updated.preferredProvider.userId);
+    }
     if (updated.selectedProvider?.userId) {
       providerUserIds.add(updated.selectedProvider.userId);
     }
@@ -249,7 +258,7 @@ export class BookingsService {
           ? {
               OR: [
                 {
-                  selectedProviderId: provider.id,
+                  preferredProviderId: provider.id,
                   participants: {
                     none: {
                       providerProfileId: provider.id,
@@ -271,6 +280,7 @@ export class BookingsService {
       },
       include: {
         services: { include: { service: true } },
+        preferredProvider: true,
         participants: { include: { providerProfile: true } },
         selectedProvider: true,
         chatRoom: true,
@@ -284,6 +294,7 @@ export class BookingsService {
     return this.prisma.booking.findMany({
       where: {
         OR: [
+          { preferredProviderId: provider.id },
           { selectedProviderId: provider.id },
           { participants: { some: { providerProfileId: provider.id } } },
         ],
@@ -291,6 +302,7 @@ export class BookingsService {
       include: {
         services: { include: { service: true } },
         participants: true,
+        preferredProvider: true,
         selectedProvider: true,
         payment: true,
         chatRoom: true,
@@ -362,7 +374,7 @@ export class BookingsService {
         },
         chatRoom: { create: {} },
       },
-      include: { chatRoom: true, selectedProvider: true, payment: true },
+      include: { chatRoom: true, preferredProvider: true, selectedProvider: true, payment: true },
     });
 
     await this.matching.closeBooking(bookingId);
@@ -391,15 +403,16 @@ export class BookingsService {
     const provider = await this.requireProvider(providerUserId);
     const booking = await this.prisma.booking.findUniqueOrThrow({
       where: { id: bookingId },
-      include: { customerProfile: true, selectedProvider: true, chatRoom: true },
+      include: { customerProfile: true, preferredProvider: true, selectedProvider: true, chatRoom: true },
     });
 
-    if (booking.selectedProviderId === provider.id) {
+    if (booking.preferredProviderId === provider.id) {
       if (status === ParticipantStatus.ACCEPTED) {
         const updated = await this.prisma.booking.update({
           where: { id: bookingId },
           data: {
             status: BookingStatus.MATCHED,
+            selectedProviderId: provider.id,
             participants: {
               update: {
                 where: { bookingId_providerProfileId: { bookingId, providerProfileId: provider.id } },
@@ -407,7 +420,7 @@ export class BookingsService {
               },
             },
           },
-          include: { participants: true, selectedProvider: true, chatRoom: true },
+          include: { participants: true, preferredProvider: true, selectedProvider: true, chatRoom: true },
         });
         await this.notifications.create({
           userId: booking.customerProfile.userId,
@@ -433,7 +446,7 @@ export class BookingsService {
               },
             },
           },
-          include: { participants: true, selectedProvider: true, chatRoom: true },
+          include: { participants: true, preferredProvider: true, selectedProvider: true, chatRoom: true },
         });
         await this.matching.closeBooking(bookingId);
         await this.notifications.create({
@@ -471,7 +484,7 @@ export class BookingsService {
           status,
           chatRoom: { upsert: { create: {}, update: {} } },
         },
-        include: { chatRoom: true, selectedProvider: true, customerProfile: true },
+        include: { chatRoom: true, preferredProvider: true, selectedProvider: true, customerProfile: true },
       });
       await this.notifications.create({
         userId: updated.customerProfile.userId,

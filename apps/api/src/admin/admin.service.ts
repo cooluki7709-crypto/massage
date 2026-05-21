@@ -102,6 +102,7 @@ export class AdminService {
       take: 100,
       include: {
         customerProfile: { include: { user: true } },
+        preferredProvider: { include: { user: true } },
         selectedProvider: { include: { user: true } },
         participants: { include: { providerProfile: { include: { user: true } } } },
         services: { include: { service: true } },

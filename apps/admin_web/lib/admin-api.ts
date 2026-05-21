@@ -56,6 +56,7 @@ export type AdminBooking = {
   createdAt?: string;
   scheduledStartAt?: string;
   expiresAt?: string | null;
+  preferredProvider?: { id?: string; displayName?: string | null; status?: string; user?: { phone?: string; fullName?: string | null } };
   participants?: Array<{
     id: string;
     status: string;

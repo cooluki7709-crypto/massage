@@ -485,7 +485,7 @@ class ActiveBookingBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final service = firstBookingService(booking);
-    final provider = booking['selectedProvider'] as Map<String, dynamic>?;
+    final provider = activeBookingProvider(booking);
 
     return Card(
       color: Theme.of(context).colorScheme.primaryContainer,
@@ -1588,10 +1588,11 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
     final participants = currentBooking?['participants'] is List<dynamic>
         ? currentBooking!['participants'] as List<dynamic>
         : <dynamic>[];
+    final preferredProviderData = currentBooking?['preferredProvider'] as Map<String, dynamic>?;
     final selectedProvider = currentBooking?['selectedProvider'] as Map<String, dynamic>?;
     final service = currentBooking == null ? null : firstBookingService(currentBooking);
     final status = currentBooking?['status'] as String? ?? 'OPEN_MATCHING';
-    final preferredProvider = status == 'OPEN_MATCHING' ? selectedProvider : null;
+    final preferredProvider = status == 'OPEN_MATCHING' ? preferredProviderData : null;
     final finalizedProvider = status == 'OPEN_MATCHING' ? null : selectedProvider;
     final alternativeParticipants = participants
         .whereType<Map<String, dynamic>>()
@@ -2661,7 +2662,7 @@ String providerDisplayName(Map<String, dynamic>? booking) {
   if (booking == null) {
     return 'Booking';
   }
-  final provider = booking['selectedProvider'] as Map<String, dynamic>?;
+  final provider = activeBookingProvider(booking);
   if (provider != null) {
     return provider['displayName'] as String? ?? 'Selected provider';
   }
@@ -2674,6 +2675,23 @@ String providerDisplayName(Map<String, dynamic>? booking) {
     }
   }
   return 'Booking request';
+}
+
+Map<String, dynamic>? activeBookingProvider(Map<String, dynamic>? booking) {
+  if (booking == null) {
+    return null;
+  }
+
+  final status = booking['status'] as String?;
+  if (status == 'OPEN_MATCHING') {
+    final preferred = booking['preferredProvider'];
+    if (preferred is Map<String, dynamic>) {
+      return preferred;
+    }
+  }
+
+  final selected = booking['selectedProvider'];
+  return selected is Map<String, dynamic> ? selected : null;
 }
 
 double providerAverageRating(Map<String, dynamic> provider) {

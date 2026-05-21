@@ -129,6 +129,7 @@ model ProviderProfile {
   verification       ProviderVerification?
   services           ProviderService[]
   participants       BookingParticipant[]
+  preferredBookings  Booking[]               @relation("PreferredProvider")
   selectedBookings   Booking[]               @relation("SelectedProvider")
   locationSnapshots  LocationSnapshot[]
   reviews            Review[]
@@ -173,6 +174,7 @@ model ProviderService {
 model Booking {
   id                 String                @id @default(cuid())
   customerProfileId  String
+  preferredProviderId String?
   selectedProviderId String?
   status             BookingStatus         @default(CREATED)
   scheduledStartAt   DateTime
@@ -188,6 +190,7 @@ model Booking {
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
   customerProfile    CustomerProfile       @relation(fields: [customerProfileId], references: [id])
+  preferredProvider  ProviderProfile?      @relation("PreferredProvider", fields: [preferredProviderId], references: [id])
   selectedProvider   ProviderProfile?      @relation("SelectedProvider", fields: [selectedProviderId], references: [id])
   services           BookingService[]
   participants       BookingParticipant[]

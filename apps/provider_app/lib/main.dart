@@ -321,9 +321,9 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                 if (booking is Map<String, dynamic>)
                   Builder(
                     builder: (context) {
-                      final selectedProvider = booking['selectedProvider'];
+                      final preferredProvider = booking['preferredProvider'];
                       final isPreferredRequest =
-                          selectedProvider is Map<String, dynamic> && selectedProvider['userId'] == auth.userId;
+                          preferredProvider is Map<String, dynamic> && preferredProvider['userId'] == auth.userId;
                       return OpenBookingCard(
                         booking: booking,
                         isPreferredRequest: isPreferredRequest,
@@ -454,11 +454,11 @@ class OpenBookingCard extends StatelessWidget {
     final firstService = services.isNotEmpty ? services.first as Map<String, dynamic> : <String, dynamic>{};
     final service = firstService['service'] as Map<String, dynamic>?;
     final participants = booking['participants'] is List<dynamic> ? booking['participants'] as List<dynamic> : [];
-    final selectedProvider = booking['selectedProvider'] as Map<String, dynamic>?;
-    final hasPreferredProvider = selectedProvider != null;
+    final preferredProvider = booking['preferredProvider'] as Map<String, dynamic>?;
+    final hasPreferredProvider = preferredProvider != null;
     final hasChat = booking['chatRoom'] != null;
     final isMatched = booking['status'] == 'MATCHED';
-    final preferredProviderName = selectedProvider?['displayName'] as String?;
+    final preferredProviderName = preferredProvider?['displayName'] as String?;
     final customerAddress = booking['address'] as Map<String, dynamic>?;
     final nextAction = isPreferredRequest && !isMatched
         ? 'Reply now so the customer can confirm you directly.'
