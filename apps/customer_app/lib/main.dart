@@ -1107,6 +1107,15 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
         .whereType<Map<String, dynamic>>()
         .where((item) => item['providerProfileId'] != preferredProvider?['id'])
         .toList();
+    final expiresAt = currentBooking?['expiresAt'] as String?;
+    final fallbackCount = alternativeParticipants.length;
+    final waitingHeadline = status == 'OPEN_MATCHING'
+        ? '${providerDisplayName(currentBooking)} confirmation pending'
+        : status == 'MATCHED'
+            ? '${providerDisplayName(currentBooking)} confirmed'
+            : status == 'IN_SERVICE'
+                ? 'Service in progress'
+                : 'Booking update';
     final waitingText = status == 'OPEN_MATCHING'
         ? (preferredProvider == null
             ? 'Waiting for nearby therapists to respond...'
@@ -1161,13 +1170,13 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            providerDisplayName(currentBooking),
+                            waitingHeadline,
                             style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 8),
                           Text(waitingText, style: Theme.of(context).textTheme.bodyLarge),
                           const SizedBox(height: 8),
-                          Text('Request auto-expires at ${formatExpiry(currentBooking?['expiresAt'] as String?)}'),
+                          Text('Request auto-expires at ${formatExpiry(expiresAt)}'),
                           const SizedBox(height: 16),
                           if (loading) const LinearProgressIndicator(),
                           if (error != null) ...[
@@ -1187,17 +1196,47 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: WaitingStatCard(
+                                  label: 'Current step',
+                                  value: waitingStepLabel(status),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: WaitingStatCard(
+                                  label: 'Fallback therapists',
+                                  value: fallbackCount.toString(),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          WaitingInfoBanner(
+                            title: status == 'OPEN_MATCHING' ? 'Live matching window' : 'Booking progress',
+                            body: status == 'OPEN_MATCHING'
+                                ? 'Your preferred therapist gets the first chance. If they are slow to confirm, other nearby therapists can appear below.'
+                                : 'Your request is already confirmed. Use Chat when the therapist starts the service.',
+                          ),
+                          const SizedBox(height: 18),
                           if (preferredProvider != null) ...[
                             Text('Preferred therapist', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 12),
                             TherapistDisplayCard(
                               provider: preferredProvider,
-                              subtitle: 'Checking availability now',
+                              subtitle: 'Checking availability - ${formatRemainingTime(expiresAt)}',
                             ),
                             const SizedBox(height: 16),
                           ],
                           if (alternativeParticipants.isNotEmpty) ...[
                             Text('Available therapists', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 4),
+                            Text(
+                              '$fallbackCount therapist(s) can take this request now.',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                            ),
                             const SizedBox(height: 12),
                             for (final item in alternativeParticipants)
                               TherapistSelectionCard(
@@ -1282,6 +1321,68 @@ class TherapistDisplayCard extends StatelessWidget {
         leading: ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 84),
         title: Text(provider['displayName'] as String? ?? 'Provider'),
         subtitle: Text(subtitle),
+      ),
+    );
+  }
+}
+
+class WaitingStatCard extends StatelessWidget {
+  const WaitingStatCard({
+    super.key,
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F5EC),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54)),
+          const SizedBox(height: 8),
+          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+}
+
+class WaitingInfoBanner extends StatelessWidget {
+  const WaitingInfoBanner({
+    super.key,
+    required this.title,
+    required this.body,
+  });
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F7EC),
+        border: Border.all(color: const Color(0xFFD2E1C5)),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text(body, style: Theme.of(context).textTheme.bodyMedium),
+        ],
       ),
     );
   }
@@ -1893,6 +1994,23 @@ double bookingProgress(String status) {
   }
 }
 
+String waitingStepLabel(String status) {
+  switch (status) {
+    case 'OPEN_MATCHING':
+      return 'Waiting';
+    case 'MATCHED':
+      return 'Confirmed';
+    case 'PROVIDER_ON_THE_WAY':
+      return 'On the way';
+    case 'ARRIVED':
+      return 'Arrived';
+    case 'IN_SERVICE':
+      return 'In service';
+    default:
+      return status;
+  }
+}
+
 String formatExpiry(String? isoValue) {
   if (isoValue == null) {
     return '--:--';
@@ -1904,4 +2022,22 @@ String formatExpiry(String? isoValue) {
   final hour = date.hour.toString().padLeft(2, '0');
   final minute = date.minute.toString().padLeft(2, '0');
   return '$hour:$minute';
+}
+
+String formatRemainingTime(String? isoValue) {
+  if (isoValue == null) {
+    return '--';
+  }
+  final date = DateTime.tryParse(isoValue)?.toLocal();
+  if (date == null) {
+    return '--';
+  }
+  final difference = date.difference(DateTime.now());
+  if (difference.isNegative) {
+    return 'expired';
+  }
+  if (difference.inMinutes <= 0) {
+    return '${difference.inSeconds.remainder(60).abs()}s left';
+  }
+  return '${difference.inMinutes}m left';
 }
