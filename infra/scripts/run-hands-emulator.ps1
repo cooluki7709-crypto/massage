@@ -74,7 +74,8 @@ $appDir = switch ($App) {
   "customer" { Join-Path $RepoRoot "apps\customer_app" }
   "provider" { Join-Path $RepoRoot "apps\provider_app" }
 }
-$mapsApiKey = $env:MAPS_API_KEY
+$mapTilerApiKey = $env:MAPTILER_API_KEY
+$geoapifyApiKey = $env:GEOAPIFY_API_KEY
 
 $serial = Get-RunningEmulatorSerial
 if (-not $serial) {
@@ -104,8 +105,11 @@ try {
     "--dart-define=API_BASE_URL=http://10.0.2.2:$ApiPort/api",
     "--dart-define=SOCKET_BASE_URL=http://10.0.2.2:$ApiPort"
   )
-  if ($mapsApiKey) {
-    $flutterArgs += "--dart-define=GOOGLE_MAPS_API_KEY=$mapsApiKey"
+  if ($mapTilerApiKey) {
+    $flutterArgs += "--dart-define=MAPTILER_API_KEY=$mapTilerApiKey"
+  }
+  if ($geoapifyApiKey) {
+    $flutterArgs += "--dart-define=GEOAPIFY_API_KEY=$geoapifyApiKey"
   }
   & flutter @flutterArgs
 } finally {

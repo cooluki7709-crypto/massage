@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 
 import 'core/api_client.dart';
 import 'core/app_config.dart';
@@ -72,6 +74,10 @@ final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
   return CustomerRepository(ref.read(apiClientProvider), ref.read(realtimeSocketProvider));
 });
 
+final geoapifySearchProvider = Provider<GeoapifySearchService>((ref) {
+  return GeoapifySearchService(apiKey: AppConfig.geoapifyApiKey);
+});
+
 class CustomerRepository {
   CustomerRepository(this._api, this._socket);
 
@@ -89,6 +95,18 @@ class CustomerRepository {
   }) async {
     final result = await _api.getJson('/customer/providers/nearby?lat=$lat&lng=$lng');
     return result is List<dynamic> ? result : [];
+  }
+
+  Future<void> saveSelectedLocation({
+    required double lat,
+    required double lng,
+    required String addressText,
+  }) async {
+    await _api.postJson('/customer/locations/selected', {
+      'lat': lat,
+      'lng': lng,
+      'addressText': addressText,
+    });
   }
 
   Future<Map<String, dynamic>> getProviderDetail(String providerId) async {
@@ -183,6 +201,68 @@ class CustomerRepository {
   }
 }
 
+class AddressSearchResult {
+  const AddressSearchResult({
+    required this.label,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  final String label;
+  final double latitude;
+  final double longitude;
+}
+
+class GeoapifySearchService {
+  GeoapifySearchService({required this.apiKey});
+
+  final String apiKey;
+  final Map<String, List<AddressSearchResult>> _cache = {};
+
+  Future<List<AddressSearchResult>> search(String query) async {
+    final normalized = query.trim().toLowerCase();
+    if (normalized.length < 2 || apiKey.isEmpty) {
+      return [];
+    }
+    final cached = _cache[normalized];
+    if (cached != null) {
+      return cached;
+    }
+
+    final uri = Uri.https('api.geoapify.com', '/v1/geocode/search', {
+      'text': query.trim(),
+      'filter': 'countrycode:vn',
+      'bias': 'countrycode:vn',
+      'lang': 'vi',
+      'limit': '6',
+      'apiKey': apiKey,
+    });
+    final response = await http.get(uri);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Address search failed (${response.statusCode}).');
+    }
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final features = body['features'] is List<dynamic> ? body['features'] as List<dynamic> : [];
+    final results = features
+        .map((feature) {
+          final item = feature as Map<String, dynamic>;
+          final properties = item['properties'] as Map<String, dynamic>? ?? {};
+          final lat = asDouble(properties['lat']);
+          final lng = asDouble(properties['lon']);
+          final label = properties['formatted']?.toString() ?? properties['address_line1']?.toString() ?? query;
+          if (lat == null || lng == null) {
+            return null;
+          }
+          return AddressSearchResult(label: label, latitude: lat, longitude: lng);
+        })
+        .whereType<AddressSearchResult>()
+        .toList();
+    _cache[normalized] = results;
+    return results;
+  }
+}
+
 final customerLocationProvider = Provider<CustomerLocationService>((ref) {
   return CustomerLocationService();
 });
@@ -250,4 +330,14 @@ class PushTokenRegistrar {
       );
     }
   }
+}
+
+double? asDouble(dynamic value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value);
+  }
+  return null;
 }

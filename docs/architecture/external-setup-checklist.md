@@ -49,33 +49,31 @@ node .\infra\scripts\check-mobile-firebase.mjs
 node .\infra\scripts\check-external-setup.mjs --strict
 ```
 
-## 2. Google Maps
+## 2. Low-Cost Maps And Address Search
 
-Enable these APIs in Google Cloud:
+MVP map/location uses MapTiler + MapLibre and Geoapify instead of Google Maps.
 
-- Maps SDK for Android
-- Billing for the Google Cloud project
+Required accounts:
 
-Create Android-restricted API keys. You can use one shared key for both apps in MVP, but production should prefer separate keys.
+- MapTiler account and API key for map tiles/styles
+- Geoapify account and API key for Vietnam address search/geocoding
+- Supabase account is optional now because the MVP stores location through the NestJS API, but the SQL is ready under `infra/supabase/location-schema.sql`
 
-Android package restrictions:
-
-- `com.massagevn.customer.customer_app`
-- `com.massagevn.provider.provider_app`
-
-Development SHA-1 currently recorded:
-
-```text
-E3:8D:6A:41:B9:0E:6D:E0:1C:8E:BA:5E:2D:4B:22:1E:0A:63:4E:18
-```
-
-Local run value:
+Local run values:
 
 ```powershell
-$env:MAPS_API_KEY="your-google-maps-android-key"
+$env:MAPTILER_API_KEY="your-maptiler-key"
+$env:GEOAPIFY_API_KEY="your-geoapify-key"
 ```
 
-The Flutter run scripts pass this key to Android manifest placeholders and Dart config:
+Optional direct Supabase values:
+
+```dotenv
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+```
+
+The Flutter run scripts pass MapTiler and Geoapify keys as Dart defines:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-emulator.ps1 -App customer
@@ -215,23 +213,25 @@ Last checked from `C:\dev\massage-vn-workspace\repo`:
 - Firebase provider `google-services.json`: ready
 - Firebase service account file: ready at `C:\dev\massage-vn-workspace\secrets\massage-vn-firebase-adminsdk.json`
 - FCM project id: ready in local `.env`
-- Google Maps API key: missing
+- MapTiler API key: pending
+- Geoapify API key: pending
+- Supabase URL / anon key: optional for later direct Supabase location storage
 - Local MinIO storage: ready for MVP
 - Production SMS provider: not selected
 - MoMo / VNPay merchant credentials: not filled
 - Production S3 or Cloudflare R2: not filled, local MinIO is enough for MVP
 
-The next external setup item to complete is Google Maps. The key should allow:
+The next external setup items to complete are:
 
-- Android package `com.massagevn.customer.customer_app`
-- Android package `com.massagevn.provider.provider_app`
-- Current debug SHA-1 `E3:8D:6A:41:B9:0E:6D:E0:1C:8E:BA:5E:2D:4B:22:1E:0A:63:4E:18`
+- MapTiler API key
+- Geoapify API key
+- optional Supabase project if direct client storage is preferred later
 
 ## Recommended Fill Order
 
 1. Firebase / FCM Android app configs
 2. Firebase service account file
-3. Google Maps Android key
+3. MapTiler and Geoapify keys
 4. SMS provider
 5. MoMo and VNPay credentials
 6. Storage / CDN credentials

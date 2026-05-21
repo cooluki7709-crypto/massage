@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -70,6 +71,12 @@ class AuthController extends StateNotifier<AuthSession?> {
 
 final providerRepositoryProvider = Provider<ProviderRepository>((ref) {
   return ProviderRepository(ref.read(apiClientProvider), ref.read(realtimeSocketProvider));
+});
+
+final providerLocationHeartbeatProvider = Provider<ProviderLocationHeartbeat>((ref) {
+  final heartbeat = ProviderLocationHeartbeat(ref.read(providerRepositoryProvider));
+  ref.onDispose(heartbeat.dispose);
+  return heartbeat;
 });
 
 const double demoProviderLat = 10.7769;
@@ -259,6 +266,28 @@ class ProviderRepository {
     final result = await _api.postJson('/provider/verification/submit', {'fileIds': fileIds});
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
+}
+
+class ProviderLocationHeartbeat {
+  ProviderLocationHeartbeat(this._repository);
+
+  final ProviderRepository _repository;
+  Timer? _timer;
+
+  Future<void> start() async {
+    _timer?.cancel();
+    await _repository.updateLocation();
+    _timer = Timer.periodic(const Duration(minutes: 10), (_) {
+      unawaited(_repository.updateLocation());
+    });
+  }
+
+  void stop() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  void dispose() => stop();
 }
 
 bool isVietnamCoordinate(double lat, double lng) {

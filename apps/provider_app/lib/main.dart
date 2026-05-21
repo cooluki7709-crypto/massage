@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 
 import 'src/app_state.dart';
 import 'src/core/app_config.dart';
@@ -145,6 +145,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       final pushResult = await ref.read(pushTokenRegistrarProvider).registerCurrentDevice();
       attachRealtimeListeners();
       await goOnline();
+      await ref.read(providerLocationHeartbeatProvider).start();
       await loadOpenBookings();
       if (mounted) {
         setState(() => statusMessage = pushResult.message);
@@ -305,6 +306,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                     });
                     try {
                       await goOnline();
+                      await ref.read(providerLocationHeartbeatProvider).start();
                       await loadOpenBookings();
                     } catch (exception) {
                       setState(() => error = '$exception');
@@ -1639,7 +1641,7 @@ class ProviderLocationPreviewCard extends StatelessWidget {
   }
 }
 
-class ProviderMapSurface extends StatelessWidget {
+class ProviderMapSurface extends StatefulWidget {
   const ProviderMapSurface({
     super.key,
     required this.customerLatitude,
@@ -1656,45 +1658,100 @@ class ProviderMapSurface extends StatelessWidget {
   final bool fallbackShowProviderPin;
 
   @override
+  State<ProviderMapSurface> createState() => _ProviderMapSurfaceState();
+}
+
+class _ProviderMapSurfaceState extends State<ProviderMapSurface> {
+  MapLibreMapController? controller;
+  bool styleLoaded = false;
+
+  @override
+  void didUpdateWidget(covariant ProviderMapSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (styleLoaded) {
+      unawaited(syncMarkers());
+    }
+  }
+
+  LatLng? get customerPoint => widget.customerLatitude == null || widget.customerLongitude == null
+      ? null
+      : LatLng(widget.customerLatitude!, widget.customerLongitude!);
+
+  LatLng? get providerPoint => widget.providerLatitude == null || widget.providerLongitude == null
+      ? null
+      : LatLng(widget.providerLatitude!, widget.providerLongitude!);
+
+  Future<void> syncMarkers() async {
+    final map = controller;
+    final customer = customerPoint;
+    if (map == null || !styleLoaded || customer == null) {
+      return;
+    }
+    await map.clearCircles();
+    await map.clearSymbols();
+    await map.addCircle(CircleOptions(
+      geometry: customer,
+      circleColor: '#5E8E4A',
+      circleRadius: 8,
+      circleStrokeColor: '#FFFFFF',
+      circleStrokeWidth: 2,
+    ));
+    await map.addSymbol(SymbolOptions(
+      geometry: customer,
+      textField: 'Customer',
+      textSize: 13,
+      textColor: '#111827',
+      textHaloColor: '#FFFFFF',
+      textHaloWidth: 1.5,
+      textOffset: const Offset(0, -1.2),
+    ));
+
+    final provider = providerPoint;
+    if (provider != null) {
+      await map.addCircle(CircleOptions(
+        geometry: provider,
+        circleColor: '#E84B4B',
+        circleRadius: 8,
+        circleStrokeColor: '#FFFFFF',
+        circleStrokeWidth: 2,
+      ));
+      await map.addSymbol(SymbolOptions(
+        geometry: provider,
+        textField: 'You',
+        textSize: 13,
+        textColor: '#111827',
+        textHaloColor: '#FFFFFF',
+        textHaloWidth: 1.5,
+        textOffset: const Offset(0, -1.2),
+      ));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final customerPoint = customerLatitude == null || customerLongitude == null
-        ? null
-        : LatLng(customerLatitude!, customerLongitude!);
-    final providerPoint = providerLatitude == null || providerLongitude == null
-        ? null
-        : LatLng(providerLatitude!, providerLongitude!);
-
-    if (AppConfig.googleMapsEnabled && customerPoint != null) {
-      final markers = <Marker>{
-        Marker(
-          markerId: const MarkerId('customer'),
-          position: customerPoint,
-          infoWindow: const InfoWindow(title: 'Customer'),
-        ),
-      };
-      if (providerPoint != null) {
-        markers.add(
-          Marker(
-            markerId: const MarkerId('provider'),
-            position: providerPoint,
-            infoWindow: const InfoWindow(title: 'You'),
-          ),
-        );
-      }
-
-      return GoogleMap(
+    final customer = customerPoint;
+    final provider = providerPoint;
+    if (AppConfig.mapTilerEnabled && customer != null) {
+      return MapLibreMap(
+        styleString: AppConfig.mapTilerStyleUrl,
         initialCameraPosition: CameraPosition(
-          target: providerPoint ?? customerPoint,
-          zoom: providerPoint == null ? 13.8 : 12.8,
+          target: provider ?? customer,
+          zoom: provider == null ? 13.8 : 12.8,
         ),
-        markers: markers,
-        zoomControlsEnabled: false,
-        myLocationButtonEnabled: false,
+        onMapCreated: (value) => controller = value,
+        onStyleLoadedCallback: () {
+          styleLoaded = true;
+          unawaited(syncMarkers());
+        },
+        compassEnabled: false,
+        logoEnabled: false,
         myLocationEnabled: false,
+        rotateGesturesEnabled: false,
+        tiltGesturesEnabled: false,
       );
     }
 
-    return _ProviderMapPlaceholder(showProviderPin: fallbackShowProviderPin);
+    return _ProviderMapPlaceholder(showProviderPin: widget.fallbackShowProviderPin);
   }
 }
 

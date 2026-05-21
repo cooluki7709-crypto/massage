@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { FileVisibility, ProviderStatus, VerificationStatus } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisStateService } from '../redis/redis-state.service';
 
@@ -8,6 +9,7 @@ export class ProvidersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redisState: RedisStateService,
+    private readonly config: ConfigService,
   ) {}
 
   async findNearby(lat: number, lng: number) {
@@ -15,11 +17,18 @@ export class ProvidersService {
       throw new BadRequestException('lat and lng query params are required');
     }
 
+    const radiusMeters = Number(this.config.get<string>('PROVIDER_SEARCH_RADIUS_METERS') ?? 5000);
+    const staleAfterMinutes = Number(this.config.get<string>('PROVIDER_STALE_AFTER_MINUTES') ?? 30);
+    const hideAfterHours = Number(this.config.get<string>('PROVIDER_HIDE_AFTER_HOURS') ?? 24);
+    const hideBefore = new Date(Date.now() - hideAfterHours * 60 * 60_000);
+    const staleBefore = new Date(Date.now() - staleAfterMinutes * 60_000);
+
     const providers = await this.prisma.providerProfile.findMany({
       where: {
         status: { in: [ProviderStatus.ONLINE_AVAILABLE, ProviderStatus.ONLINE_AVAILABLE_SOON] },
         currentLat: { not: null },
         currentLng: { not: null },
+        currentLocationUpdatedAt: { gte: hideBefore },
         verification: { status: VerificationStatus.APPROVED },
       },
       include: {
@@ -27,7 +36,7 @@ export class ProvidersService {
         services: { include: { service: true } },
         reviews: { select: { rating: true }, take: 20, orderBy: { createdAt: 'desc' } },
       },
-      take: 50,
+      take: 100,
     });
 
     return providers
@@ -35,8 +44,15 @@ export class ProvidersService {
         const distanceMeters = roundTo100Meters(
           haversineMeters(lat, lng, Number(provider.currentLat), Number(provider.currentLng)),
         );
-        return { ...provider, distanceMeters };
+        const currentLocationUpdatedAt = provider.currentLocationUpdatedAt?.toISOString() ?? null;
+        return {
+          ...provider,
+          currentLocationUpdatedAt,
+          distanceMeters,
+          isRecentLocation: provider.currentLocationUpdatedAt ? provider.currentLocationUpdatedAt >= staleBefore : false,
+        };
       })
+      .filter((provider) => provider.distanceMeters <= radiusMeters)
       .sort((a, b) => a.distanceMeters - b.distanceMeters || a.status.localeCompare(b.status));
   }
 
@@ -72,16 +88,18 @@ export class ProvidersService {
 
   async updateLocation(userId: string | undefined, input: { lat: number; lng: number }) {
     const provider = await this.requireProvider(userId);
+    const recordedAt = new Date();
     const updated = await this.prisma.providerProfile.update({
       where: { id: provider.id },
       data: {
         currentLat: input.lat,
         currentLng: input.lng,
-        locationSnapshots: { create: { lat: input.lat, lng: input.lng } },
+        currentLocationUpdatedAt: recordedAt,
+        locationSnapshots: { create: { lat: input.lat, lng: input.lng, recordedAt } },
       },
     });
-    await this.redisState.setProviderLocation(provider.id, input);
-    return { ...updated, locationUpdated: true };
+    await this.redisState.setProviderLocation(provider.id, { ...input, recordedAt: recordedAt.toISOString() });
+    return { ...updated, currentLocationUpdatedAt: recordedAt.toISOString(), locationUpdated: true };
   }
 
   async getVerification(userId: string | undefined) {

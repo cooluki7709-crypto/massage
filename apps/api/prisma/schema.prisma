@@ -112,6 +112,7 @@ model CustomerProfile {
   addresses Json?
   bookings  Booking[]
   reviews   Review[]
+  selectedLocations CustomerSelectedLocation[]
 }
 
 model ProviderProfile {
@@ -125,6 +126,7 @@ model ProviderProfile {
   reviewCount        Int                     @default(0)
   currentLat         Decimal?                @db.Decimal(10, 7)
   currentLng         Decimal?                @db.Decimal(10, 7)
+  currentLocationUpdatedAt DateTime?
   nextAvailableAt    DateTime?
   verification       ProviderVerification?
   services           ProviderService[]
@@ -135,6 +137,18 @@ model ProviderProfile {
   reviews            Review[]
   earnings           ProviderEarning[]
   payoutBatches      ProviderPayoutBatch[]
+}
+
+model CustomerSelectedLocation {
+  id                String          @id @default(cuid())
+  customerProfileId String
+  latitude          Decimal         @db.Decimal(10, 7)
+  longitude         Decimal         @db.Decimal(10, 7)
+  addressText       String
+  createdAt         DateTime        @default(now())
+  customerProfile   CustomerProfile @relation(fields: [customerProfileId], references: [id])
+
+  @@index([customerProfileId, createdAt])
 }
 
 model ProviderVerification {

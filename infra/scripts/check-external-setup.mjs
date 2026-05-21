@@ -32,10 +32,19 @@ addCheck(
 
 addCheck(
   'maps',
-  'MAPS_API_KEY',
-  hasValue('MAPS_API_KEY'),
-  'Set MAPS_API_KEY in the shell before running Flutter with real Google Maps.',
+  'MAPTILER_API_KEY',
+  hasValue('MAPTILER_API_KEY'),
+  'Set MAPTILER_API_KEY in .env or the shell before running Flutter with the MapTiler map.',
 );
+addCheck(
+  'geocoding',
+  'GEOAPIFY_API_KEY',
+  hasValue('GEOAPIFY_API_KEY'),
+  'Set GEOAPIFY_API_KEY in .env or the shell before using address search.',
+);
+
+addRecommended('supabase', 'SUPABASE_URL', hasValue('SUPABASE_URL'), 'Set SUPABASE_URL if using Supabase directly for map/location storage.');
+addRecommended('supabase', 'SUPABASE_ANON_KEY', hasValue('SUPABASE_ANON_KEY'), 'Set SUPABASE_ANON_KEY if using Supabase directly from clients.');
 
 addRecommended('sms', 'SMS_PROVIDER', hasValue('SMS_PROVIDER'), 'Use SMS_PROVIDER=dev locally; choose a real SMS provider before launch.');
 addRecommended('sms', 'SMS_API_URL', hasValue('SMS_API_URL'), 'Set the production SMS API URL before real OTP launch.');

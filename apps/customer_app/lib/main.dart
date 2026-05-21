@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 
 import 'src/app_state.dart';
 import 'src/core/app_config.dart';
@@ -319,6 +319,7 @@ class ProviderListCard extends StatelessWidget {
     final reviewCount = providerReviewCount(provider);
     final availableLabel = provider['status'] == 'ONLINE_AVAILABLE' ? 'Available now' : 'Available soon';
     final etaLabel = provider['status'] == 'ONLINE_AVAILABLE' ? 'Start now' : 'Starts soon';
+    final isRecentLocation = provider['isRecentLocation'] != false;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -388,10 +389,24 @@ class ProviderListCard extends StatelessWidget {
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, size: 20, color: Colors.grey),
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 20,
+                          color: isRecentLocation ? Colors.grey : Colors.grey.shade500,
+                        ),
                         const SizedBox(width: 4),
                         Text(formatDistance(distanceMeters)),
                       ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isRecentLocation
+                          ? 'Location ${formatLastLocation(provider['currentLocationUpdatedAt'])}'
+                          : 'Last location not recent',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isRecentLocation ? Colors.black54 : Colors.grey.shade700,
+                            fontWeight: isRecentLocation ? FontWeight.w400 : FontWeight.w700,
+                          ),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -1089,12 +1104,37 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
     }
   }
 
+  Future<void> openLocationSelector() async {
+    final selected = await Navigator.of(context).push<SelectedCustomerLocation>(
+      MaterialPageRoute(
+        builder: (context) => LocationSelectionPage(
+          initialLatitude: customerLat ?? demoCustomerLat,
+          initialLongitude: customerLng ?? demoCustomerLng,
+          initialAddress: addressController.text.trim().isEmpty ? demoCustomerAddress : addressController.text.trim(),
+        ),
+      ),
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+    setState(() {
+      customerLat = selected.latitude;
+      customerLng = selected.longitude;
+      addressController.text = selected.addressText;
+    });
+  }
+
   Future<void> confirmBooking() async {
     setState(() {
       submitting = true;
       error = null;
     });
     try {
+      await ref.read(customerRepositoryProvider).saveSelectedLocation(
+            lat: customerLat ?? demoCustomerLat,
+            lng: customerLng ?? demoCustomerLng,
+            addressText: addressController.text.trim(),
+          );
       final booking = await ref.read(customerRepositoryProvider).createBooking(
             widget.selectedService['id'] as String,
             providerId: widget.providerDetail['id'] as String?,
@@ -1277,6 +1317,12 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                   Text(
                     'Therapist distance: ${formatDistance(distanceMeters)}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.tonalIcon(
+                    onPressed: openLocationSelector,
+                    icon: const Icon(Icons.pin_drop_outlined),
+                    label: const Text('Choose on map'),
                   ),
                 ],
               ),
@@ -2375,7 +2421,7 @@ class WaitingInfoBanner extends StatelessWidget {
   }
 }
 
-class LocationMapSurface extends StatelessWidget {
+class LocationMapSurface extends StatefulWidget {
   const LocationMapSurface({
     super.key,
     required this.customerPoint,
@@ -2392,41 +2438,380 @@ class LocationMapSurface extends StatelessWidget {
   final bool fallbackShowProviderMarker;
 
   @override
-  Widget build(BuildContext context) {
-    if (AppConfig.googleMapsEnabled && customerPoint != null) {
-      final markers = <Marker>{
-        Marker(
-          markerId: const MarkerId('customer'),
-          position: customerPoint!,
-          infoWindow: InfoWindow(title: customerLabel),
-        ),
-      };
-      if (providerPoint != null) {
-        markers.add(
-          Marker(
-            markerId: const MarkerId('provider'),
-            position: providerPoint!,
-            infoWindow: InfoWindow(title: providerLabel),
-          ),
-        );
-      }
+  State<LocationMapSurface> createState() => _LocationMapSurfaceState();
+}
 
-      return GoogleMap(
+class _LocationMapSurfaceState extends State<LocationMapSurface> {
+  MapLibreMapController? controller;
+  bool styleLoaded = false;
+
+  @override
+  void didUpdateWidget(covariant LocationMapSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (styleLoaded) {
+      unawaited(syncMarkers());
+    }
+  }
+
+  Future<void> syncMarkers() async {
+    final map = controller;
+    if (map == null || !styleLoaded || widget.customerPoint == null) {
+      return;
+    }
+    await map.clearCircles();
+    await map.clearSymbols();
+    await map.addCircle(CircleOptions(
+      geometry: widget.customerPoint,
+      circleColor: '#5E8E4A',
+      circleRadius: 8,
+      circleStrokeColor: '#FFFFFF',
+      circleStrokeWidth: 2,
+    ));
+    await map.addSymbol(SymbolOptions(
+      geometry: widget.customerPoint,
+      textField: widget.customerLabel,
+      textSize: 13,
+      textColor: '#111827',
+      textHaloColor: '#FFFFFF',
+      textHaloWidth: 1.5,
+      textOffset: const Offset(0, -1.2),
+    ));
+    if (widget.providerPoint != null) {
+      await map.addCircle(CircleOptions(
+        geometry: widget.providerPoint,
+        circleColor: '#E84B4B',
+        circleRadius: 8,
+        circleStrokeColor: '#FFFFFF',
+        circleStrokeWidth: 2,
+      ));
+      await map.addSymbol(SymbolOptions(
+        geometry: widget.providerPoint,
+        textField: widget.providerLabel,
+        textSize: 13,
+        textColor: '#111827',
+        textHaloColor: '#FFFFFF',
+        textHaloWidth: 1.5,
+        textOffset: const Offset(0, -1.2),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (AppConfig.mapTilerEnabled && widget.customerPoint != null) {
+      return MapLibreMap(
+        styleString: AppConfig.mapTilerStyleUrl,
         initialCameraPosition: CameraPosition(
-          target: providerPoint ?? customerPoint!,
-          zoom: providerPoint == null ? 13.8 : 12.8,
+          target: widget.providerPoint ?? widget.customerPoint!,
+          zoom: widget.providerPoint == null ? 13.8 : 12.8,
         ),
-        markers: markers,
-        zoomControlsEnabled: false,
-        myLocationButtonEnabled: false,
+        onMapCreated: (value) => controller = value,
+        onStyleLoadedCallback: () {
+          styleLoaded = true;
+          unawaited(syncMarkers());
+        },
+        compassEnabled: false,
+        logoEnabled: false,
         myLocationEnabled: false,
+        rotateGesturesEnabled: false,
+        tiltGesturesEnabled: false,
       );
     }
 
     return _MapPlaceholder(
-      customerLabel: customerLabel,
-      providerLabel: providerLabel,
-      showProviderMarker: fallbackShowProviderMarker,
+      customerLabel: widget.customerLabel,
+      providerLabel: widget.providerLabel,
+      showProviderMarker: widget.fallbackShowProviderMarker,
+    );
+  }
+}
+
+class SelectedCustomerLocation {
+  const SelectedCustomerLocation({
+    required this.latitude,
+    required this.longitude,
+    required this.addressText,
+  });
+
+  final double latitude;
+  final double longitude;
+  final String addressText;
+}
+
+class LocationSelectionPage extends ConsumerStatefulWidget {
+  const LocationSelectionPage({
+    super.key,
+    required this.initialLatitude,
+    required this.initialLongitude,
+    required this.initialAddress,
+  });
+
+  final double initialLatitude;
+  final double initialLongitude;
+  final String initialAddress;
+
+  @override
+  ConsumerState<LocationSelectionPage> createState() => _LocationSelectionPageState();
+}
+
+class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
+  final searchController = TextEditingController();
+  MapLibreMapController? controller;
+  Timer? debounce;
+  List<AddressSearchResult> searchResults = [];
+  late LatLng selectedPoint;
+  late String selectedAddress;
+  String? statusMessage;
+  String? error;
+  bool searching = false;
+  bool styleLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedPoint = LatLng(widget.initialLatitude, widget.initialLongitude);
+    selectedAddress = widget.initialAddress;
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(useCurrentLocation(initialLoad: true)));
+  }
+
+  @override
+  void dispose() {
+    debounce?.cancel();
+    searchController.dispose();
+    super.dispose();
+  }
+
+  void onSearchChanged(String value) {
+    debounce?.cancel();
+    debounce = Timer(const Duration(milliseconds: 500), () => unawaited(searchAddress(value)));
+  }
+
+  Future<void> searchAddress(String query) async {
+    final text = query.trim();
+    if (text.length < 2) {
+      setState(() => searchResults = []);
+      return;
+    }
+    setState(() {
+      searching = true;
+      error = null;
+    });
+    try {
+      final results = await ref.read(geoapifySearchProvider).search(text);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        searchResults = results;
+        statusMessage = AppConfig.geoapifyEnabled ? null : 'Geoapify key is missing. Use GPS or manual map adjustment.';
+      });
+    } catch (exception) {
+      if (mounted) {
+        setState(() => error = '$exception');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => searching = false);
+      }
+    }
+  }
+
+  Future<void> useCurrentLocation({bool initialLoad = false}) async {
+    final location = await resolveCustomerLocation(ref);
+    if (!mounted) {
+      return;
+    }
+    final point = LatLng(location.latitude, location.longitude);
+    setState(() {
+      selectedPoint = point;
+      selectedAddress = location.isDemoLocation ? demoCustomerAddress : selectedAddress;
+      statusMessage = location.isDemoLocation
+          ? 'GPS unavailable or outside Vietnam. Using demo Ho Chi Minh City; search or drag the map to adjust.'
+          : 'Current GPS location loaded. Drag the map to fine tune the pin.';
+    });
+    if (!initialLoad || location.isDemoLocation == false) {
+      await controller?.animateCamera(CameraUpdate.newLatLngZoom(point, 15));
+    }
+  }
+
+  Future<void> selectSearchResult(AddressSearchResult result) async {
+    final point = LatLng(result.latitude, result.longitude);
+    setState(() {
+      selectedPoint = point;
+      selectedAddress = result.label;
+      searchResults = [];
+      searchController.text = result.label;
+      searchController.selection = TextSelection.collapsed(offset: searchController.text.length);
+      statusMessage = 'Address selected. Drag the map if the pin needs adjustment.';
+    });
+    await controller?.animateCamera(CameraUpdate.newLatLngZoom(point, 15));
+  }
+
+  void onCameraIdle() {
+    final target = controller?.cameraPosition?.target;
+    if (target == null) {
+      return;
+    }
+    setState(() {
+      selectedPoint = target;
+      statusMessage = 'Pin adjusted to ${formatCoordinate(target.latitude)}, ${formatCoordinate(target.longitude)}.';
+    });
+  }
+
+  void confirmSelection() {
+    Navigator.of(context).pop(
+      SelectedCustomerLocation(
+        latitude: selectedPoint.latitude,
+        longitude: selectedPoint.longitude,
+        addressText: selectedAddress.trim().isEmpty ? demoCustomerAddress : selectedAddress.trim(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mapEnabled = AppConfig.mapTilerEnabled;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Choose service location')),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: mapEnabled
+                  ? MapLibreMap(
+                      styleString: AppConfig.mapTilerStyleUrl,
+                      initialCameraPosition: CameraPosition(target: selectedPoint, zoom: 15),
+                      onMapCreated: (value) => controller = value,
+                      onStyleLoadedCallback: () => setState(() => styleLoaded = true),
+                      onCameraIdle: onCameraIdle,
+                      compassEnabled: false,
+                      logoEnabled: false,
+                      myLocationEnabled: false,
+                      rotateGesturesEnabled: false,
+                      tiltGesturesEnabled: false,
+                    )
+                  : _MapPlaceholder(
+                      customerLabel: 'Selected pin',
+                      providerLabel: 'MapTiler key missing',
+                      showProviderMarker: false,
+                    ),
+            ),
+            IgnorePointer(
+              child: Center(
+                child: Transform.translate(
+                  offset: const Offset(0, -18),
+                  child: Icon(
+                    Icons.location_pin,
+                    size: 48,
+                    color: Theme.of(context).colorScheme.primary,
+                    shadows: const [Shadow(color: Colors.white, blurRadius: 8)],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 16,
+              right: 16,
+              top: 16,
+              child: Column(
+                children: [
+                  Material(
+                    elevation: 3,
+                    borderRadius: BorderRadius.circular(18),
+                    child: TextField(
+                      controller: searchController,
+                      onChanged: onSearchChanged,
+                      decoration: InputDecoration(
+                        hintText: 'Search Vietnam address',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: searching
+                            ? const Padding(
+                                padding: EdgeInsets.all(14),
+                                child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                              )
+                            : IconButton(
+                                onPressed: () => unawaited(useCurrentLocation()),
+                                icon: const Icon(Icons.my_location_outlined),
+                              ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (searchResults.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Material(
+                      elevation: 3,
+                      borderRadius: BorderRadius.circular(18),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemBuilder: (context, index) {
+                            final item = searchResults[index];
+                            return ListTile(
+                              leading: const Icon(Icons.place_outlined),
+                              title: Text(item.label, maxLines: 2, overflow: TextOverflow.ellipsis),
+                              subtitle: Text('${formatCoordinate(item.latitude)}, ${formatCoordinate(item.longitude)}'),
+                              onTap: () => unawaited(selectSearchResult(item)),
+                            );
+                          },
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemCount: searchResults.length,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (statusMessage != null || error != null)
+                    Card(
+                      color: error == null ? Colors.white : Theme.of(context).colorScheme.errorContainer,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(error ?? statusMessage!),
+                      ),
+                    ),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Selected pin', style: Theme.of(context).textTheme.titleMedium),
+                          const SizedBox(height: 4),
+                          Text('${formatCoordinate(selectedPoint.latitude)}, ${formatCoordinate(selectedPoint.longitude)}'),
+                          if (!styleLoaded && mapEnabled) ...[
+                            const SizedBox(height: 8),
+                            const LinearProgressIndicator(minHeight: 4),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: confirmSelection,
+                    icon: const Icon(Icons.check),
+                    label: const Text('Use this location'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -2524,6 +2909,113 @@ class _MapPlaceholder extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class NearbyProvidersMap extends StatefulWidget {
+  const NearbyProvidersMap({
+    super.key,
+    required this.customerPoint,
+    required this.providers,
+  });
+
+  final LatLng? customerPoint;
+  final List<Map<String, dynamic>> providers;
+
+  @override
+  State<NearbyProvidersMap> createState() => _NearbyProvidersMapState();
+}
+
+class _NearbyProvidersMapState extends State<NearbyProvidersMap> {
+  MapLibreMapController? controller;
+  bool styleLoaded = false;
+
+  @override
+  void didUpdateWidget(covariant NearbyProvidersMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (styleLoaded) {
+      unawaited(syncMarkers());
+    }
+  }
+
+  Future<void> syncMarkers() async {
+    final map = controller;
+    final customerPoint = widget.customerPoint;
+    if (map == null || !styleLoaded || customerPoint == null) {
+      return;
+    }
+
+    await map.clearCircles();
+    await map.clearSymbols();
+    await map.addCircle(CircleOptions(
+      geometry: customerPoint,
+      circleColor: '#5E8E4A',
+      circleRadius: 8,
+      circleStrokeColor: '#FFFFFF',
+      circleStrokeWidth: 2,
+    ));
+    await map.addSymbol(SymbolOptions(
+      geometry: customerPoint,
+      textField: 'You',
+      textColor: '#111827',
+      textSize: 12,
+      textHaloColor: '#FFFFFF',
+      textHaloWidth: 1.5,
+      textOffset: const Offset(0, -1.2),
+    ));
+
+    for (final provider in widget.providers) {
+      final point = deriveProviderLatLng(provider);
+      if (point == null) {
+        continue;
+      }
+      final isRecent = provider['isRecentLocation'] != false;
+      final displayName = provider['displayName'] as String? ?? 'Provider';
+      final updatedAt = formatLastLocation(provider['currentLocationUpdatedAt']);
+      await map.addCircle(CircleOptions(
+        geometry: point,
+        circleColor: isRecent ? '#2563EB' : '#9CA3AF',
+        circleRadius: 7,
+        circleStrokeColor: '#FFFFFF',
+        circleStrokeWidth: 2,
+      ));
+      await map.addSymbol(SymbolOptions(
+        geometry: point,
+        textField: '$displayName\n$updatedAt',
+        textColor: '#111827',
+        textSize: 11,
+        textHaloColor: '#FFFFFF',
+        textHaloWidth: 1.5,
+        textOffset: const Offset(0, -1.4),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final customerPoint = widget.customerPoint;
+    if (AppConfig.mapTilerEnabled && customerPoint != null) {
+      return MapLibreMap(
+        styleString: AppConfig.mapTilerStyleUrl,
+        initialCameraPosition: CameraPosition(target: customerPoint, zoom: 13.5),
+        onMapCreated: (value) => controller = value,
+        onStyleLoadedCallback: () {
+          styleLoaded = true;
+          unawaited(syncMarkers());
+        },
+        compassEnabled: false,
+        logoEnabled: false,
+        myLocationEnabled: false,
+        rotateGesturesEnabled: false,
+        tiltGesturesEnabled: false,
+      );
+    }
+
+    return _MapPlaceholder(
+      customerLabel: 'You',
+      providerLabel: '${widget.providers.length} provider(s)',
+      showProviderMarker: widget.providers.isNotEmpty,
     );
   }
 }
@@ -2782,7 +3274,18 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
             const EmptyPanel(text: 'Login first to load nearby provider cards.')
           else if (providers.isEmpty)
             const EmptyPanel(text: 'No nearby therapists loaded yet. Refresh to fetch the latest queue.')
-          else
+          else ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: SizedBox(
+                height: 220,
+                child: NearbyProvidersMap(
+                  customerPoint: customerLat == null || customerLng == null ? null : LatLng(customerLat!, customerLng!),
+                  providers: providers.whereType<Map<String, dynamic>>().toList(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             for (final item in providers)
               Builder(
                 builder: (context) {
@@ -2793,6 +3296,7 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
                   );
                 },
               ),
+          ],
         ],
       ),
     );
@@ -3548,12 +4052,34 @@ String formatDistance(num? meters) {
 }
 
 LatLng? deriveProviderLatLng(Map<String, dynamic>? provider) {
-  final lat = asDouble(provider?['lat']);
-  final lng = asDouble(provider?['lng']);
+  final lat = asDouble(provider?['currentLat']) ?? asDouble(provider?['lat']);
+  final lng = asDouble(provider?['currentLng']) ?? asDouble(provider?['lng']);
   if (lat == null || lng == null) {
     return null;
   }
   return LatLng(lat, lng);
+}
+
+String formatLastLocation(dynamic value) {
+  final raw = value?.toString();
+  if (raw == null || raw.isEmpty) {
+    return 'not shared yet';
+  }
+  final date = DateTime.tryParse(raw)?.toLocal();
+  if (date == null) {
+    return 'not shared yet';
+  }
+  final difference = DateTime.now().difference(date);
+  if (difference.inMinutes < 1) {
+    return 'just now';
+  }
+  if (difference.inMinutes < 60) {
+    return '${difference.inMinutes}m ago';
+  }
+  if (difference.inHours < 24) {
+    return '${difference.inHours}h ago';
+  }
+  return '${difference.inDays}d ago';
 }
 
 class CustomerLocationSnapshot {

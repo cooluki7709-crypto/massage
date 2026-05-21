@@ -127,6 +127,21 @@ await postJson('/provider/location', backupProviderAuth.accessToken, {
   lng: 106.6951,
 });
 
+const savedSelectedLocation = await postJson('/customer/locations/selected', customerAuth.accessToken, {
+  lat: 10.7769,
+  lng: 106.7009,
+  addressText: 'District 1, Ho Chi Minh City, Vietnam',
+});
+if (!savedSelectedLocation.id || savedSelectedLocation.addressText !== 'District 1, Ho Chi Minh City, Vietnam') {
+  throw new Error(`Customer selected location was not saved: ${JSON.stringify(savedSelectedLocation)}`);
+}
+
+const nearbyProviders = await getJson('/customer/providers/nearby?lat=10.7769&lng=106.7009', customerAuth.accessToken);
+const nearbyProvider = nearbyProviders.find((item) => item.id === providerAuth.user.providerProfile.id);
+if (!nearbyProvider?.currentLocationUpdatedAt || nearbyProvider.isRecentLocation !== true) {
+  throw new Error(`Nearby provider payload is missing freshness metadata: ${JSON.stringify(nearbyProvider)}`);
+}
+
 const booking = await postJson('/customer/bookings', customerAuth.accessToken, {
   serviceId: service.id,
   scheduledStartAt: new Date(Date.now() + 60 * 60_000).toISOString(),
@@ -338,6 +353,9 @@ console.log({
   hybridPreferredProviderId: adminHybridBooking?.preferredProvider?.id ?? null,
   hybridSelectedProviderId: adminHybridBooking?.selectedProvider?.id ?? null,
   hybridSwitchedToBackup: adminHybridBooking?.preferredProvider?.id !== adminHybridBooking?.selectedProvider?.id,
+  savedSelectedLocationId: savedSelectedLocation.id,
+  nearbyProviderDistanceMeters: nearbyProvider.distanceMeters,
+  nearbyProviderRecent: nearbyProvider.isRecentLocation,
   momoPaymentStatus: momoPayment?.status ?? null,
   couponId: coupon.id,
   couponCode: coupon.code,

@@ -48,7 +48,7 @@ The provider Flutter app now includes:
 
 - Tokens are runtime-only and not persisted securely yet.
 - UI is intentionally MVP-plain and close to the reference flow hierarchy, not final branding.
-- Google Maps rendering is not wired yet.
+- Google Maps has been replaced for MVP by MapTiler/MapLibre map rendering and Geoapify address search.
 - Push notification token registration now runs after login and reports setup state in the app UI, but real Firebase project files and production FCM credentials still need to be provided.
 - `flutter pub get`, `flutter analyze`, and widget smoke tests pass for both customer and provider apps in the local Windows environment.
 - Android platform folders are generated for both Flutter apps.

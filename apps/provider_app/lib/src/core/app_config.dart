@@ -1,10 +1,20 @@
 class AppConfig {
-  static const googleMapsApiKey = String.fromEnvironment(
-    'GOOGLE_MAPS_API_KEY',
+  static const mapTilerApiKey = String.fromEnvironment(
+    'MAPTILER_API_KEY',
     defaultValue: '',
   );
 
-  static bool get googleMapsEnabled => googleMapsApiKey.isNotEmpty;
+  static bool get mapTilerEnabled => mapTilerApiKey.isNotEmpty;
+
+  static String get mapTilerStyleUrl =>
+      'https://api.maptiler.com/maps/streets-v2/style.json?key=$mapTilerApiKey';
+
+  static const geoapifyApiKey = String.fromEnvironment(
+    'GEOAPIFY_API_KEY',
+    defaultValue: '',
+  );
+
+  static bool get geoapifyEnabled => geoapifyApiKey.isNotEmpty;
 
   static const apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
