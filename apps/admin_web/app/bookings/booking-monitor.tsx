@@ -41,10 +41,12 @@ export function BookingMonitor({ bookings }: Props) {
     const preferredPending = open.filter((booking) => booking.preferredProvider && isPreferredAwaitingDecision(booking));
     const backupChosen = orderedBookings.filter((booking) => isBackupSelected(booking));
     const chatLive = orderedBookings.filter((booking) => Boolean(booking.chatRoom));
+    const highRisk = orderedBookings.filter((booking) => bookingRiskFlags(booking).some((flag) => flag.severity === 'high'));
     return [
       ['Active bookings', active.length.toString()],
       ['Open matching', open.length.toString()],
       ['Matched', matched.length.toString()],
+      ['High risk', highRisk.length.toString()],
       ['No providers yet', noParticipants.length.toString()],
       ['Preferred pending', preferredPending.length.toString()],
       ['Fallback options', waitingSelection.length.toString()],
@@ -145,101 +147,113 @@ export function BookingMonitor({ bookings }: Props) {
               <th>Customer</th>
               <th>Providers</th>
               <th>Payment</th>
+              <th>Risk</th>
               <th>Ops signal</th>
             </tr>
           </thead>
           <tbody>
-            {visibleBookings.map((booking) => (
-              <tr id={`booking-${booking.id}`} key={booking.id}>
-                <td>
-                  <strong>
-                    <Link className="text-link" href={`/bookings/${booking.id}`}>
-                      {shortId(booking.id)}
-                    </Link>
-                  </strong>
-                  <div className="muted">{booking.services?.[0]?.service?.name ?? 'Service pending'}</div>
-                  <div className="muted">{formatDate(booking.scheduledStartAt)}</div>
-                  <div className="muted">{recencyLabel(booking)}</div>
-                </td>
-                <td>
-                  <StatusBadge status={booking.status} />
-                  <div className="muted">Chat {booking.chatRoom ? 'ready' : 'not ready'}</div>
-                  <div className="muted">{booking.expiresAt ? `Expires ${formatDate(booking.expiresAt)}` : 'No expiry set'}</div>
-                </td>
-                <td>
-                  {booking.customerProfile?.user?.fullName ?? 'Customer'}
-                  <div className="muted">{booking.customerProfile?.user?.phone ?? 'No phone'}</div>
-                </td>
-                <td>
-                  <strong>{booking.participants?.length ?? 0} joined</strong>
-                  <div className="muted">Preferred {booking.preferredProvider?.displayName ?? 'none'}</div>
-                  <div className="muted">
-                    {booking.preferredProvider?.user?.phone ? `Preferred phone ${booking.preferredProvider.user.phone}` : 'Preferred provider not set'}
-                  </div>
-                  <div className="muted">{selectionPathLabel(booking)}</div>
-                  <div className="participant-list" style={{ marginTop: 8 }}>
-                    <span className={`pill ${selectionToneClass(booking)}`}>{selectionLabel(booking)}</span>
-                    {booking.chatRoom && <span className="pill pill-success">Chat ready</span>}
-                  </div>
-                  <div className="participant-list" style={{ marginTop: 8 }}>
-                    {booking.preferredProvider && (
-                      <span className="pill" style={{ background: '#eef6e8', borderColor: '#b9d4a8' }}>
-                        Preferred: {booking.preferredProvider.displayName ?? 'Provider'}
-                        {' '}
-                        {preferredProviderStateLabel(booking)}
-                      </span>
-                    )}
-                    {booking.selectedProvider && booking.selectedProvider.id !== booking.preferredProvider?.id && (
-                      <span className="pill pill-success">
-                        Final: {booking.selectedProvider.displayName ?? 'Provider'}
-                      </span>
-                    )}
-                    {fallbackParticipants(booking).slice(0, 4).map((participant) => (
-                      <span className="pill" key={participant.id}>
-                        Backup: {participant.providerProfile?.displayName ?? 'Provider'} ({participant.status})
-                      </span>
-                    ))}
-                  </div>
-                  {fallbackParticipants(booking).length > 4 && (
-                    <div className="muted" style={{ marginTop: 6 }}>
-                      +{fallbackParticipants(booking).length - 4} more backup therapist(s)
-                    </div>
-                  )}
-                </td>
-                <td>
-                  {booking.payment?.status ?? 'NONE'}
-                  <div className="muted">
-                    {booking.payment
-                      ? `${booking.payment.amount} ${booking.payment.currency ?? 'VND'} - ${booking.payment.method}`
-                      : 'No payment'}
-                  </div>
-                  {booking.payment?.id && (
-                    <div className="actions" style={{ marginTop: 8 }}>
+            {visibleBookings.map((booking) => {
+              const flags = bookingRiskFlags(booking);
+              const risk = riskLevel(flags);
+              return (
+                <tr id={`booking-${booking.id}`} key={booking.id}>
+                  <td>
+                    <strong>
                       <Link className="text-link" href={`/bookings/${booking.id}`}>
-                        Detail
+                        {shortId(booking.id)}
                       </Link>
-                      <Link className="text-link" href={`/payments#payment-${booking.payment.id}`}>
-                        Open payment
-                      </Link>
-                      {(booking.status === 'REFUNDED' || booking.payment.status === 'REFUNDED') && (
-                        <Link className="text-link" href="/refunds">
-                          Refund board
-                        </Link>
-                      )}
+                    </strong>
+                    <div className="muted">{booking.services?.[0]?.service?.name ?? 'Service pending'}</div>
+                    <div className="muted">{formatDate(booking.scheduledStartAt)}</div>
+                    <div className="muted">{recencyLabel(booking)}</div>
+                  </td>
+                  <td>
+                    <StatusBadge status={booking.status} />
+                    <div className="muted">Chat {booking.chatRoom ? 'ready' : 'not ready'}</div>
+                    <div className="muted">{booking.expiresAt ? `Expires ${formatDate(booking.expiresAt)}` : 'No expiry set'}</div>
+                  </td>
+                  <td>
+                    {booking.customerProfile?.user?.fullName ?? 'Customer'}
+                    <div className="muted">{booking.customerProfile?.user?.phone ?? 'No phone'}</div>
+                  </td>
+                  <td>
+                    <strong>{booking.participants?.length ?? 0} joined</strong>
+                    <div className="muted">Preferred {booking.preferredProvider?.displayName ?? 'none'}</div>
+                    <div className="muted">
+                      {booking.preferredProvider?.user?.phone ? `Preferred phone ${booking.preferredProvider.user.phone}` : 'Preferred provider not set'}
                     </div>
-                  )}
-                </td>
-                <td>
-                  <div>{opsSignal(booking)}</div>
-                  <div className="muted" style={{ marginTop: 8 }}>
-                    {nextAction(booking)}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                    <div className="muted">{selectionPathLabel(booking)}</div>
+                    <div className="participant-list" style={{ marginTop: 8 }}>
+                      <span className={`pill ${selectionToneClass(booking)}`}>{selectionLabel(booking)}</span>
+                      {booking.chatRoom && <span className="pill pill-success">Chat ready</span>}
+                    </div>
+                    <div className="participant-list" style={{ marginTop: 8 }}>
+                      {booking.preferredProvider && (
+                        <span className="pill" style={{ background: '#eef6e8', borderColor: '#b9d4a8' }}>
+                          Preferred: {booking.preferredProvider.displayName ?? 'Provider'}
+                          {' '}
+                          {preferredProviderStateLabel(booking)}
+                        </span>
+                      )}
+                      {booking.selectedProvider && booking.selectedProvider.id !== booking.preferredProvider?.id && (
+                        <span className="pill pill-success">
+                          Final: {booking.selectedProvider.displayName ?? 'Provider'}
+                        </span>
+                      )}
+                      {fallbackParticipants(booking).slice(0, 4).map((participant) => (
+                        <span className="pill" key={participant.id}>
+                          Backup: {participant.providerProfile?.displayName ?? 'Provider'} ({participant.status})
+                        </span>
+                      ))}
+                    </div>
+                    {fallbackParticipants(booking).length > 4 && (
+                      <div className="muted" style={{ marginTop: 6 }}>
+                        +{fallbackParticipants(booking).length - 4} more backup therapist(s)
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    {booking.payment?.status ?? 'NONE'}
+                    <div className="muted">
+                      {booking.payment
+                        ? `${booking.payment.amount} ${booking.payment.currency ?? 'VND'} - ${booking.payment.method}`
+                        : 'No payment'}
+                    </div>
+                    {booking.payment?.id && (
+                      <div className="actions" style={{ marginTop: 8 }}>
+                        <Link className="text-link" href={`/bookings/${booking.id}`}>
+                          Detail
+                        </Link>
+                        <Link className="text-link" href={`/payments#payment-${booking.payment.id}`}>
+                          Open payment
+                        </Link>
+                        {(booking.status === 'REFUNDED' || booking.payment.status === 'REFUNDED') && (
+                          <Link className="text-link" href="/refunds">
+                            Refund board
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <span className={`signal ${risk.tone}`}>{risk.label}</span>
+                    <div className="muted" style={{ marginTop: 8 }}>
+                      {risk.helper}
+                    </div>
+                    {flags.length > 0 && <div className="muted">{flags[0].title}</div>}
+                  </td>
+                  <td>
+                    <div>{opsSignal(booking)}</div>
+                    <div className="muted" style={{ marginTop: 8 }}>
+                      {nextAction(booking)}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {visibleBookings.length === 0 && (
               <tr>
-                <td colSpan={6}>No bookings loaded. Start the API and run the smoke flow to populate this table.</td>
+                <td colSpan={7}>No bookings loaded. Start the API and run the smoke flow to populate this table.</td>
               </tr>
             )}
           </tbody>
@@ -301,6 +315,70 @@ function opsSignal(booking: AdminBooking) {
     return <span className="signal signal-warn">Chat missing</span>;
   }
   return <span className="signal signal-ok">Normal</span>;
+}
+
+type BookingRiskFlag = {
+  severity: 'high' | 'medium' | 'low';
+  title: string;
+};
+
+function bookingRiskFlags(booking: AdminBooking): BookingRiskFlag[] {
+  const flags: BookingRiskFlag[] = [];
+  const paymentStatus = booking.payment?.status;
+  const participantCount = booking.participants?.length ?? 0;
+  const expired = booking.expiresAt ? new Date(booking.expiresAt).getTime() < Date.now() : false;
+
+  if (booking.status === 'CANCELLED' && booking.payment && !['RELEASED', 'REFUNDED'].includes(paymentStatus ?? '')) {
+    flags.push({ severity: 'high', title: 'Cancelled payment unresolved' });
+  }
+  if (booking.status === 'COMPLETED' && paymentStatus === 'AUTHORIZED') {
+    flags.push({ severity: 'high', title: 'Completed service still on hold' });
+  }
+  if (booking.status === 'OPEN_MATCHING' && expired) {
+    flags.push({ severity: 'high', title: 'Matching window expired' });
+  }
+  if (booking.status === 'OPEN_MATCHING' && booking.preferredProvider && participantCount === 0) {
+    flags.push({ severity: 'medium', title: 'Preferred provider pending' });
+  }
+  if (booking.status === 'OPEN_MATCHING' && participantCount === 0) {
+    flags.push({ severity: 'medium', title: 'No provider supply' });
+  }
+  if (booking.status === 'MATCHED' && !booking.chatRoom) {
+    flags.push({ severity: 'high', title: 'Matched without chat' });
+  }
+  if (['PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE'].includes(booking.status) && !hasProviderLocation(booking)) {
+    flags.push({ severity: 'medium', title: 'No provider location signal' });
+  }
+  if (booking.chatRoom && (booking.chatRoom.messages?.length ?? 0) === 0 && ['MATCHED', 'PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE'].includes(booking.status)) {
+    flags.push({ severity: 'low', title: 'Chat quiet' });
+  }
+  if (paymentStatus === 'AUTHORIZED' && !booking.payment?.providerRef) {
+    flags.push({ severity: 'medium', title: 'Payment reference missing' });
+  }
+
+  return flags;
+}
+
+function riskLevel(flags: BookingRiskFlag[]) {
+  if (flags.some((flag) => flag.severity === 'high')) {
+    return { label: 'High', helper: `${flags.length} flag(s)`, tone: 'signal-warn' };
+  }
+  if (flags.some((flag) => flag.severity === 'medium')) {
+    return { label: 'Medium', helper: `${flags.length} flag(s)`, tone: 'signal-info' };
+  }
+  if (flags.some((flag) => flag.severity === 'low')) {
+    return { label: 'Low', helper: `${flags.length} flag(s)`, tone: 'signal-info' };
+  }
+  return { label: 'Clear', helper: 'No active flags', tone: 'signal-ok' };
+}
+
+function hasProviderLocation(booking: AdminBooking) {
+  if (booking.selectedProvider?.currentLat && booking.selectedProvider?.currentLng) {
+    return true;
+  }
+  return (booking.participants ?? []).some(
+    (participant) => participant.providerProfile?.currentLat && participant.providerProfile?.currentLng,
+  );
 }
 
 function nextAction(booking: AdminBooking) {
