@@ -2489,13 +2489,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> loadLatestChat() async {
     final bookings = await ref.read(customerRepositoryProvider).listBookings();
-    final booking = bookings.cast<Map<String, dynamic>?>().firstWhere(
+    final bookingWithChat = bookings.cast<Map<String, dynamic>?>().firstWhere(
           (item) => item?['chatRoom'] != null,
           orElse: () => null,
         );
-    final room = booking?['chatRoom'] as Map<String, dynamic>?;
+    final latestBooking = bookings.isNotEmpty && bookings.first is Map<String, dynamic>
+        ? bookings.first as Map<String, dynamic>
+        : null;
+    final booking = bookingWithChat ?? latestBooking;
+    final room = bookingWithChat?['chatRoom'] as Map<String, dynamic>?;
     if (room == null) {
-      setState(() => statusMessage = 'No service chat yet. The provider has to start the service first.');
+      final status = booking?['status']?.toString();
+      final providerName = providerDisplayName(booking);
+      final nextMessage = switch (status) {
+        'OPEN_MATCHING' => '$providerName has not been locked in yet. Stay on the waiting screen until a therapist is selected.',
+        'MATCHED' => '$providerName is confirmed. Chat opens when the therapist starts the service.',
+        'PROVIDER_ON_THE_WAY' => '$providerName is on the way. Chat will open as soon as service start is triggered.',
+        'IN_SERVICE' => 'The service is already in progress. Reload chat to join the live room.',
+        _ => 'No service chat yet. The provider has to start the service first.',
+      };
+      setState(() => statusMessage = nextMessage);
       return;
     }
 
@@ -2553,7 +2566,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
           const SizedBox(height: 16),
           if (chatRoomId == null)
-            const EmptyPanel(text: 'Chat appears after the provider starts the service flow.')
+            const EmptyPanel(text: 'Chat opens after a therapist is selected and the service start step begins.')
           else ...[
             Text('Room $chatRoomId', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),

@@ -87,12 +87,13 @@ class ProviderRepository {
     await _api.postJson('/provider/offline', {});
   }
 
-  Future<void> updateLocation({String? bookingId}) async {
+  Future<Map<String, double>> updateLocation({String? bookingId}) async {
     final position = await currentPosition();
     final lat = position?.latitude ?? 10.7769;
     final lng = position?.longitude ?? 106.7009;
     await _api.postJson('/provider/location', {'lat': lat, 'lng': lng});
     _socket.updateLocation(lat: lat, lng: lng, bookingId: bookingId);
+    return {'lat': lat, 'lng': lng};
   }
 
   Future<List<dynamic>> openBookings() async {

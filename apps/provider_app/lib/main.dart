@@ -957,13 +957,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> loadLatestChat() async {
     final bookings = await ref.read(providerRepositoryProvider).listBookings();
-    final booking = bookings.cast<Map<String, dynamic>?>().firstWhere(
+    final bookingWithChat = bookings.cast<Map<String, dynamic>?>().firstWhere(
           (item) => item?['chatRoom'] != null,
           orElse: () => null,
         );
-    final room = booking?['chatRoom'] as Map<String, dynamic>?;
+    final latestBooking = bookings.isNotEmpty && bookings.first is Map<String, dynamic>
+        ? bookings.first as Map<String, dynamic>
+        : null;
+    final booking = bookingWithChat ?? latestBooking;
+    final room = bookingWithChat?['chatRoom'] as Map<String, dynamic>?;
     if (room == null) {
-      setState(() => statusMessage = 'No selected booking chat yet.');
+      final status = booking?['status']?.toString();
+      final preferredProvider = booking?['preferredProvider'] as Map<String, dynamic>?;
+      final selectedProvider = booking?['selectedProvider'] as Map<String, dynamic>?;
+      final selectedProviderId = selectedProvider?['id']?.toString();
+      final preferredProviderId = preferredProvider?['id']?.toString();
+      final myProviderId = ref.read(authControllerProvider)?.user['providerProfile']?['id']?.toString();
+      final isPreferredRequest = myProviderId != null && preferredProviderId == myProviderId;
+      final isFinalProvider = myProviderId != null && selectedProviderId == myProviderId;
+      final nextMessage = switch (status) {
+        'OPEN_MATCHING' => isPreferredRequest
+            ? 'You were picked first. Accept the request from Requests to move this booking forward.'
+            : 'No chat yet. Join or stay visible in Requests until the guest picks you.',
+        'MATCHED' => isFinalProvider
+            ? 'The guest picked you. Start the service from Requests to unlock chat.'
+            : 'A therapist was selected already, so this chat room is not yours.',
+        'IN_SERVICE' => 'Service is already in progress. Reload chat to join the live room.',
+        _ => 'No selected booking chat yet.',
+      };
+      setState(() => statusMessage = nextMessage);
       return;
     }
 
@@ -1001,11 +1023,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       error = null;
     });
     try {
-      await ref.read(providerRepositoryProvider).updateLocation(bookingId: activeBookingId);
+      final location = await ref.read(providerRepositoryProvider).updateLocation(bookingId: activeBookingId);
       setState(() {
-        lastSharedLat = 10.7769;
-        lastSharedLng = 106.7009;
-        statusMessage = 'Current location shared with the customer.';
+        lastSharedLat = location['lat'];
+        lastSharedLng = location['lng'];
+        statusMessage =
+            'Current location shared with the customer at ${formatCoordinate(lastSharedLat)} / ${formatCoordinate(lastSharedLng)}.';
       });
     } catch (exception) {
       setState(() => error = '$exception');
@@ -1049,7 +1072,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
           const SizedBox(height: 16),
           if (chatRoomId == null)
-            const InfoCard(text: 'A chat room appears when the customer selects you.')
+            const InfoCard(text: 'Chat opens after the guest selects you and you start the service flow.')
           else ...[
             Text('Room $chatRoomId', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
