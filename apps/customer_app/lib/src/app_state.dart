@@ -111,14 +111,26 @@ class CustomerRepository {
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
 
-  Future<Map<String, dynamic>> createBooking(String serviceId, {String? providerId}) async {
+  Future<Map<String, dynamic>> createBooking(
+    String serviceId, {
+    String? providerId,
+    required String customerName,
+    required String customerPhone,
+    required String addressLine,
+    required double lat,
+    required double lng,
+  }) async {
     final result = await _api.postJson('/customer/bookings', {
       'serviceId': serviceId,
       if (providerId != null) 'providerId': providerId,
       'scheduledStartAt': DateTime.now().add(const Duration(hours: 1)).toIso8601String(),
-      'address': {'line1': 'District 1, Ho Chi Minh City'},
-      'lat': 10.7769,
-      'lng': 106.7009,
+      'address': {
+        'name': customerName,
+        'phone': customerPhone,
+        'line1': addressLine,
+      },
+      'lat': lat,
+      'lng': lng,
       'paymentMethod': 'CASH',
     });
     final bookingId = result['id'] as String;

@@ -157,10 +157,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 builder: (context) => BookingConfirmationPage(
                   providerDetail: detail,
                   selectedService: service,
-                  onConfirm: () => ref.read(customerRepositoryProvider).createBooking(
-                        service['id'] as String,
-                        providerId: detail['id'] as String,
-                      ),
+                  onConfirm: ({
+                    required customerName,
+                    required customerPhone,
+                    required addressLine,
+                    required lat,
+                    required lng,
+                  }) =>
+                      ref.read(customerRepositoryProvider).createBooking(
+                            service['id'] as String,
+                            providerId: detail['id'] as String,
+                            customerName: customerName,
+                            customerPhone: customerPhone,
+                            addressLine: addressLine,
+                            lat: lat,
+                            lng: lng,
+                          ),
                 ),
               ),
             );
@@ -848,7 +860,13 @@ class BookingConfirmationPage extends ConsumerStatefulWidget {
 
   final Map<String, dynamic> providerDetail;
   final Map<String, dynamic> selectedService;
-  final Future<Map<String, dynamic>> Function() onConfirm;
+  final Future<Map<String, dynamic>> Function({
+    required String customerName,
+    required String customerPhone,
+    required String addressLine,
+    required double lat,
+    required double lng,
+  }) onConfirm;
 
   @override
   ConsumerState<BookingConfirmationPage> createState() => _BookingConfirmationPageState();
@@ -859,6 +877,8 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
   final phoneController = TextEditingController(text: '0865907184');
   final addressController = TextEditingController(text: 'Royal Villa Da Lat, Ward 7, Da Lat, Lam Dong');
   final couponController = TextEditingController();
+  static const customerLat = 11.9582;
+  static const customerLng = 108.4420;
   bool submitting = false;
   String? error;
 
@@ -877,7 +897,13 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
       error = null;
     });
     try {
-      final booking = await widget.onConfirm();
+      final booking = await widget.onConfirm(
+        customerName: nameController.text.trim(),
+        customerPhone: phoneController.text.trim(),
+        addressLine: addressController.text.trim(),
+        lat: customerLat,
+        lng: customerLng,
+      );
       if (mounted) {
         Navigator.of(context).pop(booking);
       }
@@ -894,6 +920,7 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
   Widget build(BuildContext context) {
     final service = widget.selectedService;
     final provider = widget.providerDetail;
+    final distanceMeters = provider['distanceMeters'] as num?;
     return Scaffold(
       appBar: AppBar(title: const Text('Booking information')),
       body: SafeArea(
@@ -911,6 +938,44 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                     controller: addressController,
                     decoration: const InputDecoration(labelText: 'Address'),
                     maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            BookingSectionCard(
+              title: 'Service location',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: const SizedBox(
+                      height: 180,
+                      child: MapPlaceholder(
+                        customerLabel: 'Customer',
+                        providerLabel: 'Therapist area',
+                        showProviderMarker: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 20, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(addressController.text)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Customer pin: ${formatCoordinate(customerLat)}, ${formatCoordinate(customerLng)}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Therapist distance: ${formatDistance(distanceMeters)}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
                   ),
                 ],
               ),
@@ -1045,24 +1110,42 @@ class BookingWaitingPage extends ConsumerStatefulWidget {
 class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
   Timer? timer;
   Map<String, dynamic>? booking;
+  late final RealtimeSocket _socket;
+  Map<String, dynamic>? latestProviderLocation;
   String? error;
   bool loading = false;
 
   @override
   void initState() {
     super.initState();
+    _socket = ref.read(realtimeSocketProvider);
     booking = widget.initialBooking;
     final bookingId = booking?['id'] as String?;
     if (bookingId != null) {
       ref.read(customerRepositoryProvider).joinBookingRoom(bookingId);
     }
+    attachRealtimeListeners();
     timer = Timer.periodic(const Duration(seconds: 5), (_) => refreshBooking(showLoading: false));
   }
 
   @override
   void dispose() {
     timer?.cancel();
+    _socket.offEvent('provider.location.updated');
     super.dispose();
+  }
+
+  void attachRealtimeListeners() {
+    _socket.offEvent('provider.location.updated');
+    _socket.onEvent('provider.location.updated', (payload) {
+      final activeBookingId = booking?['id'];
+      if (!mounted || payload is! Map || payload['bookingId'] != activeBookingId) {
+        return;
+      }
+      setState(() {
+        latestProviderLocation = Map<String, dynamic>.from(payload.cast<String, dynamic>());
+      });
+    });
   }
 
   Future<void> refreshBooking({bool showLoading = true}) async {
@@ -1186,7 +1269,11 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
             Expanded(
               child: Stack(
                 children: [
-                  const MapPlaceholder(),
+                  MapPlaceholder(
+                    customerLabel: 'You',
+                    providerLabel: latestProviderLocation == null ? 'Waiting' : 'Therapist',
+                    showProviderMarker: latestProviderLocation != null,
+                  ),
                   Positioned(
                     top: 18,
                     left: 18,
@@ -1272,6 +1359,27 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                             body: status == 'OPEN_MATCHING'
                                 ? 'Your preferred therapist gets the first chance. If they are slow to confirm, other nearby therapists can appear below.'
                                 : 'Your request is already confirmed. Use Chat when the therapist starts the service.',
+                          ),
+                          const SizedBox(height: 18),
+                          BookingSectionCard(
+                            title: 'Live location',
+                            child: latestProviderLocation == null
+                                ? const Text('Provider location will appear here after the therapist shares it.')
+                                : Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Therapist location shared'),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Lat ${formatCoordinate((latestProviderLocation?['lat'] as num?)?.toDouble())} | Lng ${formatCoordinate((latestProviderLocation?['lng'] as num?)?.toDouble())}',
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Updated ${latestProviderLocation?['recordedAt']?.toString() ?? 'just now'}',
+                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                                      ),
+                                    ],
+                                  ),
                           ),
                           const SizedBox(height: 18),
                           if (preferredProvider != null) ...[
@@ -1442,7 +1550,16 @@ class WaitingInfoBanner extends StatelessWidget {
 }
 
 class MapPlaceholder extends StatelessWidget {
-  const MapPlaceholder({super.key});
+  const MapPlaceholder({
+    super.key,
+    this.customerLabel = 'Customer',
+    this.providerLabel = 'Provider',
+    this.showProviderMarker = false,
+  });
+
+  final String customerLabel;
+  final String providerLabel;
+  final bool showProviderMarker;
 
   @override
   Widget build(BuildContext context) {
@@ -1464,15 +1581,55 @@ class MapPlaceholder extends StatelessWidget {
           ),
           Align(
             alignment: const Alignment(0, -0.1),
-            child: Container(
-              width: 18,
-              height: 18,
-              decoration: const BoxDecoration(
-                color: Color(0xFF5E8E4A),
-                shape: BoxShape.circle,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(customerLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  width: 18,
+                  height: 18,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF5E8E4A),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
             ),
           ),
+          if (showProviderMarker)
+            Align(
+              alignment: const Alignment(0.38, -0.34),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(providerLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE84B4B),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Align(
             alignment: const Alignment(-0.25, -0.05),
             child: Container(
@@ -2014,6 +2171,13 @@ String formatDistance(num? meters) {
     return '${(meters / 1000).toStringAsFixed(1)} km';
   }
   return '${meters.round()} m';
+}
+
+String formatCoordinate(double? value) {
+  if (value == null) {
+    return '-';
+  }
+  return value.toStringAsFixed(4);
 }
 
 String formatCurrency(dynamic amount) {

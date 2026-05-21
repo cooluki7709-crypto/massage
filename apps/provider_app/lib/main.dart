@@ -670,6 +670,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? bookingId;
   String? statusMessage;
   String? error;
+  double? lastSharedLat;
+  double? lastSharedLng;
   bool loading = false;
 
   @override
@@ -763,7 +765,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
     try {
       await ref.read(providerRepositoryProvider).updateLocation(bookingId: activeBookingId);
-      setState(() => statusMessage = 'Current location shared with the customer.');
+      setState(() {
+        lastSharedLat = 10.7769;
+        lastSharedLng = 106.7009;
+        statusMessage = 'Current location shared with the customer.';
+      });
     } catch (exception) {
       setState(() => error = '$exception');
     } finally {
@@ -809,6 +815,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             const InfoCard(text: 'A chat room appears when the customer selects you.')
           else ...[
             Text('Room $chatRoomId', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            ProviderLocationPreviewCard(
+              latitude: lastSharedLat,
+              longitude: lastSharedLng,
+            ),
             const SizedBox(height: 8),
             FilledButton.tonalIcon(
               onPressed: loading ? null : shareLocation,
@@ -860,6 +871,180 @@ class MessageTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class ProviderLocationPreviewCard extends StatelessWidget {
+  const ProviderLocationPreviewCard({
+    super.key,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  final double? latitude;
+  final double? longitude;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLocation = latitude != null && longitude != null;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Live route preview', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: SizedBox(
+                height: 180,
+                child: ProviderMapPlaceholder(showProviderPin: hasLocation),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              hasLocation
+                  ? 'Shared pin: ${formatCoordinate(latitude)}, ${formatCoordinate(longitude)}'
+                  : 'Share your current location so the customer can track your approach.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProviderMapPlaceholder extends StatelessWidget {
+  const ProviderMapPlaceholder({
+    super.key,
+    required this.showProviderPin,
+  });
+
+  final bool showProviderPin;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFD8F1DF),
+            Color(0xFFF0E7D7),
+          ],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(child: CustomPaint(painter: ProviderMapPainter())),
+          Align(
+            alignment: const Alignment(-0.25, -0.08),
+            child: _MapPinChip(
+              label: 'Customer',
+              color: const Color(0xFF5E8E4A),
+            ),
+          ),
+          if (showProviderPin)
+            Align(
+              alignment: const Alignment(0.36, -0.34),
+              child: _MapPinChip(
+                label: 'You',
+                color: const Color(0xFFE84B4B),
+              ),
+            ),
+          Align(
+            alignment: const Alignment(-0.22, -0.04),
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                color: const Color(0xFF5E8E4A).withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapPinChip extends StatelessWidget {
+  const _MapPinChip({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class ProviderMapPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final roadPaint = Paint()
+      ..color = const Color(0xFFB8B8B8)
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke;
+    final thinPaint = Paint()
+      ..color = const Color(0xFFD6D6D6)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    final mainRoad = Path()
+      ..moveTo(size.width * 0.12, size.height * 0.68)
+      ..quadraticBezierTo(size.width * 0.34, size.height * 0.56, size.width * 0.48, size.height * 0.38)
+      ..quadraticBezierTo(size.width * 0.7, size.height * 0.18, size.width * 0.9, size.height * 0.22);
+    canvas.drawPath(mainRoad, roadPaint);
+
+    final branch = Path()
+      ..moveTo(size.width * 0.44, size.height * 0.56)
+      ..quadraticBezierTo(size.width * 0.34, size.height * 0.42, size.width * 0.24, size.height * 0.24);
+    canvas.drawPath(branch, thinPaint);
+
+    final branchTwo = Path()
+      ..moveTo(size.width * 0.56, size.height * 0.44)
+      ..quadraticBezierTo(size.width * 0.66, size.height * 0.58, size.width * 0.8, size.height * 0.74);
+    canvas.drawPath(branchTwo, thinPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+String formatCoordinate(double? value) {
+  if (value == null) {
+    return '-';
+  }
+  return value.toStringAsFixed(4);
 }
 
 class ProfileScreen extends ConsumerWidget {
