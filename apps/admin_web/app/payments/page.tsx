@@ -2,7 +2,7 @@ import { AdminPayment, adminGet } from '../../lib/admin-api';
 import { capturePayment, refundPayment, releasePayment, syncPayment } from './actions';
 
 export default async function PaymentsPage() {
-  const payments = await adminGet<AdminPayment[]>('/admin/payments', []);
+  const payments = sortPayments(await adminGet<AdminPayment[]>('/admin/payments', []));
 
   return (
     <>
@@ -24,6 +24,10 @@ export default async function PaymentsPage() {
           <p>Refunded</p>
           <h2>{payments.filter((payment) => payment.status === 'REFUNDED').length}</h2>
         </div>
+        <div className="card">
+          <p>Needs action</p>
+          <h2>{payments.filter((payment) => paymentOpsState(payment) !== 'settled').length}</h2>
+        </div>
       </section>
       <div className="card">
         <table className="table">
@@ -34,6 +38,7 @@ export default async function PaymentsPage() {
               <th>Status</th>
               <th>Amount</th>
               <th>Booking</th>
+              <th>Ops hint</th>
               <th>Provider ref</th>
               <th>Action</th>
             </tr>
@@ -43,14 +48,23 @@ export default async function PaymentsPage() {
               <tr key={payment.id}>
                 <td>{payment.id}</td>
                 <td>{payment.method}</td>
-                <td>{payment.status}</td>
+                <td>
+                  {payment.status}
+                  <div className="muted">{paymentStateLabel(payment)}</div>
+                </td>
                 <td>
                   {payment.amount} {payment.currency}
                 </td>
                 <td>
-                  {payment.bookingId}
+                  {shortId(payment.bookingId)}
                   <div className="muted">{payment.booking?.status ?? 'UNKNOWN'}</div>
                   <div className="muted">{payment.booking?.customerProfile?.user?.phone ?? 'No customer phone'}</div>
+                </td>
+                <td>
+                  <div>{paymentOpsSignal(payment)}</div>
+                  <div className="muted" style={{ marginTop: 8 }}>
+                    {paymentOpsHint(payment)}
+                  </div>
                 </td>
                 <td>{payment.providerRef ?? 'NONE'}</td>
                 <td>
@@ -80,7 +94,7 @@ export default async function PaymentsPage() {
             ))}
             {payments.length === 0 && (
               <tr>
-                <td colSpan={7}>No payments loaded.</td>
+                <td colSpan={8}>No payments loaded.</td>
               </tr>
             )}
           </tbody>
@@ -88,6 +102,102 @@ export default async function PaymentsPage() {
       </div>
     </>
   );
+}
+
+function sortPayments(payments: AdminPayment[]) {
+  return [...payments].sort((left, right) => {
+    const leftScore = paymentPriority(left);
+    const rightScore = paymentPriority(right);
+    if (leftScore !== rightScore) {
+      return rightScore - leftScore;
+    }
+
+    return (right.id || '').localeCompare(left.id || '');
+  });
+}
+
+function paymentPriority(payment: AdminPayment) {
+  if (payment.status === 'AUTHORIZED') {
+    return 5;
+  }
+  if (payment.method === 'CASH' && payment.status === 'PENDING') {
+    return 4;
+  }
+  if (payment.status === 'REFUNDED') {
+    return 2;
+  }
+  if (payment.status === 'CAPTURED' || payment.status === 'RELEASED') {
+    return 1;
+  }
+  return 3;
+}
+
+function paymentOpsState(payment: AdminPayment) {
+  if (payment.status === 'CAPTURED' || payment.status === 'RELEASED' || payment.status === 'REFUNDED') {
+    return 'settled';
+  }
+  if (payment.status === 'AUTHORIZED') {
+    return 'capture';
+  }
+  if (payment.method === 'CASH' && payment.status === 'PENDING') {
+    return 'collect-cash';
+  }
+  return 'monitor';
+}
+
+function paymentStateLabel(payment: AdminPayment) {
+  if (payment.status === 'AUTHORIZED') {
+    return 'Hold placed, waiting for service completion.';
+  }
+  if (payment.method === 'CASH' && payment.status === 'PENDING') {
+    return 'Collect cash when the service starts or completes.';
+  }
+  if (payment.status === 'CAPTURED') {
+    return 'Funds captured successfully.';
+  }
+  if (payment.status === 'RELEASED') {
+    return 'Hold released without capture.';
+  }
+  if (payment.status === 'REFUNDED') {
+    return 'Refund path already started.';
+  }
+  return 'Monitor payment progression.';
+}
+
+function paymentOpsSignal(payment: AdminPayment) {
+  if (payment.status === 'AUTHORIZED') {
+    return <span className="signal signal-warn">Capture after service</span>;
+  }
+  if (payment.method === 'CASH' && payment.status === 'PENDING') {
+    return <span className="signal signal-info">Cash collection</span>;
+  }
+  if (payment.status === 'REFUNDED') {
+    return <span className="signal signal-warn">Refund in motion</span>;
+  }
+  if (payment.status === 'CAPTURED' || payment.status === 'RELEASED') {
+    return <span className="signal signal-ok">Settled</span>;
+  }
+  return <span className="signal signal-info">Watch payment</span>;
+}
+
+function paymentOpsHint(payment: AdminPayment) {
+  if (payment.status === 'AUTHORIZED') {
+    return 'Keep this on hold until the therapist completes the service, then capture or refund.';
+  }
+  if (payment.method === 'CASH' && payment.status === 'PENDING') {
+    return 'Cash booking. Confirm therapist arrival and mark the booking complete after payment is collected.';
+  }
+  if (payment.status === 'REFUNDED') {
+    return 'Check the linked refund record and customer communication.';
+  }
+  if (payment.status === 'RELEASED') {
+    return 'Booking did not convert. Confirm the customer sees the hold release.';
+  }
+  return 'No urgent action required.';
+}
+
+function shortId(value: string) {
+  return value.slice(0, 8);
 }
 
 function PaymentAction({

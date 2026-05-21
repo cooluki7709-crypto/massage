@@ -1,11 +1,25 @@
 import { AdminRefund, adminGet } from '../../lib/admin-api';
 
 export default async function RefundsPage() {
-  const refunds = await adminGet<AdminRefund[]>('/admin/refunds', []);
+  const refunds = sortRefunds(await adminGet<AdminRefund[]>('/admin/refunds', []));
 
   return (
     <>
       <h1>Refunds</h1>
+      <section className="grid" style={{ marginBottom: 16 }}>
+        <div className="card">
+          <p>Total refunds</p>
+          <h2>{refunds.length}</h2>
+        </div>
+        <div className="card">
+          <p>Requested</p>
+          <h2>{refunds.filter((refund) => refund.status === 'REQUESTED').length}</h2>
+        </div>
+        <div className="card">
+          <p>Refunded bookings</p>
+          <h2>{refunds.filter((refund) => refund.booking?.status === 'REFUNDED').length}</h2>
+        </div>
+      </section>
       <div className="card">
         <table className="table">
           <thead>
@@ -17,12 +31,13 @@ export default async function RefundsPage() {
               <th>Booking</th>
               <th>Amount</th>
               <th>Status</th>
+              <th>Ops hint</th>
             </tr>
           </thead>
           <tbody>
             {refunds.map((refund) => (
               <tr key={refund.id}>
-                <td>{refund.id}</td>
+                <td>{shortId(refund.id)}</td>
                 <td>
                   {refund.booking?.customerProfile?.user?.fullName ??
                     refund.booking?.customerProfile?.user?.phone ??
@@ -37,11 +52,17 @@ export default async function RefundsPage() {
                   {refund.amount} {refund.payment?.currency ?? 'VND'}
                 </td>
                 <td>{refund.status}</td>
+                <td>
+                  <div>{refundOpsSignal(refund)}</div>
+                  <div className="muted" style={{ marginTop: 8 }}>
+                    {refundOpsHint(refund)}
+                  </div>
+                </td>
               </tr>
             ))}
             {refunds.length === 0 && (
               <tr>
-                <td colSpan={7}>No refunds loaded.</td>
+                <td colSpan={8}>No refunds loaded.</td>
               </tr>
             )}
           </tbody>
@@ -49,4 +70,32 @@ export default async function RefundsPage() {
       </div>
     </>
   );
+}
+
+function sortRefunds(refunds: AdminRefund[]) {
+  return [...refunds].sort((left, right) => (right.createdAt || '').localeCompare(left.createdAt || ''));
+}
+
+function refundOpsSignal(refund: AdminRefund) {
+  if (refund.status === 'REQUESTED') {
+    return <span className="signal signal-warn">Customer refund requested</span>;
+  }
+  if (refund.status === 'COMPLETED' || refund.booking?.status === 'REFUNDED') {
+    return <span className="signal signal-ok">Refund settled</span>;
+  }
+  return <span className="signal signal-info">Review refund</span>;
+}
+
+function refundOpsHint(refund: AdminRefund) {
+  if (refund.status === 'REQUESTED') {
+    return 'Confirm the payment reversal path and notify the guest once the refund is complete.';
+  }
+  if (refund.booking?.status === 'REFUNDED') {
+    return 'Booking is already marked as refunded. Check payment ledger and customer notes.';
+  }
+  return 'Review this refund before closing the case.';
+}
+
+function shortId(value: string) {
+  return value.slice(0, 8);
 }
