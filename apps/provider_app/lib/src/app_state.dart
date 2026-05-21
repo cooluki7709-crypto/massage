@@ -72,6 +72,9 @@ final providerRepositoryProvider = Provider<ProviderRepository>((ref) {
   return ProviderRepository(ref.read(apiClientProvider), ref.read(realtimeSocketProvider));
 });
 
+const double demoProviderLat = 10.7769;
+const double demoProviderLng = 106.7009;
+
 class ProviderRepository {
   ProviderRepository(this._api, this._socket);
 
@@ -89,11 +92,35 @@ class ProviderRepository {
 
   Future<Map<String, double>> updateLocation({String? bookingId}) async {
     final position = await currentPosition();
-    final lat = position?.latitude ?? 10.7769;
-    final lng = position?.longitude ?? 106.7009;
+    final resolved = await resolveProviderLocation(position);
+    final lat = resolved['lat']!;
+    final lng = resolved['lng']!;
     await _api.postJson('/provider/location', {'lat': lat, 'lng': lng});
     _socket.updateLocation(lat: lat, lng: lng, bookingId: bookingId);
     return {'lat': lat, 'lng': lng};
+  }
+
+  Future<Map<String, double>> resolveProviderLocation(Position? position) async {
+    final lat = position?.latitude;
+    final lng = position?.longitude;
+    if (lat != null && lng != null && isVietnamCoordinate(lat, lng)) {
+      return {'lat': lat, 'lng': lng};
+    }
+
+    final me = await providerMe();
+    final profile = me['providerProfile'] as Map<String, dynamic>?;
+    final profileLat = (profile?['currentLat'] as num?)?.toDouble();
+    final profileLng = (profile?['currentLng'] as num?)?.toDouble();
+    if (profileLat != null && profileLng != null && isVietnamCoordinate(profileLat, profileLng)) {
+      return {'lat': profileLat, 'lng': profileLng};
+    }
+
+    return {'lat': demoProviderLat, 'lng': demoProviderLng};
+  }
+
+  Future<Map<String, dynamic>> providerMe() async {
+    final result = await _api.getJson('/provider/me');
+    return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
 
   Future<List<dynamic>> openBookings() async {
@@ -232,6 +259,10 @@ class ProviderRepository {
     final result = await _api.postJson('/provider/verification/submit', {'fileIds': fileIds});
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
+}
+
+bool isVietnamCoordinate(double lat, double lng) {
+  return lat >= 8.0 && lat <= 24.0 && lng >= 102.0 && lng <= 110.0;
 }
 
 class PushTokenRegistrationResult {
