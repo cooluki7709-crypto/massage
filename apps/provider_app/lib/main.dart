@@ -117,7 +117,13 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       if (!mounted) {
         return;
       }
-      setState(() => statusMessage = 'A booking request expired before a therapist was confirmed.');
+      final booking = payload is Map<String, dynamic> ? payload : const <String, dynamic>{};
+      final isCancelled = booking['status'] == 'CANCELLED';
+      setState(() {
+        statusMessage = isCancelled
+            ? 'The customer cancelled a request. It was removed from your active queue.'
+            : 'A booking request expired before a therapist was confirmed.';
+      });
       unawaited(loadOpenBookings(showLoading: false));
     });
   }
@@ -578,7 +584,7 @@ class RequestQueueSummary extends StatelessWidget {
             Expanded(
               child: RequestSummaryCard(
                 label: 'Queue',
-                value: '$totalRequests open',
+                value: '$totalRequests active',
                 tone: const Color(0xFFEAF2FF),
               ),
             ),
