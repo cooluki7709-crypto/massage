@@ -61,6 +61,42 @@ function Test-DirectoryWritable {
   }
 }
 
+function Test-TcpPort {
+  param(
+    [string]$Host,
+    [int]$Port
+  )
+
+  $client = New-Object System.Net.Sockets.TcpClient
+  try {
+    $async = $client.BeginConnect($Host, $Port, $null, $null)
+    if (-not $async.AsyncWaitHandle.WaitOne(1500, $false)) {
+      return $false
+    }
+    $client.EndConnect($async)
+    return $true
+  } catch {
+    return $false
+  } finally {
+    $client.Dispose()
+  }
+}
+
+function Test-LocalInfraReady {
+  $postgresReady = Test-TcpPort -Host "127.0.0.1" -Port 5432
+  $redisReady = Test-TcpPort -Host "127.0.0.1" -Port 6379
+  $minioReady = $false
+
+  try {
+    $response = Invoke-WebRequest -Uri "http://127.0.0.1:9000/minio/health/live" -UseBasicParsing -TimeoutSec 2
+    $minioReady = $response.StatusCode -ge 200 -and $response.StatusCode -lt 500
+  } catch {
+    $minioReady = $false
+  }
+
+  return $postgresReady -and $redisReady -and $minioReady
+}
+
 function Invoke-Check {
   param(
     [string]$Name,
@@ -191,7 +227,26 @@ if (Test-CommandExists "docker") {
   $global:LASTEXITCODE = 0
 
   if ($WithServices -and $dockerReady) {
-    Invoke-Check "docker compose up" "docker compose up -d"
+    Write-Host "Running: docker compose up"
+    $composeOutput = ""
+    try {
+      $composeOutput = (& docker compose up -d 2>&1 | Out-String).Trim()
+      if ($LASTEXITCODE -eq 0) {
+        Add-Result "docker compose up" "PASS" "docker compose up -d"
+      } elseif ($composeOutput -match "port is already allocated" -and (Test-LocalInfraReady)) {
+        Add-Result "docker compose up" "PASS" "docker compose up -d (reused existing local infra because compose ports were already allocated)"
+      } else {
+        Add-Result "docker compose up" "FAIL" "Exit code $LASTEXITCODE - docker compose up -d`n$composeOutput"
+      }
+    } catch {
+      if (Test-LocalInfraReady) {
+        Add-Result "docker compose up" "PASS" "docker compose up -d (reused existing local infra after compose startup warning)"
+      } else {
+        Add-Result "docker compose up" "FAIL" $_.Exception.Message
+      }
+    } finally {
+      $global:LASTEXITCODE = 0
+    }
     Invoke-Check "prisma migrate deploy" "`$env:DATABASE_URL='postgresql://massage:massage@localhost:5432/massage_vn?schema=public'; npx.cmd prisma migrate deploy --schema apps/api/prisma/schema.prisma"
     Invoke-Check "prisma seed" "`$env:DATABASE_URL='postgresql://massage:massage@localhost:5432/massage_vn?schema=public'; npm.cmd run prisma:seed --workspace @massage-vn/api"
 
