@@ -1847,8 +1847,8 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                               badgeLabel: 'Chosen first',
                               detail: 'This therapist is getting the first confirmation window for your request.',
                               subtitle: fallbackCount == 0
-                                  ? 'Checking availability • ${formatRemainingTime(expiresAt)} remaining'
-                                  : 'Checking availability • ${formatRemainingTime(expiresAt)} remaining before backup options open',
+                                  ? 'Checking availability ??${formatRemainingTime(expiresAt)} remaining'
+                                  : 'Checking availability ??${formatRemainingTime(expiresAt)} remaining before backup options open',
                             ),
                             const SizedBox(height: 16),
                           ],
@@ -2126,15 +2126,15 @@ class WaitingStagePanel extends StatelessWidget {
             ? 'Nearby therapists are being checked now.'
             : '$preferredProviderName gets the first response window before backup therapists are invited in.',
         accent: const Color(0xFF5E8E4A),
-        caption: preferredProviderName == null ? 'Stage 1' : 'Stage 1 · direct request',
+        caption: preferredProviderName == null ? 'Stage 1' : 'Stage 1 - direct request',
       ),
       WaitingStageItem(
         title: fallbackCount == 0 ? 'No backup yet' : '$fallbackCount backup option(s) ready',
         body: fallbackCount == 0
-            ? 'If the first therapist is slow, backup therapists can join this request.'
+            ? 'If the chosen therapist is slow, backup therapists can join this request.'
             : 'You can switch to another available therapist below without restarting the booking.',
         accent: const Color(0xFFB9852F),
-        caption: fallbackCount == 0 ? 'Stage 2 · standby' : 'Stage 2 · alternatives ready',
+        caption: fallbackCount == 0 ? 'Stage 2 - standby' : 'Stage 2 - alternatives ready',
       ),
       WaitingStageItem(
         title: status == 'MATCHED' ? 'Confirmed' : 'Auto-close timer',
@@ -2142,7 +2142,7 @@ class WaitingStagePanel extends StatelessWidget {
             ? 'The therapist is confirmed. Next step is service start and chat.'
             : 'This request closes automatically at ${formatExpiry(expiresAt)} if no therapist is selected.',
         accent: const Color(0xFF2563EB),
-        caption: status == 'MATCHED' ? 'Stage 3 · locked in' : 'Stage 3 · timeout protection',
+        caption: status == 'MATCHED' ? 'Stage 3 - locked in' : 'Stage 3 - timeout protection',
       ),
     ];
 
@@ -2826,7 +2826,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           FilledButton.icon(
             onPressed: loading ? null : signInAndLoadChat,
             icon: const Icon(Icons.chat_bubble_outline),
-            label: Text(chatRoomId == null ? 'Load latest chat' : 'Refresh chat'),
+            label: Text(chatRoomId == null ? 'Open latest chat' : 'Refresh chat'),
           ),
           if (loading) ...[
             const SizedBox(height: 12),
@@ -2847,7 +2847,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             Text('Room $chatRoomId', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             if (messages.isEmpty)
-              const EmptyPanel(text: 'No messages yet.')
+              const EmptyPanel(text: 'No messages yet. Send the first message when you are ready.')
             else
               for (final message in messages)
                 MessageTile(message: message as Map<String, dynamic>),
@@ -3301,3 +3301,5 @@ String formatRemainingTime(String? isoValue) {
   }
   return '${difference.inMinutes}m left';
 }
+
+

@@ -781,7 +781,11 @@ class OpenBookingCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               isPreferredRequest
-                  ? 'The customer picked your profile first and is waiting for your response.'
+                  ? (hasChat
+                      ? 'The customer picked your profile first and the service chat is now live.'
+                      : isMatched
+                          ? 'The customer picked your profile first and is waiting for you to start the service.'
+                          : 'The customer picked your profile first and is waiting for your response.')
                   : hasPreferredProvider
                       ? 'Another therapist was chosen first. You can still join as an alternative option.'
                       : 'This request is open to nearby therapists. The customer will pick the final provider.',
@@ -799,7 +803,11 @@ class OpenBookingCard extends StatelessWidget {
               ),
               child: Text(
                 isPreferredRequest
-                    ? 'You are the first therapist this guest chose. A quick reply protects the booking.'
+                    ? (hasChat
+                        ? 'You were chosen first and the service chat is already live.'
+                        : isMatched
+                            ? 'You were chosen first. Start service when you are ready to move this booking into chat.'
+                            : 'You are the first therapist this guest chose. A quick reply protects the booking.')
                     : hasPreferredProvider
                         ? 'The guest is still waiting on ${preferredProviderName ?? 'the preferred therapist'}. Join now to appear as a backup option.'
                         : 'No preferred therapist was set. Nearby therapists can join and wait for the guest selection.',
