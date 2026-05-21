@@ -528,7 +528,10 @@ class ProviderDetailPage extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final detail = snapshot.data ?? providerPreview;
+          final detail = <String, dynamic>{
+            ...providerPreview,
+            ...(snapshot.data ?? const <String, dynamic>{}),
+          };
           final reviews = detail['reviews'] is List<dynamic> ? detail['reviews'] as List<dynamic> : [];
           final services = detail['services'] is List<dynamic> ? detail['services'] as List<dynamic> : [];
           final displayName = detail['displayName'] as String? ?? 'Provider';
