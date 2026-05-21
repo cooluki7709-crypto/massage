@@ -123,6 +123,10 @@ export function BookingMonitor({ bookings }: Props) {
                     {booking.selectedProvider?.user?.phone ? `Preferred phone ${booking.selectedProvider.user.phone}` : 'Preferred provider not set'}
                   </div>
                   <div className="participant-list" style={{ marginTop: 8 }}>
+                    <span className={`pill ${selectionToneClass(booking)}`}>{selectionLabel(booking)}</span>
+                    {booking.chatRoom && <span className="pill pill-success">Chat ready</span>}
+                  </div>
+                  <div className="participant-list" style={{ marginTop: 8 }}>
                     {booking.selectedProvider && (
                       <span className="pill" style={{ background: '#eef6e8', borderColor: '#b9d4a8' }}>
                         Preferred: {booking.selectedProvider.displayName ?? 'Provider'}
@@ -135,6 +139,11 @@ export function BookingMonitor({ bookings }: Props) {
                       </span>
                     ))}
                   </div>
+                  {fallbackParticipants(booking).length > 4 && (
+                    <div className="muted" style={{ marginTop: 6 }}>
+                      +{fallbackParticipants(booking).length - 4} more backup therapist(s)
+                    </div>
+                  )}
                 </td>
                 <td>
                   {booking.payment?.status ?? 'NONE'}
@@ -198,7 +207,7 @@ function nextAction(booking: AdminBooking) {
     return 'Customer can keep waiting or switch to a backup therapist.';
   }
   if (booking.status === 'MATCHED') {
-    return 'Check chat creation, route tracking, and provider departure.';
+    return 'Customer selection is locked. Check chat creation, route tracking, and provider departure.';
   }
   if (booking.status === 'PROVIDER_ON_THE_WAY') {
     return 'Monitor live location and arrival progress.';
@@ -242,4 +251,44 @@ function fallbackParticipants(booking: AdminBooking) {
       participant.providerProfile?.id &&
       participant.providerProfile.id !== preferredId,
   );
+}
+
+function selectionLabel(booking: AdminBooking) {
+  if (!booking.selectedProvider) {
+    return 'No preferred therapist';
+  }
+
+  if (booking.status === 'OPEN_MATCHING' && !isSelectedProviderParticipant(booking)) {
+    return 'Preferred therapist pending';
+  }
+
+  if (booking.status === 'MATCHED') {
+    return 'Final therapist selected';
+  }
+
+  if (isSelectedProviderParticipant(booking)) {
+    return 'Preferred therapist is active';
+  }
+
+  return 'Preferred therapist requested';
+}
+
+function selectionToneClass(booking: AdminBooking) {
+  if (!booking.selectedProvider) {
+    return 'pill-neutral';
+  }
+
+  if (booking.status === 'OPEN_MATCHING' && !isSelectedProviderParticipant(booking)) {
+    return 'pill-warn';
+  }
+
+  if (booking.status === 'MATCHED') {
+    return 'pill-success';
+  }
+
+  if (isSelectedProviderParticipant(booking)) {
+    return 'pill-success';
+  }
+
+  return 'pill-neutral';
 }
