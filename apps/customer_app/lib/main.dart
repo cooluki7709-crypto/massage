@@ -1148,6 +1148,10 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
       setState(() {
         appliedCouponCode = preview['code'] as String?;
         couponDiscountAmount = asNum(preview['discountAmount'])?.toInt() ?? 0;
+        if (appliedCouponCode != null) {
+          couponController.text = appliedCouponCode!;
+          couponController.selection = TextSelection.collapsed(offset: couponController.text.length);
+        }
         final description = preview['description'] as String?;
         couponMessage = description == null || description.isEmpty
             ? 'Coupon applied successfully.'
@@ -1178,7 +1182,9 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
     final basePrice = asNum(service['basePrice'])?.toInt() ?? 0;
     final platformFee = 0;
     final serviceCount = 1;
-    final totalAmount = basePrice + platformFee - couponDiscountAmount;
+    final rawTotalAmount = basePrice + platformFee - couponDiscountAmount;
+    final totalAmount = rawTotalAmount < 0 ? 0 : rawTotalAmount;
+    final couponApplied = appliedCouponCode != null && couponDiscountAmount > 0;
     final customerPoint = customerLat == null || customerLng == null ? null : LatLng(customerLat!, customerLng!);
     final providerPoint = deriveProviderLatLng(provider);
     return Scaffold(
@@ -1380,6 +1386,35 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                       ),
                     ),
                   ],
+                  if (couponApplied) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F8E9),
+                        border: Border.all(color: const Color(0xFFCBE7BB)),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Discount applied',
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  color: const Color(0xFF3F6F2D),
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '$appliedCouponCode saves ${formatCurrency(couponDiscountAmount)} VND. Final cash amount is ${formatCurrency(totalAmount)} VND.',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF3F6F2D)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1503,9 +1538,17 @@ class BookingSummaryRow extends StatelessWidget {
             );
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(child: Text(label, style: labelStyle)),
-        Text(value, style: valueStyle),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            style: valueStyle,
+            textAlign: TextAlign.right,
+          ),
+        ),
       ],
     );
   }
