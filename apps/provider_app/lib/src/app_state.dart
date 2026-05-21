@@ -4,12 +4,15 @@ import 'package:geolocator/geolocator.dart';
 import 'core/api_client.dart';
 import 'core/providers.dart';
 import 'core/realtime_socket.dart';
+import 'features/booking/domain/repositories/provider_booking_repository.dart';
+import 'features/booking/presentation/providers/booking_providers.dart';
 import 'features/map/data/datasources/provider_device_location_datasource.dart';
 import 'features/map/domain/services/provider_location_heartbeat.dart';
 import 'features/map/presentation/providers/map_providers.dart';
 
 export 'core/providers.dart';
 export 'features/auth/presentation/providers/auth_providers.dart';
+export 'features/booking/presentation/providers/booking_providers.dart';
 export 'features/map/presentation/providers/map_providers.dart';
 
 final providerRepositoryProvider = Provider<ProviderRepository>((ref) {
@@ -17,6 +20,7 @@ final providerRepositoryProvider = Provider<ProviderRepository>((ref) {
     ref.read(apiClientProvider),
     ref.read(realtimeSocketProvider),
     ref.read(providerDeviceLocationDataSourceProvider),
+    ref.read(providerBookingRepositoryProvider),
   );
 });
 
@@ -33,11 +37,13 @@ const double demoProviderLat = 10.7769;
 const double demoProviderLng = 106.7009;
 
 class ProviderRepository {
-  ProviderRepository(this._api, this._socket, this._locationDataSource);
+  ProviderRepository(this._api, this._socket, this._locationDataSource,
+      this._bookingRepository);
 
   final ApiClient _api;
   final RealtimeSocket _socket;
   final ProviderDeviceLocationDataSource _locationDataSource;
+  final ProviderBookingRepository _bookingRepository;
 
   Future<void> goOnline() async {
     await _api.postJson('/provider/online', {});
@@ -85,71 +91,31 @@ class ProviderRepository {
   }
 
   Future<List<dynamic>> openBookings() async {
-    final result = await _api.getJson('/provider/bookings/open');
-    return result is List<dynamic> ? result : [];
+    return _bookingRepository.openBookings();
   }
 
   Future<List<dynamic>> listBookings() async {
-    final result = await _api.getJson('/provider/bookings');
-    return result is List<dynamic> ? result : [];
+    return _bookingRepository.listBookings();
   }
 
   Future<List<dynamic>> requestBookings() async {
-    final openItems = await openBookings();
-    final ownItems = await listBookings();
-    final merged = <String, Map<String, dynamic>>{};
-
-    for (final item in [...openItems, ...ownItems]) {
-      if (item is Map<String, dynamic>) {
-        final id = item['id'] as String?;
-        if (id != null) {
-          merged[id] = item;
-        }
-      }
-    }
-
-    const activeStatuses = {
-      'OPEN_MATCHING',
-      'MATCHED',
-      'PROVIDER_ON_THE_WAY',
-      'ARRIVED',
-      'IN_SERVICE',
-    };
-    return merged.values
-        .where((booking) => activeStatuses.contains(booking['status']))
-        .toList()
-      ..sort((left, right) {
-        final leftValue =
-            (left['openedAt'] ?? left['createdAt'] ?? '') as String;
-        final rightValue =
-            (right['openedAt'] ?? right['createdAt'] ?? '') as String;
-        return rightValue.compareTo(leftValue);
-      });
+    return _bookingRepository.requestBookings();
   }
 
   Future<Map<String, dynamic>> joinBooking(String bookingId) async {
-    final result = await _api.postJson('/provider/bookings/$bookingId/join', {})
-        as Map<String, dynamic>;
-    _socket.joinBooking(bookingId);
-    return result;
+    return _bookingRepository.joinBooking(bookingId);
   }
 
   Future<Map<String, dynamic>> acceptBooking(String bookingId) async {
-    final result =
-        await _api.postJson('/provider/bookings/$bookingId/accept', {});
-    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+    return _bookingRepository.acceptBooking(bookingId);
   }
 
   Future<Map<String, dynamic>> rejectBooking(String bookingId) async {
-    final result =
-        await _api.postJson('/provider/bookings/$bookingId/reject', {});
-    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+    return _bookingRepository.rejectBooking(bookingId);
   }
 
   Future<Map<String, dynamic>> startBooking(String bookingId) async {
-    final result =
-        await _api.postJson('/provider/bookings/$bookingId/start', {});
-    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+    return _bookingRepository.startBooking(bookingId);
   }
 
   Future<List<dynamic>> listChatMessages(String chatRoomId) async {

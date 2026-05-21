@@ -3,21 +3,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/api_client.dart';
 import 'core/providers.dart';
 import 'core/realtime_socket.dart';
+import 'features/booking/domain/repositories/customer_booking_repository.dart';
+import 'features/booking/presentation/providers/booking_providers.dart';
 
 export 'core/providers.dart';
 export 'features/auth/presentation/providers/auth_providers.dart';
+export 'features/booking/presentation/providers/booking_providers.dart';
 export 'features/map/presentation/providers/map_providers.dart';
 
 final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
   return CustomerRepository(
-      ref.read(apiClientProvider), ref.read(realtimeSocketProvider));
+    ref.read(apiClientProvider),
+    ref.read(realtimeSocketProvider),
+    ref.read(customerBookingRepositoryProvider),
+  );
 });
 
 class CustomerRepository {
-  CustomerRepository(this._api, this._socket);
+  CustomerRepository(this._api, this._socket, this._bookingRepository);
 
   final ApiClient _api;
   final RealtimeSocket _socket;
+  final CustomerBookingRepository _bookingRepository;
 
   Future<List<dynamic>> listServices() async {
     final result = await _api.getJson('/services');
@@ -51,23 +58,19 @@ class CustomerRepository {
   }
 
   Future<Map<String, dynamic>> getBooking(String bookingId) async {
-    final result = await _api.getJson('/customer/bookings/$bookingId');
-    return result as Map<String, dynamic>;
+    return _bookingRepository.getBooking(bookingId);
   }
 
   Future<List<dynamic>> listBookings() async {
-    final result = await _api.getJson('/customer/bookings');
-    return result is List<dynamic> ? result : [];
+    return _bookingRepository.listBookings();
   }
 
   void joinBookingRoom(String bookingId) {
-    _socket.joinBooking(bookingId);
+    _bookingRepository.joinBookingRoom(bookingId);
   }
 
   Future<Map<String, dynamic>> cancelBooking(String bookingId) async {
-    final result =
-        await _api.postJson('/customer/bookings/$bookingId/cancel', {});
-    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+    return _bookingRepository.cancelBooking(bookingId);
   }
 
   Future<Map<String, dynamic>> createBooking(
@@ -80,33 +83,21 @@ class CustomerRepository {
     required double lat,
     required double lng,
   }) async {
-    final result = await _api.postJson('/customer/bookings', {
-      'serviceId': serviceId,
-      if (providerId != null) 'providerId': providerId,
-      if (couponCode != null && couponCode.trim().isNotEmpty)
-        'couponCode': couponCode.trim().toUpperCase(),
-      'scheduledStartAt':
-          DateTime.now().add(const Duration(hours: 1)).toIso8601String(),
-      'address': {
-        'name': customerName,
-        'phone': customerPhone,
-        'line1': addressLine,
-      },
-      'lat': lat,
-      'lng': lng,
-      'paymentMethod': 'CASH',
-    });
-    final bookingId = result['id'] as String;
-    _socket.joinBooking(bookingId);
-    return getBooking(bookingId);
+    return _bookingRepository.createBooking(
+      serviceId,
+      providerId: providerId,
+      couponCode: couponCode,
+      customerName: customerName,
+      customerPhone: customerPhone,
+      addressLine: addressLine,
+      lat: lat,
+      lng: lng,
+    );
   }
 
   Future<Map<String, dynamic>> selectProvider(
       String bookingId, String providerProfileId) async {
-    final result = await _api.postJson(
-        '/customer/bookings/$bookingId/select-provider',
-        {'providerId': providerProfileId});
-    return result as Map<String, dynamic>;
+    return _bookingRepository.selectProvider(bookingId, providerProfileId);
   }
 
   Future<List<dynamic>> listChatMessages(String chatRoomId) async {
