@@ -1350,7 +1350,7 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
             padding: const EdgeInsets.symmetric(vertical: 18),
           ),
           child: Text(
-            submitting ? 'Creating booking...' : 'Book now · ${formatCurrency(totalAmount)} VND',
+            submitting ? 'Creating booking...' : 'Book now - ${formatCurrency(totalAmount)} VND',
           ),
         ),
       ),
@@ -1685,7 +1685,7 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                           const SizedBox(height: 12),
                           if (service != null)
                             Text(
-                              '${service['name']} • ${service['durationMin']} min • ${formatCurrency(service['basePrice'])} VND',
+                              '${service['name']} - ${service['durationMin']} min - ${formatCurrency(service['basePrice'])} VND',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                           const SizedBox(height: 16),
@@ -1753,9 +1753,11 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                             const SizedBox(height: 12),
                             TherapistDisplayCard(
                               provider: preferredProvider,
+                              badgeLabel: 'Preferred',
+                              detail: 'This therapist gets the first response window for your request.',
                               subtitle: fallbackCount == 0
-                                  ? 'Checking availability • ${formatRemainingTime(expiresAt)} left'
-                                  : 'Checking availability • ${formatRemainingTime(expiresAt)} left before you may switch',
+                                  ? 'Checking availability - ${formatRemainingTime(expiresAt)} left'
+                                  : 'Checking availability - ${formatRemainingTime(expiresAt)} left before you may switch',
                             ),
                             const SizedBox(height: 16),
                           ],
@@ -1775,7 +1777,11 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                           ] else if (finalizedProvider != null) ...[
                             Text('Selected therapist', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 12),
-                            TherapistDisplayCard(provider: finalizedProvider),
+                            TherapistDisplayCard(
+                              provider: finalizedProvider,
+                              badgeLabel: 'Final',
+                              detail: 'Your booking is locked to this therapist now.',
+                            ),
                           ] else ...[
                             const EmptyPanel(text: 'Waiting for a provider response. Other available therapists can appear here later.'),
                           ],
@@ -1812,20 +1818,58 @@ class TherapistSelectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = participant['providerProfile'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final distance = formatDistance(provider['distanceMeters'] as num?);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 84),
-        title: Text(provider['displayName'] as String? ?? 'Provider'),
-        subtitle: Text('${participant['status'] ?? 'JOINED'} • ${formatDistance(provider['distanceMeters'] as num?)}'),
-        trailing: FilledButton(
-          onPressed: onSelect,
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF5E8E4A),
-            foregroundColor: Colors.white,
-          ),
-          child: const Text('Select'),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 84),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          provider['displayName'] as String? ?? 'Provider',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      const TherapistRoleTag(
+                        label: 'Backup ready',
+                        backgroundColor: Color(0xFFF8ECD4),
+                        foregroundColor: Color(0xFF8A5B12),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${participant['status'] ?? 'JOINED'} - $distance',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'This therapist can replace your preferred therapist if you want to switch.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton(
+              onPressed: onSelect,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF5E8E4A),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Select backup'),
+            ),
+          ],
         ),
       ),
     );
@@ -1837,24 +1881,94 @@ class TherapistDisplayCard extends StatelessWidget {
     super.key,
     required this.provider,
     this.subtitle = 'Ready for confirmation / service delivery',
+    this.detail,
+    this.badgeLabel,
   });
 
   final Map<String, dynamic> provider;
   final String subtitle;
+  final String? detail;
+  final String? badgeLabel;
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 84),
-        title: Text(provider['displayName'] as String? ?? 'Provider'),
-        subtitle: Text(subtitle),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 84),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          provider['displayName'] as String? ?? 'Provider',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      if (badgeLabel != null)
+                        TherapistRoleTag(
+                          label: badgeLabel!,
+                          backgroundColor: badgeLabel == 'Final' ? const Color(0xFFE8F4E3) : const Color(0xFFE7F2DE),
+                          foregroundColor: badgeLabel == 'Final' ? const Color(0xFF2E6A2B) : const Color(0xFF446B2A),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(subtitle),
+                  if (detail != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      detail!,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+class TherapistRoleTag extends StatelessWidget {
+  const TherapistRoleTag({
+    super.key,
+    required this.label,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
+
+  final String label;
+  final Color backgroundColor;
+  final Color foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: foregroundColor,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
 class WaitingStatCard extends StatelessWidget {
   const WaitingStatCard({
     super.key,
@@ -2284,7 +2398,7 @@ class ProvidersScreen extends ConsumerWidget {
       },
       labelBuilder: (provider) {
         final item = provider as Map<String, dynamic>;
-        return '${item['displayName'] ?? 'Provider'} • ${formatDistance(item['distanceMeters'] as num?)}';
+        return '${item['displayName'] ?? 'Provider'} - ${formatDistance(item['distanceMeters'] as num?)}';
       },
     );
   }
@@ -2305,7 +2419,7 @@ class BookingsScreen extends ConsumerWidget {
       labelBuilder: (booking) {
         final item = booking as Map<String, dynamic>;
         final service = firstBookingService(item);
-        return '${service?['name'] ?? 'Booking'} • ${item['status']}';
+        return '${service?['name'] ?? 'Booking'} - ${item['status']}';
       },
     );
   }
