@@ -1602,10 +1602,12 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
     final status = currentBooking?['status'] as String? ?? 'OPEN_MATCHING';
     final preferredProvider = status == 'OPEN_MATCHING' ? preferredProviderData : null;
     final finalizedProvider = status == 'OPEN_MATCHING' ? null : selectedProvider;
-    final alternativeParticipants = participants
-        .whereType<Map<String, dynamic>>()
-        .where((item) => item['providerProfileId'] != preferredProvider?['id'])
-        .toList();
+    final alternativeParticipants = status == 'OPEN_MATCHING'
+        ? participants
+            .whereType<Map<String, dynamic>>()
+            .where((item) => item['providerProfileId'] != preferredProvider?['id'])
+            .toList()
+        : <Map<String, dynamic>>[];
     final expiresAt = currentBooking?['expiresAt'] as String?;
     final fallbackCount = alternativeParticipants.length;
     final customerPoint = deriveBookingLatLng(currentBooking);
@@ -1764,8 +1766,8 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                               badgeLabel: 'Preferred',
                               detail: 'This therapist gets the first response window for your request.',
                               subtitle: fallbackCount == 0
-                                  ? 'Checking availability - ${formatRemainingTime(expiresAt)} left'
-                                  : 'Checking availability - ${formatRemainingTime(expiresAt)} left before you may switch',
+                                  ? 'Checking availability - ${formatRemainingTime(expiresAt)}'
+                                  : 'Checking availability - ${formatRemainingTime(expiresAt)} before you may switch',
                             ),
                             const SizedBox(height: 16),
                           ],
@@ -1826,56 +1828,68 @@ class TherapistSelectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = participant['providerProfile'] as Map<String, dynamic>? ?? <String, dynamic>{};
-    final distance = formatDistance(asDouble(provider['distanceMeters']));
+    final distance = formatDistance(asDouble(participant['distanceMeters']));
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 84),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ProviderThumbnail(name: provider['displayName'] as String? ?? 'Provider', size: 84),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          provider['displayName'] as String? ?? 'Provider',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              provider['displayName'] as String? ?? 'Provider',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const TherapistRoleTag(
+                            label: 'Backup ready',
+                            backgroundColor: Color(0xFFF8ECD4),
+                            foregroundColor: Color(0xFF8A5B12),
+                          ),
+                        ],
                       ),
-                      const TherapistRoleTag(
-                        label: 'Backup ready',
-                        backgroundColor: Color(0xFFF8ECD4),
-                        foregroundColor: Color(0xFF8A5B12),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${participant['status'] ?? 'JOINED'} - $distance',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'This therapist can replace your preferred therapist if you want to switch.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${participant['status'] ?? 'JOINED'} - $distance',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'This therapist can replace your preferred therapist if you want to switch.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            FilledButton(
-              onPressed: onSelect,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF5E8E4A),
-                foregroundColor: Colors.white,
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: onSelect,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF5E8E4A),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Select backup'),
               ),
-              child: const Text('Select backup'),
             ),
           ],
         ),

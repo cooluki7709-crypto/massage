@@ -995,8 +995,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() {
       chatRoomId = roomId;
       bookingId = booking?['id'] as String?;
-      customerLat = (booking?['lat'] as num?)?.toDouble();
-      customerLng = (booking?['lng'] as num?)?.toDouble();
+      customerLat = asNum(booking?['lat'])?.toDouble();
+      customerLng = asNum(booking?['lng'])?.toDouble();
       messages = loadedMessages;
       statusMessage = 'Chat room loaded for booking ${booking?['id']}.';
     });
@@ -1527,7 +1527,7 @@ class ProviderMvpScreen extends StatelessWidget {
 }
 
 String formatCurrency(dynamic amount) {
-  final number = (amount as num?)?.toInt() ?? 0;
+  final number = asNum(amount)?.toInt() ?? 0;
   final text = number.toString();
   final buffer = StringBuffer();
 
@@ -1540,6 +1540,19 @@ String formatCurrency(dynamic amount) {
   }
 
   return buffer.toString();
+}
+
+num? asNum(dynamic value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is num) {
+    return value;
+  }
+  if (value is String) {
+    return num.tryParse(value);
+  }
+  return null;
 }
 
 class InfoCard extends StatelessWidget {

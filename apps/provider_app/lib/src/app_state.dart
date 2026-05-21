@@ -109,8 +109,8 @@ class ProviderRepository {
 
     final me = await providerMe();
     final profile = me['providerProfile'] as Map<String, dynamic>?;
-    final profileLat = (profile?['currentLat'] as num?)?.toDouble();
-    final profileLng = (profile?['currentLng'] as num?)?.toDouble();
+    final profileLat = asNum(profile?['currentLat'])?.toDouble();
+    final profileLng = asNum(profile?['currentLng'])?.toDouble();
     if (profileLat != null && profileLng != null && isVietnamCoordinate(profileLat, profileLng)) {
       return {'lat': profileLat, 'lng': profileLng};
     }
@@ -263,6 +263,19 @@ class ProviderRepository {
 
 bool isVietnamCoordinate(double lat, double lng) {
   return lat >= 8.0 && lat <= 24.0 && lng >= 102.0 && lng <= 110.0;
+}
+
+num? asNum(dynamic value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is num) {
+    return value;
+  }
+  if (value is String) {
+    return num.tryParse(value);
+  }
+  return null;
 }
 
 class PushTokenRegistrationResult {
