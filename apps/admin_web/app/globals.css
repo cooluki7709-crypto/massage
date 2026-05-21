@@ -287,9 +287,67 @@ a {
   color: #92400e;
 }
 
+.pill-danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .pill-neutral {
   background: #f1f5f9;
   color: #334155;
+}
+
+.risk-watch-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.risk-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.risk-item {
+  border: 1px solid #e2e8f0;
+  border-left-width: 4px;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.8fr);
+  padding: 14px;
+}
+
+.risk-item strong {
+  display: block;
+  margin-top: 8px;
+}
+
+.risk-item > p {
+  align-self: center;
+  color: #0f172a;
+  font-weight: 700;
+  margin: 0;
+}
+
+.risk-high {
+  background: #fff7f7;
+  border-color: #fecaca;
+  border-left-color: #dc2626;
+}
+
+.risk-medium {
+  background: #fffbeb;
+  border-color: #fde68a;
+  border-left-color: #f59e0b;
+}
+
+.risk-low {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  border-left-color: #2563eb;
 }
 
 button,
@@ -349,5 +407,11 @@ button:disabled {
 
   .ops-command-center .actions {
     justify-content: flex-start;
+  }
+
+  .risk-watch-header,
+  .risk-item {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }

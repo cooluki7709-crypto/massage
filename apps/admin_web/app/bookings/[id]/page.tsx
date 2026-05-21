@@ -22,6 +22,8 @@ export default async function BookingDetailPage({ params }: PageProps) {
   const finalProvider = booking.selectedProvider ?? booking.preferredProvider;
   const latestLocation = latestProviderLocation(booking);
   const addressLine = addressLabel(booking.address);
+  const riskFlags = bookingRiskFlags(booking);
+  const riskSummary = riskLevel(riskFlags);
 
   return (
     <>
@@ -56,6 +58,7 @@ export default async function BookingDetailPage({ params }: PageProps) {
         <MetricCard label="Payment" value={booking.payment?.status ?? 'NONE'} helper={paymentHint(booking)} />
         <MetricCard label="Providers" value={`${booking.participants?.length ?? 0} joined`} helper={providerHint(booking)} />
         <MetricCard label="Chat" value={booking.chatRoom ? 'Ready' : 'Not ready'} helper={`${messages.length} message(s)`} />
+        <MetricCard label="Risk" value={riskSummary.label} helper={riskSummary.helper} />
       </section>
 
       <section className="card ops-command-center" style={{ marginBottom: 16 }}>
@@ -106,6 +109,25 @@ export default async function BookingDetailPage({ params }: PageProps) {
             <span className="muted">No payment action available.</span>
           )}
         </div>
+      </section>
+
+      <section className="card risk-watch" style={{ marginBottom: 16 }}>
+        <div className="risk-watch-header">
+          <div>
+            <h2>Risk watch</h2>
+            <p className="muted">Automatic checks for bookings that need operator attention.</p>
+          </div>
+          <span className={`pill ${riskSummary.tone}`}>{riskSummary.label}</span>
+        </div>
+        {riskFlags.length > 0 ? (
+          <div className="risk-list">
+            {riskFlags.map((flag) => (
+              <RiskItem flag={flag} key={`${flag.severity}-${flag.title}`} />
+            ))}
+          </div>
+        ) : (
+          <p className="muted">No active risk flags. Continue normal monitoring from the timeline.</p>
+        )}
       </section>
 
       <section className="detail-grid">
@@ -275,6 +297,26 @@ function PaymentAction({
   );
 }
 
+type RiskFlag = {
+  severity: 'high' | 'medium' | 'low';
+  title: string;
+  detail: string;
+  action: string;
+};
+
+function RiskItem({ flag }: { flag: RiskFlag }) {
+  return (
+    <div className={`risk-item risk-${flag.severity}`}>
+      <div>
+        <span className={`pill ${riskToneClass(flag.severity)}`}>{flag.severity}</span>
+        <strong>{flag.title}</strong>
+        <p className="muted">{flag.detail}</p>
+      </div>
+      <p>{flag.action}</p>
+    </div>
+  );
+}
+
 function primaryOpsInstruction(booking: AdminBookingDetail) {
   if (booking.status === 'CANCELLED') {
     return booking.payment?.status === 'RELEASED'
@@ -301,6 +343,12 @@ function primaryOpsInstruction(booking: AdminBookingDetail) {
 
 function opsBadges(booking: AdminBookingDetail) {
   const badges = [];
+  const flags = bookingRiskFlags(booking);
+  if (flags.some((flag) => flag.severity === 'high')) {
+    badges.push({ label: 'High risk', tone: 'pill-danger' });
+  } else if (flags.some((flag) => flag.severity === 'medium')) {
+    badges.push({ label: 'Needs watch', tone: 'pill-warn' });
+  }
   if (booking.payment?.status === 'AUTHORIZED') {
     badges.push({ label: 'Hold active', tone: 'pill-warn' });
   }
@@ -326,6 +374,132 @@ function opsBadges(booking: AdminBookingDetail) {
     badges.push({ label: 'Monitor', tone: 'pill-neutral' });
   }
   return badges;
+}
+
+function bookingRiskFlags(booking: AdminBookingDetail): RiskFlag[] {
+  const flags: RiskFlag[] = [];
+  const paymentStatus = booking.payment?.status;
+  const status = booking.status;
+  const participantCount = booking.participants?.length ?? 0;
+  const messages = booking.chatRoom?.messages ?? [];
+  const openedAge = minutesSince(booking.openedAt ?? booking.createdAt);
+  const expired = booking.expiresAt ? new Date(booking.expiresAt).getTime() < Date.now() : false;
+  const activeWithLocationNeed = ['PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE'].includes(status);
+
+  if (status === 'CANCELLED' && booking.payment && !['RELEASED', 'REFUNDED'].includes(paymentStatus ?? '')) {
+    flags.push({
+      severity: 'high',
+      title: 'Cancelled payment unresolved',
+      detail: `Booking is cancelled but payment is still ${paymentStatus}.`,
+      action: 'Release the authorization or refund before closing the ticket.',
+    });
+  }
+
+  if (status === 'COMPLETED' && paymentStatus === 'AUTHORIZED') {
+    flags.push({
+      severity: 'high',
+      title: 'Completed service still on hold',
+      detail: 'The customer payment is authorized but not captured after completion.',
+      action: 'Capture payment, or refund if there is an active dispute.',
+    });
+  }
+
+  if (status === 'OPEN_MATCHING' && expired) {
+    flags.push({
+      severity: 'high',
+      title: 'Matching window expired',
+      detail: `The request expired at ${formatDate(booking.expiresAt)} but is still open.`,
+      action: 'Expire the booking and release or refund the payment hold.',
+    });
+  }
+
+  if (status === 'OPEN_MATCHING' && booking.preferredProvider && participantCount === 0 && openedAge !== null && openedAge >= 10) {
+    flags.push({
+      severity: 'medium',
+      title: 'Preferred provider slow',
+      detail: `${providerName(booking.preferredProvider)} has not responded after ${openedAge} minute(s).`,
+      action: 'Encourage backup supply or contact the provider.',
+    });
+  }
+
+  if (status === 'OPEN_MATCHING' && participantCount === 0) {
+    flags.push({
+      severity: 'medium',
+      title: 'No provider supply',
+      detail: 'No provider has joined the request yet.',
+      action: 'Watch nearby online providers and consider operational outreach.',
+    });
+  }
+
+  if (status === 'MATCHED' && !booking.chatRoom) {
+    flags.push({
+      severity: 'high',
+      title: 'Matched without chat',
+      detail: 'A provider is selected but no chat room exists.',
+      action: 'Retry chat room creation before the service starts.',
+    });
+  }
+
+  if (activeWithLocationNeed && !latestProviderLocation(booking)) {
+    flags.push({
+      severity: 'medium',
+      title: 'No provider location signal',
+      detail: `Booking is ${status}, but the provider has not shared a live pin.`,
+      action: 'Ask the provider to share current location from the Provider app.',
+    });
+  }
+
+  if (booking.chatRoom && messages.length === 0 && ['MATCHED', 'PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE'].includes(status)) {
+    flags.push({
+      severity: 'low',
+      title: 'Chat quiet',
+      detail: 'Chat is ready but no messages have been exchanged.',
+      action: 'Monitor for first contact if the customer reports uncertainty.',
+    });
+  }
+
+  if (paymentStatus === 'AUTHORIZED' && !booking.payment?.providerRef) {
+    flags.push({
+      severity: 'medium',
+      title: 'Payment reference missing',
+      detail: 'The payment is authorized but has no provider reference for gateway reconciliation.',
+      action: 'Sync payment before capture, release, or refund.',
+    });
+  }
+
+  if ((booking.refunds?.length ?? 0) > 0 && paymentStatus && paymentStatus !== 'REFUNDED') {
+    flags.push({
+      severity: 'medium',
+      title: 'Refund/payment mismatch',
+      detail: `Refund records exist while payment status is ${paymentStatus}.`,
+      action: 'Review gateway status and keep refund timeline aligned.',
+    });
+  }
+
+  return flags;
+}
+
+function riskLevel(flags: RiskFlag[]) {
+  if (flags.some((flag) => flag.severity === 'high')) {
+    return { label: 'High', helper: `${flags.length} flag(s) need attention`, tone: 'pill-danger' };
+  }
+  if (flags.some((flag) => flag.severity === 'medium')) {
+    return { label: 'Medium', helper: `${flags.length} flag(s) to watch`, tone: 'pill-warn' };
+  }
+  if (flags.some((flag) => flag.severity === 'low')) {
+    return { label: 'Low', helper: `${flags.length} low-priority flag(s)`, tone: 'pill-info' };
+  }
+  return { label: 'Clear', helper: 'No active risk flags', tone: 'pill-success' };
+}
+
+function riskToneClass(severity: RiskFlag['severity']) {
+  if (severity === 'high') {
+    return 'pill-danger';
+  }
+  if (severity === 'medium') {
+    return 'pill-warn';
+  }
+  return 'pill-info';
 }
 
 function isTerminalPayment(status?: string) {
@@ -496,6 +670,17 @@ function formatDate(value?: string | null) {
     return 'Not set';
   }
   return new Date(value).toLocaleString();
+}
+
+function minutesSince(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) {
+    return null;
+  }
+  return Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
 }
 
 function shortId(id: string) {
