@@ -8,6 +8,8 @@ import 'features/booking/domain/repositories/provider_booking_repository.dart';
 import 'features/booking/presentation/providers/booking_providers.dart';
 import 'features/chat/domain/repositories/chat_repository.dart';
 import 'features/chat/presentation/providers/chat_providers.dart';
+import 'features/earnings/domain/repositories/provider_earnings_repository.dart';
+import 'features/earnings/presentation/providers/earnings_providers.dart';
 import 'features/map/data/datasources/provider_device_location_datasource.dart';
 import 'features/map/domain/services/provider_location_heartbeat.dart';
 import 'features/map/presentation/providers/map_providers.dart';
@@ -18,6 +20,7 @@ export 'core/providers.dart';
 export 'features/auth/presentation/providers/auth_providers.dart';
 export 'features/booking/presentation/providers/booking_providers.dart';
 export 'features/chat/presentation/providers/chat_providers.dart';
+export 'features/earnings/presentation/providers/earnings_providers.dart';
 export 'features/map/presentation/providers/map_providers.dart';
 export 'features/verification/presentation/providers/verification_providers.dart';
 
@@ -28,6 +31,7 @@ final providerRepositoryProvider = Provider<ProviderRepository>((ref) {
     ref.read(providerDeviceLocationDataSourceProvider),
     ref.read(providerBookingRepositoryProvider),
     ref.read(chatRepositoryProvider),
+    ref.read(providerEarningsRepositoryProvider),
     ref.read(providerVerificationRepositoryProvider),
   );
 });
@@ -51,6 +55,7 @@ class ProviderRepository {
       this._locationDataSource,
       this._bookingRepository,
       this._chatRepository,
+      this._earningsRepository,
       this._verificationRepository);
 
   final ApiClient _api;
@@ -58,6 +63,7 @@ class ProviderRepository {
   final ProviderDeviceLocationDataSource _locationDataSource;
   final ProviderBookingRepository _bookingRepository;
   final ChatRepository _chatRepository;
+  final ProviderEarningsRepository _earningsRepository;
   final ProviderVerificationRepository _verificationRepository;
 
   Future<void> goOnline() async {
@@ -153,18 +159,15 @@ class ProviderRepository {
   }
 
   Future<Map<String, dynamic>> earningsSummary() async {
-    final result = await _api.getJson('/provider/earnings/summary');
-    return result is Map<String, dynamic> ? result : <String, dynamic>{};
+    return _earningsRepository.earningsSummary();
   }
 
   Future<List<dynamic>> earnings() async {
-    final result = await _api.getJson('/provider/earnings');
-    return result is List<dynamic> ? result : [];
+    return _earningsRepository.earnings();
   }
 
   Future<List<dynamic>> payoutBatches() async {
-    final result = await _api.getJson('/provider/earnings/payout-batches');
-    return result is List<dynamic> ? result : [];
+    return _earningsRepository.payoutBatches();
   }
 
   Future<Map<String, dynamic>> verification() async {
