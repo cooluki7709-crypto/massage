@@ -592,6 +592,16 @@ class ProviderDetailPage extends StatelessWidget {
                           Text('${rating.toStringAsFixed(1)} ($reviewCount reviews)'),
                         ],
                       ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: const [
+                          ServiceTag(label: 'Available soon'),
+                          ServiceTag(label: 'Direct request'),
+                          ServiceTag(label: 'Backup matching'),
+                        ],
+                      ),
                       const SizedBox(height: 18),
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -621,17 +631,43 @@ class ProviderDetailPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      Text(
-                        'About me',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                      const SectionHeader(
+                        title: 'About me',
+                        subtitle: 'Profile, service style, and guest expectations before booking.',
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        (detail['bio'] as String?) ?? 'Experienced therapist profile ready for booking.',
-                        style: Theme.of(context).textTheme.bodyLarge,
+                      const SizedBox(height: 12),
+                      DetailInfoCard(
+                        child: Text(
+                          (detail['bio'] as String?) ?? 'Experienced therapist profile ready for booking.',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      DetailInfoCard(
+                        child: Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            const DetailFactChip(
+                              icon: Icons.schedule_outlined,
+                              label: 'Typical response within minutes',
+                            ),
+                            DetailFactChip(
+                              icon: Icons.spa_outlined,
+                              label: '${services.length} service option(s)',
+                            ),
+                            DetailFactChip(
+                              icon: Icons.star_outline_rounded,
+                              label: '$reviewCount verified review(s)',
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 28),
-                      Text('My services', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                      const SectionHeader(
+                        title: 'My services',
+                        subtitle: 'Choose one service to open a booking request with this therapist first.',
+                      ),
                       const SizedBox(height: 12),
                       for (final item in services)
                         Builder(
@@ -647,8 +683,12 @@ class ProviderDetailPage extends StatelessWidget {
                       const SizedBox(height: 28),
                       Row(
                         children: [
-                          Text('Reviews', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-                          const Spacer(),
+                          const Expanded(
+                            child: SectionHeader(
+                              title: 'Reviews',
+                              subtitle: 'Recent guest feedback and overall rating distribution.',
+                            ),
+                          ),
                           TextButton(onPressed: () {}, child: const Text('View all')),
                         ],
                       ),
@@ -703,8 +743,8 @@ class ServiceCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 DurationPill(label: '${duration ?? '-'} min'),
-                const DurationPill(label: '90 min'),
-                const DurationPill(label: '120 min'),
+                const DurationPill(label: 'In-room service'),
+                const DurationPill(label: 'Cash on start'),
               ],
             ),
             const SizedBox(height: 20),
@@ -751,6 +791,91 @@ class DurationPill extends StatelessWidget {
   }
 }
 
+class SectionHeader extends StatelessWidget {
+  const SectionHeader({
+    super.key,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+        ),
+      ],
+    );
+  }
+}
+
+class DetailInfoCard extends StatelessWidget {
+  const DetailInfoCard({
+    super.key,
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9F8F4),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: child,
+    );
+  }
+}
+
+class DetailFactChip extends StatelessWidget {
+  const DetailFactChip({
+    super.key,
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE6E0D2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFF5E8E4A)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ReviewSummaryCard extends StatelessWidget {
   const ReviewSummaryCard({
     super.key,
@@ -777,7 +902,16 @@ class ReviewSummaryCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 8),
-                  const Text('★★★★★', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 20)),
+                  Row(
+                    children: List.generate(
+                      5,
+                      (_) => const Icon(
+                        Icons.star_rounded,
+                        size: 20,
+                        color: Color(0xFFF59E0B),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text('($reviewCount reviews)'),
                 ],
