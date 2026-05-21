@@ -486,6 +486,42 @@ int bookingTimestamp(Map<String, dynamic> booking) {
   return 0;
 }
 
+String formatRelativeMoment(dynamic value) {
+  final raw = value?.toString();
+  if (raw == null || raw.isEmpty) {
+    return 'Updated just now';
+  }
+  final parsed = DateTime.tryParse(raw)?.toLocal();
+  if (parsed == null) {
+    return 'Updated just now';
+  }
+  final diff = DateTime.now().difference(parsed);
+  if (diff.inMinutes < 1) {
+    return 'Updated just now';
+  }
+  if (diff.inHours < 1) {
+    return 'Updated ${diff.inMinutes}m ago';
+  }
+  if (diff.inDays < 1) {
+    return 'Updated ${diff.inHours}h ago';
+  }
+  return 'Updated ${diff.inDays}d ago';
+}
+
+String formatScheduleMoment(dynamic value) {
+  final raw = value?.toString();
+  if (raw == null || raw.isEmpty) {
+    return 'Soon';
+  }
+  final parsed = DateTime.tryParse(raw)?.toLocal();
+  if (parsed == null) {
+    return 'Soon';
+  }
+  final hour = parsed.hour.toString().padLeft(2, '0');
+  final minute = parsed.minute.toString().padLeft(2, '0');
+  return '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')} $hour:$minute';
+}
+
 class RequestFlowBar extends StatelessWidget {
   const RequestFlowBar({super.key, required this.activeStep});
 
@@ -619,6 +655,39 @@ class RequestSummaryCard extends StatelessWidget {
   }
 }
 
+class InlineRequestFact extends StatelessWidget {
+  const InlineRequestFact({
+    super.key,
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.black54,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
+}
+
 class OpenBookingCard extends StatelessWidget {
   const OpenBookingCard({
     super.key,
@@ -657,6 +726,8 @@ class OpenBookingCard extends StatelessWidget {
     final customerPhone = customerAddress?['phone']?.toString();
     final bookingId = booking['id']?.toString() ?? '';
     final shortBookingId = bookingId.length <= 8 ? bookingId : bookingId.substring(0, 8);
+    final updatedLabel = formatRelativeMoment(booking['updatedAt'] ?? booking['createdAt']);
+    final scheduledLabel = formatScheduleMoment(booking['scheduledStartAt']);
     final requestModeLabel = isPreferredRequest
         ? 'Direct request'
         : hasPreferredProvider
@@ -722,10 +793,11 @@ class OpenBookingCard extends StatelessWidget {
                 ProviderRequestTag(label: 'Booking $shortBookingId', highlighted: true),
                 ProviderRequestTag(label: '${service?['durationMin'] ?? '-'} min'),
                 ProviderRequestTag(label: '${formatCurrency(service?['basePrice'])} VND'),
+                if (updatedLabel != 'Updated just now') ProviderRequestTag(label: updatedLabel),
               ],
             ),
             const SizedBox(height: 10),
-            Text('Scheduled: ${booking['scheduledStartAt'] ?? 'soon'}'),
+            Text('Scheduled: $scheduledLabel'),
             if (customerAddress != null) ...[
               const SizedBox(height: 4),
               Text(
@@ -733,6 +805,38 @@ class OpenBookingCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
               ),
             ],
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE4EAF2)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: InlineRequestFact(
+                      label: 'Guest',
+                      value: customerName,
+                    ),
+                  ),
+                  Expanded(
+                    child: InlineRequestFact(
+                      label: 'Phone',
+                      value: customerPhone ?? 'Pending',
+                    ),
+                  ),
+                  Expanded(
+                    child: InlineRequestFact(
+                      label: 'Priority',
+                      value: isPreferredRequest ? 'Reply first' : (hasPreferredProvider ? 'Backup option' : 'Open queue'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 10),
             Row(
               children: [

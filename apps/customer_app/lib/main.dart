@@ -1693,6 +1693,7 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
     final fallbackCount = alternativeParticipants.length;
     final customerPoint = deriveBookingLatLng(currentBooking);
     final providerPoint = deriveRealtimeLatLng(latestProviderLocation);
+    final timeLeft = formatRemainingTime(expiresAt);
     final waitingHeadline = status == 'OPEN_MATCHING'
         ? '${providerDisplayName(currentBooking)} confirmation pending'
         : status == 'MATCHED'
@@ -1780,28 +1781,69 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                           const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              BookingTimelineChip(
+                                icon: Icons.tag_rounded,
+                                label: 'Booking ${shortCode(currentBooking?['id'])}',
+                              ),
+                              BookingTimelineChip(
+                                icon: Icons.schedule_rounded,
+                                label: status == 'OPEN_MATCHING' ? timeLeft : waitingStepLabel(status),
+                              ),
+                              BookingTimelineChip(
+                                icon: Icons.groups_rounded,
+                                label: fallbackCount == 0 ? 'No backup yet' : '$fallbackCount backup ready',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
                           LinearProgressIndicator(
                             value: bookingProgress(status),
                             minHeight: 8,
                             borderRadius: BorderRadius.circular(999),
                           ),
                           const SizedBox(height: 18),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: WaitingStatCard(
-                                  label: 'Current step',
-                                  value: waitingStepLabel(status),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: WaitingStatCard(
-                                  label: 'Fallback therapists',
-                                  value: fallbackCount.toString(),
-                                ),
-                              ),
-                            ],
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final cardWidth = (constraints.maxWidth - 12) / 2;
+                              return Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: [
+                                  SizedBox(
+                                    width: cardWidth,
+                                    child: WaitingStatCard(
+                                      label: 'Current step',
+                                      value: waitingStepLabel(status),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: cardWidth,
+                                    child: WaitingStatCard(
+                                      label: 'Backup therapists',
+                                      value: fallbackCount.toString(),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: cardWidth,
+                                    child: WaitingStatCard(
+                                      label: 'Time left',
+                                      value: timeLeft,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: cardWidth,
+                                    child: WaitingStatCard(
+                                      label: 'Signal',
+                                      value: waitingSignalLabel(status, fallbackCount),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(height: 12),
                           WaitingStagePanel(
@@ -1847,8 +1889,8 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                               badgeLabel: 'Chosen first',
                               detail: 'This therapist is getting the first confirmation window for your request.',
                               subtitle: fallbackCount == 0
-                                  ? 'Checking availability ??${formatRemainingTime(expiresAt)} remaining'
-                                  : 'Checking availability ??${formatRemainingTime(expiresAt)} remaining before backup options open',
+                                  ? 'Checking availability - $timeLeft remaining'
+                                  : 'Checking availability - $timeLeft remaining before backup options open',
                             ),
                             const SizedBox(height: 16),
                           ],
@@ -2097,6 +2139,40 @@ class WaitingStatCard extends StatelessWidget {
           Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54)),
           const SizedBox(height: 8),
           Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+}
+
+class BookingTimelineChip extends StatelessWidget {
+  const BookingTimelineChip({
+    super.key,
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F4EA),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE4DDCA)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFF5E8E4A)),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );
@@ -3269,6 +3345,27 @@ String waitingStepLabel(String status) {
     default:
       return status;
   }
+}
+
+String waitingSignalLabel(String status, int fallbackCount) {
+  if (status == 'IN_SERVICE') {
+    return 'Live';
+  }
+  if (status == 'MATCHED') {
+    return 'Ready';
+  }
+  if (fallbackCount > 0) {
+    return 'Options open';
+  }
+  return 'Pending';
+}
+
+String shortCode(Object? value) {
+  final text = value?.toString() ?? '';
+  if (text.isEmpty) {
+    return '---';
+  }
+  return text.length <= 8 ? text : text.substring(0, 8);
 }
 
 String formatExpiry(String? isoValue) {
