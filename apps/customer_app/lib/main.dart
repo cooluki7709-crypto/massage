@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'src/app_state.dart';
+import 'src/core/app_config.dart';
 import 'src/core/realtime_socket.dart';
 
 void main() {
@@ -73,6 +75,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<dynamic> providers = [];
   Map<String, dynamic>? activeBooking;
+  double? customerLat;
+  double? customerLng;
   bool loading = false;
   String? error;
   String? notice;
@@ -95,8 +99,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
     try {
       final repository = ref.read(customerRepositoryProvider);
+      final position = await ref.read(customerLocationProvider).currentPosition();
+      final activeLat = position?.latitude ?? 11.9582;
+      final activeLng = position?.longitude ?? 108.4420;
       final results = await Future.wait([
-        repository.nearbyProviders(),
+        repository.nearbyProviders(lat: activeLat, lng: activeLng),
         repository.listBookings(),
       ]);
       final bookings = results[1];
@@ -107,6 +114,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       setState(() {
         providers = results[0];
         activeBooking = booking;
+        customerLat = activeLat;
+        customerLng = activeLng;
       });
     } catch (exception) {
       setState(() => error = '$exception');
@@ -157,6 +166,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 builder: (context) => BookingConfirmationPage(
                   providerDetail: detail,
                   selectedService: service,
+                  initialCustomerLat: customerLat,
+                  initialCustomerLng: customerLng,
                   onConfirm: ({
                     required customerName,
                     required customerPhone,
@@ -855,11 +866,15 @@ class BookingConfirmationPage extends ConsumerStatefulWidget {
     super.key,
     required this.providerDetail,
     required this.selectedService,
+    this.initialCustomerLat,
+    this.initialCustomerLng,
     required this.onConfirm,
   });
 
   final Map<String, dynamic> providerDetail;
   final Map<String, dynamic> selectedService;
+  final double? initialCustomerLat;
+  final double? initialCustomerLng;
   final Future<Map<String, dynamic>> Function({
     required String customerName,
     required String customerPhone,
@@ -877,10 +892,21 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
   final phoneController = TextEditingController(text: '0865907184');
   final addressController = TextEditingController(text: 'Royal Villa Da Lat, Ward 7, Da Lat, Lam Dong');
   final couponController = TextEditingController();
-  static const customerLat = 11.9582;
-  static const customerLng = 108.4420;
+  double? customerLat;
+  double? customerLng;
   bool submitting = false;
+  bool loadingLocation = false;
   String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    customerLat = widget.initialCustomerLat;
+    customerLng = widget.initialCustomerLng;
+    if (customerLat == null || customerLng == null) {
+      unawaited(loadCustomerLocation());
+    }
+  }
 
   @override
   void dispose() {
@@ -889,6 +915,32 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
     addressController.dispose();
     couponController.dispose();
     super.dispose();
+  }
+
+  Future<void> loadCustomerLocation() async {
+    setState(() => loadingLocation = true);
+    try {
+      final position = await ref.read(customerLocationProvider).currentPosition();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        customerLat = position?.latitude ?? 11.9582;
+        customerLng = position?.longitude ?? 108.4420;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        customerLat = 11.9582;
+        customerLng = 108.4420;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => loadingLocation = false);
+      }
+    }
   }
 
   Future<void> confirmBooking() async {
@@ -901,8 +953,8 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
         customerName: nameController.text.trim(),
         customerPhone: phoneController.text.trim(),
         addressLine: addressController.text.trim(),
-        lat: customerLat,
-        lng: customerLng,
+        lat: customerLat ?? 11.9582,
+        lng: customerLng ?? 108.4420,
       );
       if (mounted) {
         Navigator.of(context).pop(booking);
@@ -921,6 +973,8 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
     final service = widget.selectedService;
     final provider = widget.providerDetail;
     final distanceMeters = provider['distanceMeters'] as num?;
+    final customerPoint = customerLat == null || customerLng == null ? null : LatLng(customerLat!, customerLng!);
+    final providerPoint = deriveProviderLatLng(provider);
     return Scaffold(
       appBar: AppBar(title: const Text('Booking information')),
       body: SafeArea(
@@ -950,12 +1004,14 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(18),
-                    child: const SizedBox(
+                    child: SizedBox(
                       height: 180,
-                      child: MapPlaceholder(
+                      child: LocationMapSurface(
+                        customerPoint: customerPoint,
+                        providerPoint: providerPoint,
                         customerLabel: 'Customer',
                         providerLabel: 'Therapist area',
-                        showProviderMarker: true,
+                        fallbackShowProviderMarker: true,
                       ),
                     ),
                   ),
@@ -972,6 +1028,10 @@ class _BookingConfirmationPageState extends ConsumerState<BookingConfirmationPag
                     'Customer pin: ${formatCoordinate(customerLat)}, ${formatCoordinate(customerLng)}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
                   ),
+                  if (loadingLocation) ...[
+                    const SizedBox(height: 6),
+                    const LinearProgressIndicator(minHeight: 4),
+                  ],
                   const SizedBox(height: 4),
                   Text(
                     'Therapist distance: ${formatDistance(distanceMeters)}',
@@ -1245,6 +1305,8 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
         .toList();
     final expiresAt = currentBooking?['expiresAt'] as String?;
     final fallbackCount = alternativeParticipants.length;
+    final customerPoint = deriveBookingLatLng(currentBooking);
+    final providerPoint = deriveRealtimeLatLng(latestProviderLocation);
     final waitingHeadline = status == 'OPEN_MATCHING'
         ? '${providerDisplayName(currentBooking)} confirmation pending'
         : status == 'MATCHED'
@@ -1269,10 +1331,12 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
             Expanded(
               child: Stack(
                 children: [
-                  MapPlaceholder(
+                  LocationMapSurface(
+                    customerPoint: customerPoint,
+                    providerPoint: providerPoint,
                     customerLabel: 'You',
                     providerLabel: latestProviderLocation == null ? 'Waiting' : 'Therapist',
-                    showProviderMarker: latestProviderLocation != null,
+                    fallbackShowProviderMarker: latestProviderLocation != null,
                   ),
                   Positioned(
                     top: 18,
@@ -1549,12 +1613,67 @@ class WaitingInfoBanner extends StatelessWidget {
   }
 }
 
-class MapPlaceholder extends StatelessWidget {
-  const MapPlaceholder({
+class LocationMapSurface extends StatelessWidget {
+  const LocationMapSurface({
     super.key,
+    required this.customerPoint,
+    required this.providerPoint,
     this.customerLabel = 'Customer',
     this.providerLabel = 'Provider',
-    this.showProviderMarker = false,
+    this.fallbackShowProviderMarker = false,
+  });
+
+  final LatLng? customerPoint;
+  final LatLng? providerPoint;
+  final String customerLabel;
+  final String providerLabel;
+  final bool fallbackShowProviderMarker;
+
+  @override
+  Widget build(BuildContext context) {
+    if (AppConfig.googleMapsEnabled && customerPoint != null) {
+      final markers = <Marker>{
+        Marker(
+          markerId: const MarkerId('customer'),
+          position: customerPoint!,
+          infoWindow: InfoWindow(title: customerLabel),
+        ),
+      };
+      if (providerPoint != null) {
+        markers.add(
+          Marker(
+            markerId: const MarkerId('provider'),
+            position: providerPoint!,
+            infoWindow: InfoWindow(title: providerLabel),
+          ),
+        );
+      }
+
+      return GoogleMap(
+        initialCameraPosition: CameraPosition(
+          target: providerPoint ?? customerPoint!,
+          zoom: providerPoint == null ? 13.8 : 12.8,
+        ),
+        markers: markers,
+        zoomControlsEnabled: false,
+        myLocationButtonEnabled: false,
+        myLocationEnabled: false,
+      );
+    }
+
+    return _MapPlaceholder(
+      customerLabel: customerLabel,
+      providerLabel: providerLabel,
+      showProviderMarker: fallbackShowProviderMarker,
+    );
+  }
+}
+
+class _MapPlaceholder extends StatelessWidget {
+  const _MapPlaceholder({
+    required this.customerLabel,
+    required this.providerLabel,
+    required this.showProviderMarker,
   });
 
   final String customerLabel;
@@ -1732,7 +1851,12 @@ class ProvidersScreen extends ConsumerWidget {
       subtitle: 'Full provider list sorted by distance.',
       enabled: auth != null,
       disabledText: 'Login first to load nearby providers.',
-      loader: () => ref.read(customerRepositoryProvider).nearbyProviders(),
+      loader: () async {
+        final position = await ref.read(customerLocationProvider).currentPosition();
+        final lat = position?.latitude ?? 11.9582;
+        final lng = position?.longitude ?? 108.4420;
+        return ref.read(customerRepositoryProvider).nearbyProviders(lat: lat, lng: lng);
+      },
       labelBuilder: (provider) {
         final item = provider as Map<String, dynamic>;
         return '${item['displayName'] ?? 'Provider'} • ${formatDistance(item['distanceMeters'] as num?)}';
@@ -2171,6 +2295,33 @@ String formatDistance(num? meters) {
     return '${(meters / 1000).toStringAsFixed(1)} km';
   }
   return '${meters.round()} m';
+}
+
+LatLng? deriveProviderLatLng(Map<String, dynamic>? provider) {
+  final lat = (provider?['lat'] as num?)?.toDouble();
+  final lng = (provider?['lng'] as num?)?.toDouble();
+  if (lat == null || lng == null) {
+    return null;
+  }
+  return LatLng(lat, lng);
+}
+
+LatLng? deriveBookingLatLng(Map<String, dynamic>? booking) {
+  final lat = (booking?['lat'] as num?)?.toDouble();
+  final lng = (booking?['lng'] as num?)?.toDouble();
+  if (lat == null || lng == null) {
+    return null;
+  }
+  return LatLng(lat, lng);
+}
+
+LatLng? deriveRealtimeLatLng(Map<String, dynamic>? payload) {
+  final lat = (payload?['lat'] as num?)?.toDouble();
+  final lng = (payload?['lng'] as num?)?.toDouble();
+  if (lat == null || lng == null) {
+    return null;
+  }
+  return LatLng(lat, lng);
 }
 
 String formatCoordinate(double? value) {

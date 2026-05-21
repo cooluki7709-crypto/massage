@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'core/api_client.dart';
 import 'core/app_config.dart';
@@ -87,8 +88,11 @@ class ProviderRepository {
   }
 
   Future<void> updateLocation({String? bookingId}) async {
-    await _api.postJson('/provider/location', {'lat': 10.7769, 'lng': 106.7009});
-    _socket.updateLocation(lat: 10.7769, lng: 106.7009, bookingId: bookingId);
+    final position = await currentPosition();
+    final lat = position?.latitude ?? 10.7769;
+    final lng = position?.longitude ?? 106.7009;
+    await _api.postJson('/provider/location', {'lat': lat, 'lng': lng});
+    _socket.updateLocation(lat: lat, lng: lng, bookingId: bookingId);
   }
 
   Future<List<dynamic>> openBookings() async {
@@ -171,6 +175,27 @@ class ProviderRepository {
       'token': token,
       'platform': 'android',
     });
+  }
+
+  Future<Position?> currentPosition() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      return null;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    return Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+      ),
+    );
   }
 
   Future<Map<String, dynamic>> earningsSummary() async {

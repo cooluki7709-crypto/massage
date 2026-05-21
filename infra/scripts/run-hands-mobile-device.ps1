@@ -48,6 +48,7 @@ $appDir = switch ($App) {
   "customer" { Join-Path $RepoRoot "apps\customer_app" }
   "provider" { Join-Path $RepoRoot "apps\provider_app" }
 }
+$mapsApiKey = $env:MAPS_API_KEY
 
 if (-not (Test-Path $appDir)) {
   throw "App directory not found: $appDir"
@@ -64,7 +65,17 @@ if ($LASTEXITCODE -ne 0) {
 
 Push-Location $appDir
 try {
-  & flutter run -d $targetDeviceId "--dart-define=API_BASE_URL=http://127.0.0.1:$ApiPort/api" "--dart-define=SOCKET_BASE_URL=http://127.0.0.1:$ApiPort"
+  $flutterArgs = @(
+    "run",
+    "-d",
+    $targetDeviceId,
+    "--dart-define=API_BASE_URL=http://127.0.0.1:$ApiPort/api",
+    "--dart-define=SOCKET_BASE_URL=http://127.0.0.1:$ApiPort"
+  )
+  if ($mapsApiKey) {
+    $flutterArgs += "--dart-define=GOOGLE_MAPS_API_KEY=$mapsApiKey"
+  }
+  & flutter @flutterArgs
 } finally {
   Pop-Location
 }

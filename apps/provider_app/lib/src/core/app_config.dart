@@ -1,4 +1,11 @@
 class AppConfig {
+  static const googleMapsApiKey = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+    defaultValue: '',
+  );
+
+  static bool get googleMapsEnabled => googleMapsApiKey.isNotEmpty;
+
   static const apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://localhost:3000/api',
@@ -9,4 +16,3 @@ class AppConfig {
     defaultValue: 'http://localhost:3000',
   );
 }
-

@@ -100,6 +100,13 @@ cd C:\dev\massage-vn-workspace\repo\apps\customer_app
 flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:3100/api --dart-define=SOCKET_BASE_URL=http://10.0.2.2:3100
 ```
 
+If you want the HANDS customer/provider apps to render real Google Maps instead of the placeholder map, set `MAPS_API_KEY` in your shell and pass the same key as a Flutter define:
+
+```powershell
+$env:MAPS_API_KEY="your-google-maps-android-key"
+flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:3100/api --dart-define=SOCKET_BASE_URL=http://10.0.2.2:3100 --dart-define=GOOGLE_MAPS_API_KEY=$env:MAPS_API_KEY
+```
+
 For the organized HANDS workspace, prefer:
 
 - repo: `C:\dev\massage-vn-workspace\repo`

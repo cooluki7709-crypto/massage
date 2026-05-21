@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'core/api_client.dart';
 import 'core/app_config.dart';
@@ -82,8 +83,11 @@ class CustomerRepository {
     return result is List<dynamic> ? result : [];
   }
 
-  Future<List<dynamic>> nearbyProviders() async {
-    final result = await _api.getJson('/customer/providers/nearby?lat=10.7769&lng=106.7009');
+  Future<List<dynamic>> nearbyProviders({
+    required double lat,
+    required double lng,
+  }) async {
+    final result = await _api.getJson('/customer/providers/nearby?lat=$lat&lng=$lng');
     return result is List<dynamic> ? result : [];
   }
 
@@ -161,6 +165,33 @@ class CustomerRepository {
       'token': token,
       'platform': 'android',
     });
+  }
+}
+
+final customerLocationProvider = Provider<CustomerLocationService>((ref) {
+  return CustomerLocationService();
+});
+
+class CustomerLocationService {
+  Future<Position?> currentPosition() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      return null;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    return Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+      ),
+    );
   }
 }
 

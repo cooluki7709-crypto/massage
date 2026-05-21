@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'src/app_state.dart';
+import 'src/core/app_config.dart';
 import 'src/core/realtime_socket.dart';
 
 void main() {
@@ -670,6 +672,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? bookingId;
   String? statusMessage;
   String? error;
+  double? customerLat;
+  double? customerLng;
   double? lastSharedLat;
   double? lastSharedLng;
   bool loading = false;
@@ -738,6 +742,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() {
       chatRoomId = roomId;
       bookingId = booking?['id'] as String?;
+      customerLat = (booking?['lat'] as num?)?.toDouble();
+      customerLng = (booking?['lng'] as num?)?.toDouble();
       messages = loadedMessages;
       statusMessage = 'Chat room loaded for booking ${booking?['id']}.';
     });
@@ -817,6 +823,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             Text('Room $chatRoomId', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             ProviderLocationPreviewCard(
+              customerLatitude: customerLat,
+              customerLongitude: customerLng,
               latitude: lastSharedLat,
               longitude: lastSharedLng,
             ),
@@ -876,10 +884,14 @@ class MessageTile extends StatelessWidget {
 class ProviderLocationPreviewCard extends StatelessWidget {
   const ProviderLocationPreviewCard({
     super.key,
+    required this.customerLatitude,
+    required this.customerLongitude,
     required this.latitude,
     required this.longitude,
   });
 
+  final double? customerLatitude;
+  final double? customerLongitude;
   final double? latitude;
   final double? longitude;
 
@@ -898,7 +910,13 @@ class ProviderLocationPreviewCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               child: SizedBox(
                 height: 180,
-                child: ProviderMapPlaceholder(showProviderPin: hasLocation),
+                child: ProviderMapSurface(
+                  customerLatitude: customerLatitude,
+                  customerLongitude: customerLongitude,
+                  providerLatitude: latitude,
+                  providerLongitude: longitude,
+                  fallbackShowProviderPin: hasLocation,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -915,9 +933,67 @@ class ProviderLocationPreviewCard extends StatelessWidget {
   }
 }
 
-class ProviderMapPlaceholder extends StatelessWidget {
-  const ProviderMapPlaceholder({
+class ProviderMapSurface extends StatelessWidget {
+  const ProviderMapSurface({
     super.key,
+    required this.customerLatitude,
+    required this.customerLongitude,
+    required this.providerLatitude,
+    required this.providerLongitude,
+    required this.fallbackShowProviderPin,
+  });
+
+  final double? customerLatitude;
+  final double? customerLongitude;
+  final double? providerLatitude;
+  final double? providerLongitude;
+  final bool fallbackShowProviderPin;
+
+  @override
+  Widget build(BuildContext context) {
+    final customerPoint = customerLatitude == null || customerLongitude == null
+        ? null
+        : LatLng(customerLatitude!, customerLongitude!);
+    final providerPoint = providerLatitude == null || providerLongitude == null
+        ? null
+        : LatLng(providerLatitude!, providerLongitude!);
+
+    if (AppConfig.googleMapsEnabled && customerPoint != null) {
+      final markers = <Marker>{
+        Marker(
+          markerId: const MarkerId('customer'),
+          position: customerPoint,
+          infoWindow: const InfoWindow(title: 'Customer'),
+        ),
+      };
+      if (providerPoint != null) {
+        markers.add(
+          Marker(
+            markerId: const MarkerId('provider'),
+            position: providerPoint,
+            infoWindow: const InfoWindow(title: 'You'),
+          ),
+        );
+      }
+
+      return GoogleMap(
+        initialCameraPosition: CameraPosition(
+          target: providerPoint ?? customerPoint,
+          zoom: providerPoint == null ? 13.8 : 12.8,
+        ),
+        markers: markers,
+        zoomControlsEnabled: false,
+        myLocationButtonEnabled: false,
+        myLocationEnabled: false,
+      );
+    }
+
+    return _ProviderMapPlaceholder(showProviderPin: fallbackShowProviderPin);
+  }
+}
+
+class _ProviderMapPlaceholder extends StatelessWidget {
+  const _ProviderMapPlaceholder({
     required this.showProviderPin,
   });
 

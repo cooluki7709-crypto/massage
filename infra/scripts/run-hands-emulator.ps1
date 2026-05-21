@@ -74,6 +74,7 @@ $appDir = switch ($App) {
   "customer" { Join-Path $RepoRoot "apps\customer_app" }
   "provider" { Join-Path $RepoRoot "apps\provider_app" }
 }
+$mapsApiKey = $env:MAPS_API_KEY
 
 $serial = Get-RunningEmulatorSerial
 if (-not $serial) {
@@ -96,7 +97,17 @@ Wait-ForEmulatorBoot -Serial $serial
 
 Push-Location $appDir
 try {
-  & flutter run -d $serial "--dart-define=API_BASE_URL=http://10.0.2.2:$ApiPort/api" "--dart-define=SOCKET_BASE_URL=http://10.0.2.2:$ApiPort"
+  $flutterArgs = @(
+    "run",
+    "-d",
+    $serial,
+    "--dart-define=API_BASE_URL=http://10.0.2.2:$ApiPort/api",
+    "--dart-define=SOCKET_BASE_URL=http://10.0.2.2:$ApiPort"
+  )
+  if ($mapsApiKey) {
+    $flutterArgs += "--dart-define=GOOGLE_MAPS_API_KEY=$mapsApiKey"
+  }
+  & flutter @flutterArgs
 } finally {
   Pop-Location
 }
