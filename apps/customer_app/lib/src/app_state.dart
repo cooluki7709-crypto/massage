@@ -2,29 +2,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/api_client.dart';
 import 'core/providers.dart';
-import 'core/realtime_socket.dart';
 import 'features/booking/domain/repositories/customer_booking_repository.dart';
 import 'features/booking/presentation/providers/booking_providers.dart';
+import 'features/chat/domain/repositories/chat_repository.dart';
+import 'features/chat/presentation/providers/chat_providers.dart';
 
 export 'core/providers.dart';
 export 'features/auth/presentation/providers/auth_providers.dart';
 export 'features/booking/presentation/providers/booking_providers.dart';
+export 'features/chat/presentation/providers/chat_providers.dart';
 export 'features/map/presentation/providers/map_providers.dart';
 
 final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
   return CustomerRepository(
     ref.read(apiClientProvider),
-    ref.read(realtimeSocketProvider),
     ref.read(customerBookingRepositoryProvider),
+    ref.read(chatRepositoryProvider),
   );
 });
 
 class CustomerRepository {
-  CustomerRepository(this._api, this._socket, this._bookingRepository);
+  CustomerRepository(this._api, this._bookingRepository, this._chatRepository);
 
   final ApiClient _api;
-  final RealtimeSocket _socket;
   final CustomerBookingRepository _bookingRepository;
+  final ChatRepository _chatRepository;
 
   Future<List<dynamic>> listServices() async {
     final result = await _api.getJson('/services');
@@ -101,16 +103,15 @@ class CustomerRepository {
   }
 
   Future<List<dynamic>> listChatMessages(String chatRoomId) async {
-    final result = await _api.getJson('/chat/rooms/$chatRoomId/messages');
-    return result is List<dynamic> ? result : [];
+    return _chatRepository.listChatMessages(chatRoomId);
   }
 
   void joinChat(String chatRoomId) {
-    _socket.joinChat(chatRoomId);
+    _chatRepository.joinChat(chatRoomId);
   }
 
   void sendChatMessage(String chatRoomId, String text) {
-    _socket.sendChatMessage(chatRoomId, text);
+    _chatRepository.sendChatMessage(chatRoomId, text);
   }
 
   Future<void> registerPushToken(String token) async {

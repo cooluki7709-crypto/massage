@@ -6,6 +6,8 @@ import 'core/providers.dart';
 import 'core/realtime_socket.dart';
 import 'features/booking/domain/repositories/provider_booking_repository.dart';
 import 'features/booking/presentation/providers/booking_providers.dart';
+import 'features/chat/domain/repositories/chat_repository.dart';
+import 'features/chat/presentation/providers/chat_providers.dart';
 import 'features/map/data/datasources/provider_device_location_datasource.dart';
 import 'features/map/domain/services/provider_location_heartbeat.dart';
 import 'features/map/presentation/providers/map_providers.dart';
@@ -13,6 +15,7 @@ import 'features/map/presentation/providers/map_providers.dart';
 export 'core/providers.dart';
 export 'features/auth/presentation/providers/auth_providers.dart';
 export 'features/booking/presentation/providers/booking_providers.dart';
+export 'features/chat/presentation/providers/chat_providers.dart';
 export 'features/map/presentation/providers/map_providers.dart';
 
 final providerRepositoryProvider = Provider<ProviderRepository>((ref) {
@@ -21,6 +24,7 @@ final providerRepositoryProvider = Provider<ProviderRepository>((ref) {
     ref.read(realtimeSocketProvider),
     ref.read(providerDeviceLocationDataSourceProvider),
     ref.read(providerBookingRepositoryProvider),
+    ref.read(chatRepositoryProvider),
   );
 });
 
@@ -38,12 +42,13 @@ const double demoProviderLng = 106.7009;
 
 class ProviderRepository {
   ProviderRepository(this._api, this._socket, this._locationDataSource,
-      this._bookingRepository);
+      this._bookingRepository, this._chatRepository);
 
   final ApiClient _api;
   final RealtimeSocket _socket;
   final ProviderDeviceLocationDataSource _locationDataSource;
   final ProviderBookingRepository _bookingRepository;
+  final ChatRepository _chatRepository;
 
   Future<void> goOnline() async {
     await _api.postJson('/provider/online', {});
@@ -119,16 +124,15 @@ class ProviderRepository {
   }
 
   Future<List<dynamic>> listChatMessages(String chatRoomId) async {
-    final result = await _api.getJson('/chat/rooms/$chatRoomId/messages');
-    return result is List<dynamic> ? result : [];
+    return _chatRepository.listChatMessages(chatRoomId);
   }
 
   void joinChat(String chatRoomId) {
-    _socket.joinChat(chatRoomId);
+    _chatRepository.joinChat(chatRoomId);
   }
 
   void sendChatMessage(String chatRoomId, String text) {
-    _socket.sendChatMessage(chatRoomId, text);
+    _chatRepository.sendChatMessage(chatRoomId, text);
   }
 
   Future<void> registerPushToken(String token) async {
