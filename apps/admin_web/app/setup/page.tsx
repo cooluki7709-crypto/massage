@@ -11,6 +11,7 @@ const setupOrder = [
       'Android builds should not use the Google Services Gradle plugin.',
       'Do not restore google-services.json unless the push strategy changes intentionally.',
     ],
+    commands: ['node infra\\scripts\\check-mobile-firebase.mjs', 'npm.cmd run verify:local'],
   },
   {
     id: 'supabase',
@@ -23,6 +24,10 @@ const setupOrder = [
       'Copy the project URL and anon key from Supabase project settings.',
       'Set the JWT secret on the API so access tokens can be verified server-side.',
     ],
+    commands: [
+      'npm.cmd run external:check:supabase',
+      '$env:SUPABASE_JWT_SECRET="<project-jwt-secret>"; $env:API_BASE_URL="http://localhost:3100/api"; npm.cmd run auth:supabase-smoke',
+    ],
   },
   {
     id: 'maps',
@@ -33,6 +38,10 @@ const setupOrder = [
       'Use MapTiler only for map tiles.',
       'Use Geoapify only for geocoding/search.',
       'No routing, directions, or realtime streaming API is needed for MVP cost control.',
+    ],
+    commands: [
+      'npm.cmd run external:check:maps',
+      'powershell -ExecutionPolicy Bypass -File .\\infra\\scripts\\run-hands-emulator.ps1 -App customer',
     ],
   },
   {
@@ -45,6 +54,7 @@ const setupOrder = [
       'Use gateway sandbox credentials before any production merchant key.',
       'Keep cash payment available as an operational fallback.',
     ],
+    commands: ['npm.cmd run external:check:payments', 'node infra\\scripts\\api-smoke.mjs'],
   },
   {
     id: 'notifications',
@@ -56,6 +66,7 @@ const setupOrder = [
       'Production OTP needs a Vietnam-capable SMS vendor.',
       'Firebase Messaging has been removed; choose OneSignal or another push provider later.',
     ],
+    commands: ['npm.cmd run external:check:production', 'npm.cmd run verify:local'],
   },
   {
     id: 'storage',
@@ -66,6 +77,10 @@ const setupOrder = [
       'Local MinIO is enough for development.',
       'Use private reads for verification files.',
       'Serve approved public provider media through a CDN base URL.',
+    ],
+    commands: [
+      'npm.cmd run external:check:storage',
+      'powershell -ExecutionPolicy Bypass -File .\\infra\\scripts\\verify-local.ps1 -WithServices',
     ],
   },
 ];
@@ -157,6 +172,33 @@ export default async function SetupPage() {
         </div>
       </section>
 
+      <section className="card" style={{ marginTop: 16 }}>
+        <div className="risk-watch-header">
+          <div>
+            <h2>What still needs external registration</h2>
+            <p className="muted">
+              This is the human-action backlog. Code checks stay green while these production keys are not
+              filled.
+            </p>
+          </div>
+          <span className={`signal ${summary.missing === 0 ? 'signal-ok' : 'signal-warn'}`}>
+            {summary.missing === 0 ? 'No missing values' : `${summary.missing} value(s) pending`}
+          </span>
+        </div>
+        <div className="setup-backlog">
+          {buildExternalBacklog(readiness).map((item) => (
+            <a className="setup-backlog-item" href={`#${item.groupId}`} key={`${item.groupId}-${item.name}`}>
+              <span>{item.groupTitle}</span>
+              <strong>{item.name}</strong>
+              <p className="muted">{item.reason}</p>
+            </a>
+          ))}
+          {buildExternalBacklog(readiness).length === 0 && (
+            <p className="muted">All external readiness values are configured for the current environment.</p>
+          )}
+        </div>
+      </section>
+
       <section className="stack" style={{ marginTop: 16 }}>
         {setupOrder.map((group) => {
           const relatedChecks = readiness.checks.filter((check) =>
@@ -191,6 +233,18 @@ export default async function SetupPage() {
                       <li key={note}>{note}</li>
                     ))}
                   </ul>
+                </div>
+              </div>
+              <div className="setup-command-block">
+                <h3>Verification commands</h3>
+                <p className="muted">
+                  Run from <code>C:\dev\massage-vn-workspace\repo</code>. Values inside angle brackets must be
+                  replaced locally.
+                </p>
+                <div className="setup-command-list">
+                  {group.commands.map((command) => (
+                    <code key={command}>{command}</code>
+                  ))}
                 </div>
               </div>
             </div>
@@ -240,6 +294,21 @@ function buildSummary(readiness: AdminExternalReadiness) {
     }),
     { ready: 0, partial: 0, blocked: 0, missing: 0 },
   );
+}
+
+function buildExternalBacklog(readiness: AdminExternalReadiness) {
+  return readiness.checks.flatMap((check) => {
+    const group = setupOrder.find((setupGroup) => setupGroupMatches(setupGroup.id, check.category));
+    const groupId = group?.id ?? 'setup';
+    const groupTitle = group?.title ?? check.category;
+    const missing = [...check.missing, ...(check.invalid ?? [])];
+    return missing.map((name) => ({
+      groupId,
+      groupTitle,
+      name,
+      reason: check.detail,
+    }));
+  });
 }
 
 function setupGroupMatches(groupId: string, category: string) {

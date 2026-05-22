@@ -164,6 +164,52 @@ a {
   margin-top: 4px;
 }
 
+.setup-backlog {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.setup-backlog-item {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.setup-backlog-item span {
+  color: #92400e;
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.setup-command-block {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.setup-command-list {
+  display: grid;
+  gap: 8px;
+}
+
+.setup-command-list code,
+.setup-command-block code {
+  background: #0f172a;
+  border-radius: 6px;
+  color: #e2e8f0;
+  display: block;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  padding: 10px;
+  white-space: pre-wrap;
+}
+
 .timeline-done {
   border-color: #16a34a;
   background: #f0fdf4;
@@ -182,8 +228,20 @@ a {
   overflow: hidden;
   border-radius: 8px;
   background:
-    linear-gradient(140deg, transparent 42%, rgba(148, 163, 184, 0.6) 43%, rgba(148, 163, 184, 0.6) 45%, transparent 46%),
-    linear-gradient(35deg, transparent 46%, rgba(148, 163, 184, 0.35) 47%, rgba(148, 163, 184, 0.35) 49%, transparent 50%),
+    linear-gradient(
+      140deg,
+      transparent 42%,
+      rgba(148, 163, 184, 0.6) 43%,
+      rgba(148, 163, 184, 0.6) 45%,
+      transparent 46%
+    ),
+    linear-gradient(
+      35deg,
+      transparent 46%,
+      rgba(148, 163, 184, 0.35) 47%,
+      rgba(148, 163, 184, 0.35) 49%,
+      transparent 50%
+    ),
     #eef6e8;
 }
 
@@ -412,6 +470,10 @@ button:disabled {
   .risk-watch-header,
   .risk-item {
     display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .setup-backlog {
     grid-template-columns: 1fr;
   }
 }
