@@ -2,10 +2,19 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+enum TokenRefreshMode {
+  nest,
+  disabled,
+}
+
 class ApiClient {
-  ApiClient({required this.baseUrl});
+  ApiClient({
+    required this.baseUrl,
+    this.tokenRefreshMode = TokenRefreshMode.nest,
+  });
 
   final String baseUrl;
+  final TokenRefreshMode tokenRefreshMode;
   String? accessToken;
   String? refreshToken;
 
@@ -14,7 +23,8 @@ class ApiClient {
   }
 
   Future<dynamic> postJson(String path, Map<String, dynamic> body) async {
-    return _sendWithRefresh(() => http.post(_uri(path), headers: _headers(), body: jsonEncode(body)));
+    return _sendWithRefresh(() =>
+        http.post(_uri(path), headers: _headers(), body: jsonEncode(body)));
   }
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
@@ -27,14 +37,17 @@ class ApiClient {
   }
 
   dynamic _decode(http.Response response) {
-    final decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body);
+    final decoded =
+        response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(response.statusCode, decoded is Map<String, dynamic> ? decoded : {'error': decoded});
+      throw ApiException(response.statusCode,
+          decoded is Map<String, dynamic> ? decoded : {'error': decoded});
     }
     return decoded;
   }
 
-  Future<dynamic> _sendWithRefresh(Future<http.Response> Function() request) async {
+  Future<dynamic> _sendWithRefresh(
+      Future<http.Response> Function() request) async {
     final firstResponse = await request();
     if (!_shouldRefresh(firstResponse)) {
       return _decode(firstResponse);
@@ -50,6 +63,9 @@ class ApiClient {
   }
 
   bool _shouldRefresh(http.Response response) {
+    if (tokenRefreshMode == TokenRefreshMode.disabled) {
+      return false;
+    }
     if (refreshToken == null || refreshToken!.isEmpty) {
       return false;
     }
@@ -66,10 +82,15 @@ class ApiClient {
       return <String, dynamic>{};
     }
     final decoded = jsonDecode(response.body);
-    return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{'error': decoded};
+    return decoded is Map<String, dynamic>
+        ? decoded
+        : <String, dynamic>{'error': decoded};
   }
 
   Future<bool> _refreshAccessToken() async {
+    if (tokenRefreshMode == TokenRefreshMode.disabled) {
+      return false;
+    }
     final token = refreshToken;
     if (token == null || token.isEmpty) {
       return false;
