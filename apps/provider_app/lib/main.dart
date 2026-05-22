@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1985,7 +1986,7 @@ class ProviderLocationPreviewCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Live route preview',
+            Text('Shared location preview',
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
             ClipRRect(
@@ -2003,9 +2004,12 @@ class ProviderLocationPreviewCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              hasLocation
-                  ? 'Shared pin: ${formatCoordinate(latitude)}, ${formatCoordinate(longitude)}'
-                  : 'Share your current location so the customer can track your approach.',
+              buildProviderLocationSummary(
+                customerLatitude: customerLatitude,
+                customerLongitude: customerLongitude,
+                providerLatitude: latitude,
+                providerLongitude: longitude,
+              ),
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
@@ -2270,6 +2274,64 @@ String formatCoordinate(double? value) {
   }
   return value.toStringAsFixed(4);
 }
+
+String buildProviderLocationSummary({
+  required double? customerLatitude,
+  required double? customerLongitude,
+  required double? providerLatitude,
+  required double? providerLongitude,
+}) {
+  if (providerLatitude == null || providerLongitude == null) {
+    return 'Share your current pin once so the customer can see your last known location.';
+  }
+
+  final distance = approximateDistanceMeters(
+    customerLatitude,
+    customerLongitude,
+    providerLatitude,
+    providerLongitude,
+  );
+  final distanceText = distance == null
+      ? ''
+      : '\nApprox. distance to guest: ${formatDistance(distance)}';
+  return 'Last shared pin: ${formatCoordinate(providerLatitude)}, ${formatCoordinate(providerLongitude)}$distanceText';
+}
+
+String formatDistance(double meters) {
+  if (meters >= 1000) {
+    return '${(meters / 1000).toStringAsFixed(1)} km';
+  }
+  return '${meters.round()} m';
+}
+
+double? approximateDistanceMeters(
+  double? startLat,
+  double? startLng,
+  double? endLat,
+  double? endLng,
+) {
+  if (startLat == null ||
+      startLng == null ||
+      endLat == null ||
+      endLng == null) {
+    return null;
+  }
+  const earthRadiusMeters = 6371000.0;
+  final lat1 = _degreesToRadians(startLat);
+  final lat2 = _degreesToRadians(endLat);
+  final deltaLat = _degreesToRadians(endLat - startLat);
+  final deltaLng = _degreesToRadians(endLng - startLng);
+  final haversine = math.sin(deltaLat / 2) * math.sin(deltaLat / 2) +
+      math.cos(lat1) *
+          math.cos(lat2) *
+          math.sin(deltaLng / 2) *
+          math.sin(deltaLng / 2);
+  return earthRadiusMeters *
+      2 *
+      math.atan2(math.sqrt(haversine), math.sqrt(1 - haversine));
+}
+
+double _degreesToRadians(double degrees) => degrees * math.pi / 180;
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});

@@ -2317,15 +2317,15 @@ class _BookingWaitingPageState extends ConsumerState<BookingWaitingPage> {
                           ),
                           const SizedBox(height: 18),
                           BookingSectionCard(
-                            title: 'Live location',
+                            title: 'Therapist location',
                             child: latestProviderLocation == null
                                 ? const Text(
-                                    'Provider location will appear here after the therapist shares it.')
+                                    'The therapist\'s last shared pin will appear here after they share location.')
                                 : Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text('Therapist location shared'),
+                                      Text('Therapist\'s last shared pin'),
                                       const SizedBox(height: 6),
                                       Text(
                                         'Lat ${formatCoordinate(asDouble(latestProviderLocation?['lat']))} | Lng ${formatCoordinate(asDouble(latestProviderLocation?['lng']))}',
