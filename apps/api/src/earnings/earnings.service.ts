@@ -161,18 +161,15 @@ export class EarningsService {
           providerProfileId: input.providerProfileId,
           totalNetAmount,
           currency: earnings[0]?.currency ?? 'VND',
-          status: PayoutBatchStatus.PAID,
-          transferRef: input.transferRef,
-          notes: input.notes,
-          paidAt: new Date(),
+          status: PayoutBatchStatus.DRAFT,
+          transferRef: input.transferRef ? normalizeNullable(input.transferRef) : null,
+          notes: input.notes ? normalizeNullable(input.notes) : null,
         },
       });
 
       await tx.providerEarning.updateMany({
         where: { id: { in: earnings.map((earning) => earning.id) } },
         data: {
-          status: EarningStatus.PAID,
-          paidAt: batch.paidAt,
           payoutBatchId: batch.id,
         },
       });
@@ -181,7 +178,7 @@ export class EarningsService {
         where: { id: batch.id },
         include: {
           providerProfile: { include: { user: { select: { id: true, phone: true, fullName: true } } } },
-          earnings: true,
+          earnings: { orderBy: { createdAt: 'desc' } },
         },
       });
     });

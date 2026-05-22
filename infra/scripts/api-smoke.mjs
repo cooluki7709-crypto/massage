@@ -320,12 +320,40 @@ const payoutBatch = await postJson('/admin/payout-batches', adminAuth.accessToke
   transferRef: `SMOKE-${Date.now()}`,
   notes: 'Created by smoke test',
 });
+if (payoutBatch.status !== 'DRAFT' || payoutBatch.paidAt) {
+  throw new Error(`Payout batch should start as draft: ${JSON.stringify(payoutBatch)}`);
+}
+if (!payoutBatch.earnings?.length || payoutBatch.earnings.some((earning) => earning.status === 'PAID')) {
+  throw new Error(`Draft payout batch should not mark earnings paid: ${JSON.stringify(payoutBatch)}`);
+}
 const payoutBatchUpdate = await patchJson(`/admin/payout-batches/${payoutBatch.id}`, adminAuth.accessToken, {
   transferRef: `${payoutBatch.transferRef}-UPDATED`,
   notes: 'Updated by smoke test',
 });
 if (payoutBatchUpdate.transferRef !== `${payoutBatch.transferRef}-UPDATED`) {
   throw new Error(`Payout batch transfer reference was not updated: ${JSON.stringify(payoutBatchUpdate)}`);
+}
+const payoutBatchProcessing = await patchJson(
+  `/admin/payout-batches/${payoutBatch.id}`,
+  adminAuth.accessToken,
+  {
+    status: 'PROCESSING',
+  },
+);
+if (payoutBatchProcessing.status !== 'PROCESSING' || payoutBatchProcessing.paidAt) {
+  throw new Error(
+    `Payout batch should move to processing without paidAt: ${JSON.stringify(payoutBatchProcessing)}`,
+  );
+}
+const payoutBatchPaid = await patchJson(`/admin/payout-batches/${payoutBatch.id}`, adminAuth.accessToken, {
+  status: 'PAID',
+});
+if (
+  payoutBatchPaid.status !== 'PAID' ||
+  !payoutBatchPaid.paidAt ||
+  payoutBatchPaid.earnings?.some((earning) => earning.status !== 'PAID')
+) {
+  throw new Error(`Payout batch should mark linked earnings paid: ${JSON.stringify(payoutBatchPaid)}`);
 }
 const adminPayoutBatches = await getJson('/admin/payout-batches', adminAuth.accessToken);
 const adminBookings = await getJson('/admin/bookings', adminAuth.accessToken);
