@@ -668,7 +668,7 @@ class ProviderStatusPanel extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium),
                   Text(
                     isOnline
-                        ? 'Location is shared for booking requests.'
+                        ? 'Your last known location is saved and refreshed while the app is open.'
                         : 'Go online to receive direct booking requests.',
                   ),
                 ],

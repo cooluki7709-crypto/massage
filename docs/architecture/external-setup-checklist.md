@@ -242,9 +242,10 @@ node .\infra\scripts\check-external-setup.mjs --strict
 
 ## Current Local Status
 
-Last checked from `C:\dev\massage-vn-workspace\repo`:
+Last checked from `C:\dev\massage-vn-workspace\repo` on 2026-05-22:
 
 - Mobile Firebase dependencies/config: removed
+- Full local verification with Docker services: passing
 - OS-level push provider: not selected
 - MapTiler API key: pending
 - Geoapify API key: pending
@@ -253,6 +254,12 @@ Last checked from `C:\dev\massage-vn-workspace\repo`:
 - Production SMS provider: not selected
 - MoMo / VNPay merchant credentials: not filled
 - Production S3 or Cloudflare R2: not filled, local MinIO is enough for MVP
+
+Phase-specific external checks currently block only on missing external console values:
+
+- `supabase-auth`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET`
+- `maps`: `MAPTILER_API_KEY`, `GEOAPIFY_API_KEY`
+- `payments`: `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY`, `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`
 
 The next external setup items to complete are:
 
