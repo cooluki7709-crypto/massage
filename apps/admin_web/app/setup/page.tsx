@@ -4,6 +4,9 @@ const setupOrder = [
   {
     id: 'mobile',
     title: 'Mobile Firebase removal guard',
+    phase: 'Code baseline',
+    operatorAction: 'Keep Firebase packages and config files out of both Flutter apps.',
+    exitCriteria: 'Firebase removal and Flutter architecture guards pass.',
     purpose: 'Required to keep the Flutter apps Firebase-free while Supabase migration continues.',
     env: ['customer_app', 'provider_app'],
     notes: [
@@ -16,6 +19,9 @@ const setupOrder = [
   {
     id: 'supabase',
     title: 'Supabase Auth and database',
+    phase: 'Staging foundation',
+    operatorAction: 'Create HANDS Staging, run the generated SQL bundle, then fill Supabase env values.',
+    exitCriteria: 'Supabase SQL applies cleanly and auth smoke passes with the project JWT secret.',
     purpose: 'Required before Firebase-free production login and direct client data access.',
     env: [
       'AUTH_BACKEND',
@@ -41,6 +47,9 @@ const setupOrder = [
   {
     id: 'maps',
     title: 'MapTiler and Geoapify',
+    phase: 'Location E2E',
+    operatorAction: 'Register low-cost map and geocoding keys for customer location selection.',
+    exitCriteria: 'Customer app can search an address, move the pin, and load nearby providers.',
     purpose: 'Required for customer address search, map pin confirmation, and nearby provider display.',
     env: ['MAPTILER_API_KEY', 'GEOAPIFY_API_KEY'],
     notes: [
@@ -57,6 +66,9 @@ const setupOrder = [
   {
     id: 'payments',
     title: 'Vietnam payment gateways',
+    phase: 'Commercial E2E',
+    operatorAction: 'Add MoMo and VNPay sandbox credentials before real payment testing.',
+    exitCriteria: 'Authorization, release, capture, cash fallback, and refund smoke flows pass.',
     purpose: 'Required for real MoMo/VNPay E2E authorization, capture, release, and refund testing.',
     env: ['MOMO_PARTNER_CODE', 'MOMO_ACCESS_KEY', 'MOMO_SECRET_KEY', 'VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET'],
     notes: [
@@ -69,6 +81,9 @@ const setupOrder = [
   {
     id: 'notifications',
     title: 'SMS and OS push',
+    phase: 'Messaging E2E',
+    operatorAction: 'Keep dev OTP locally, then choose production SMS and OS push providers.',
+    exitCriteria: 'OTP delivery and production push provider strategy are confirmed.',
     purpose: 'Required before real OTP delivery and native push notifications.',
     env: ['SMS_PROVIDER', 'SMS_API_URL', 'SMS_API_KEY', 'ONESIGNAL_APP_ID'],
     notes: [
@@ -81,6 +96,9 @@ const setupOrder = [
   {
     id: 'storage',
     title: 'File storage and CDN',
+    phase: 'Media operations',
+    operatorAction: 'Use local MinIO for MVP, then configure production storage/CDN.',
+    exitCriteria: 'Private verification files and public provider media can be uploaded and served.',
     purpose: 'Required for provider verification files, public profile media, and moderation evidence.',
     env: ['S3_ENDPOINT', 'S3_BUCKET', 'S3_ACCESS_KEY', 'S3_SECRET_KEY', 'S3_REGION', 'S3_PUBLIC_BASE_URL'],
     notes: [
@@ -103,6 +121,8 @@ export default async function SetupPage() {
   });
 
   const summary = buildSummary(readiness);
+  const groupStatuses = buildGroupStatuses(readiness);
+  const nextActions = buildNextOperatorActions(readiness);
 
   return (
     <>
@@ -143,6 +163,53 @@ export default async function SetupPage() {
           value={summary.missing}
           helper="Secret values are never displayed here."
         />
+      </section>
+
+      <section className="detail-grid" style={{ marginBottom: 16 }}>
+        <div className="card">
+          <div className="risk-watch-header">
+            <div>
+              <h2>Next operator actions</h2>
+              <p className="muted">
+                These are the highest-priority human setup steps. Code checks can keep passing while these
+                external values are pending.
+              </p>
+            </div>
+            <span className={`signal ${nextActions.length === 0 ? 'signal-ok' : 'signal-warn'}`}>
+              {nextActions.length === 0 ? 'No pending actions' : `${nextActions.length} pending`}
+            </span>
+          </div>
+          <div className="setup-action-list">
+            {nextActions.slice(0, 6).map((item) => (
+              <a className="setup-action-item" href={`#${item.groupId}`} key={`${item.groupId}-${item.name}`}>
+                <span>{item.phase}</span>
+                <strong>{item.name}</strong>
+                <p className="muted">{item.action}</p>
+              </a>
+            ))}
+            {nextActions.length === 0 && (
+              <p className="muted">All currently known external setup actions are clear.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <h2>Migration runway</h2>
+          <p className="muted">
+            HANDS is moving from local MVP stability to Supabase-backed staging without breaking the mobile
+            booking flow.
+          </p>
+          <div className="setup-stage-list">
+            {groupStatuses.map((item, index) => (
+              <a className="setup-stage-item" href={`#${item.id}`} key={item.id}>
+                <span>Stage {index + 1}</span>
+                <strong>{item.phase}</strong>
+                <p>{item.title}</p>
+                <small>{item.status}</small>
+              </a>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section className="detail-grid">
@@ -219,6 +286,9 @@ export default async function SetupPage() {
               <div className="risk-watch-header">
                 <div>
                   <h2>{group.title}</h2>
+                  <p className="muted">
+                    <strong>{group.phase}:</strong> {group.operatorAction}
+                  </p>
                   <p className="muted">{group.purpose}</p>
                 </div>
                 <span className={setupGroupSignalClass(relatedChecks)}>
@@ -243,6 +313,9 @@ export default async function SetupPage() {
                       <li key={note}>{note}</li>
                     ))}
                   </ul>
+                  <p className="muted">
+                    <strong>Exit criteria:</strong> {group.exitCriteria}
+                  </p>
                 </div>
               </div>
               <div className="setup-command-block">
@@ -319,6 +392,34 @@ function buildExternalBacklog(readiness: AdminExternalReadiness) {
       reason: check.detail,
     }));
   });
+}
+
+function buildGroupStatuses(readiness: AdminExternalReadiness) {
+  return setupOrder.map((group) => {
+    const relatedChecks = readiness.checks.filter((check) => setupGroupMatches(group.id, check.category));
+    return {
+      id: group.id,
+      title: group.title,
+      phase: group.phase,
+      status: setupGroupStatus(relatedChecks),
+    };
+  });
+}
+
+function buildNextOperatorActions(readiness: AdminExternalReadiness) {
+  const backlog = buildExternalBacklog(readiness);
+  return backlog
+    .map((item) => {
+      const groupIndex = setupOrder.findIndex((group) => group.id === item.groupId);
+      const group = setupOrder[groupIndex] ?? setupOrder[0];
+      return {
+        ...item,
+        phase: group.phase,
+        action: group.operatorAction,
+        rank: groupIndex === -1 ? setupOrder.length : groupIndex,
+      };
+    })
+    .sort((left, right) => left.rank - right.rank || left.name.localeCompare(right.name));
 }
 
 function setupGroupMatches(groupId: string, category: string) {

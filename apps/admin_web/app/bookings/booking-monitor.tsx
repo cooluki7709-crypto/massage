@@ -10,11 +10,23 @@ type Props = {
 };
 
 const activeStatuses = new Set(['OPEN_MATCHING', 'MATCHED', 'PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE']);
+const displayTimeZone = 'Asia/Bangkok';
+const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: displayTimeZone,
+});
+const clockFormatter = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  timeZone: displayTimeZone,
+});
 
 export function BookingMonitor({ bookings }: Props) {
   const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [lastRefreshLabel, setLastRefreshLabel] = useState('loading...');
   const [nowMs, setNowMs] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const [view, setView] = useState<'active' | 'chat' | 'all'>('active');
@@ -72,8 +84,9 @@ export function BookingMonitor({ bookings }: Props) {
   }, [orderedBookings, view]);
 
   useEffect(() => {
-    setLastRefresh(new Date());
-    setNowMs(Date.now());
+    const mountedAt = new Date();
+    setLastRefreshLabel(formatClockTime(mountedAt));
+    setNowMs(mountedAt.getTime());
 
     if (!autoRefresh) {
       return;
@@ -83,7 +96,7 @@ export function BookingMonitor({ bookings }: Props) {
       startTransition(() => {
         router.refresh();
         const refreshedAt = new Date();
-        setLastRefresh(refreshedAt);
+        setLastRefreshLabel(formatClockTime(refreshedAt));
         setNowMs(refreshedAt.getTime());
       });
     }, 10000);
@@ -110,7 +123,7 @@ export function BookingMonitor({ bookings }: Props) {
               startTransition(() => {
                 router.refresh();
                 const refreshedAt = new Date();
-                setLastRefresh(refreshedAt);
+                setLastRefreshLabel(formatClockTime(refreshedAt));
                 setNowMs(refreshedAt.getTime());
               });
             }}
@@ -131,7 +144,7 @@ export function BookingMonitor({ bookings }: Props) {
 
       <div className="monitor-meta">
         <span>{isPending ? 'Refreshing...' : 'Ready'}</span>
-        <span>Last refresh {lastRefresh ? lastRefresh.toLocaleTimeString() : 'loading...'}</span>
+        <span suppressHydrationWarning>Last refresh {lastRefreshLabel}</span>
       </div>
 
       <div className="actions" style={{ marginTop: 16 }}>
@@ -471,7 +484,11 @@ function formatDate(value?: string | null) {
   if (!value) {
     return 'No schedule';
   }
-  return new Date(value).toLocaleString();
+  return dateTimeFormatter.format(new Date(value));
+}
+
+function formatClockTime(value: Date) {
+  return clockFormatter.format(value);
 }
 
 function recencyLabel(booking: AdminBooking, nowMs: number | null) {
