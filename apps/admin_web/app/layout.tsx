@@ -14,6 +14,7 @@ const links = [
   ['/notifications', 'Notifications'],
   ['/coupons', 'Coupons'],
   ['/audit-log', 'Audit Log'],
+  ['/setup', 'Setup'],
 ];
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -22,7 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <div className="shell">
           <aside className="sidebar">
-            <strong>Massage VN Admin</strong>
+            <strong>HANDS Admin</strong>
             <nav className="nav">
               {links.map(([href, label]) => (
                 <Link key={href} href={href}>

@@ -271,7 +271,7 @@ function ExternalReadinessRow({ check }: { check: AdminExternalReadiness['checks
         {check.configured.length > 0 && <p className="muted">Configured: {check.configured.join(', ')}</p>}
       </div>
       <div className="actions">
-        <span className={`pill ${check.status === 'READY' ? 'pill-success' : 'pill-warning'}`}>
+        <span className={`pill ${check.status === 'READY' ? 'pill-success' : 'pill-warn'}`}>
           {check.status}
         </span>
         <Link className="text-link" href={href}>
@@ -283,20 +283,23 @@ function ExternalReadinessRow({ check }: { check: AdminExternalReadiness['checks
 }
 
 function externalSetupHref(category: string) {
+  if (category === 'supabase') {
+    return '/setup#supabase';
+  }
   if (category === 'payments') {
-    return '/payments';
+    return '/setup#payments';
   }
   if (category === 'push' || category === 'sms') {
-    return '/notifications';
+    return '/setup#notifications';
   }
   if (category === 'storage') {
-    return '/providers';
+    return '/setup#storage';
   }
   if (category === 'maps') {
-    return '/bookings';
+    return '/setup#maps';
   }
 
-  return '/';
+  return '/setup';
 }
 
 function InfoRow({ label, value, detail }: { label: string; value: string; detail: string }) {
