@@ -8,11 +8,11 @@ Move the HANDS customer and provider Flutter apps from the current mixed app-sta
 
 The Flutter apps no longer use Firebase.
 
-| App | File | Current responsibility |
-| --- | --- | --- |
+| App      | File                                                                                                         | Current responsibility                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
 | Customer | `apps/customer_app/lib/src/features/notification/data/datasources/in_app_notification_token_datasource.dart` | Keeps notification setup behind the existing repository boundary without registering an OS push token. |
 | Provider | `apps/provider_app/lib/src/features/notification/data/datasources/in_app_notification_token_datasource.dart` | Keeps notification setup behind the existing repository boundary without registering an OS push token. |
-| API | `apps/api/src/notifications/push-delivery.service.ts` | Records in-app-only delivery decisions and avoids external OS push calls. |
+| API      | `apps/api/src/notifications/push-delivery.service.ts`                                                        | Records in-app-only delivery decisions and avoids external OS push calls.                              |
 
 No Flutter or API code currently calls Firebase Auth, Firestore, Firebase Storage, Realtime Database, Cloud Functions, Cloud Messaging, Firebase Core, or FCM HTTP APIs.
 
@@ -52,6 +52,15 @@ lib/
 
 Firebase has been removed from the Flutter apps after isolating notification behavior behind feature repositories and use cases.
 
+Use the architecture guard whenever auth, notification, map, or chat code is moved:
+
+```powershell
+cd C:\dev\massage-vn-workspace\repo
+npm.cmd run mobile:architecture:check
+```
+
+The guard blocks Firebase references, direct Supabase imports from screens/presentation, and `Supabase.instance` usage. Supabase access should stay behind core providers and data-layer datasources so later developers can replace providers without rewriting UI screens.
+
 1. Notification boundary
    - Keep UI calling `RegisterCurrentDevicePushToken`.
    - Keep notification setup behind `PushTokenDataSource`.
@@ -89,36 +98,36 @@ Firebase has been removed from the Flutter apps after isolating notification beh
 
 Recommended Supabase/PostgreSQL tables:
 
-| Table | Purpose |
-| --- | --- |
-| `profiles` | Shared user profile linked to Supabase Auth user id. |
-| `providers` | Provider profile, verification state, status, public profile data. |
-| `services` | Massage service catalog. |
-| `provider_services` | Provider-specific offerings and prices. |
-| `provider_locations` | Last-known provider location and freshness timestamp. |
-| `customer_selected_locations` | Customer-confirmed booking locations. |
-| `bookings` | Direct booking and matching state. |
-| `booking_participants` | Preferred and backup provider participation. |
-| `payments` | Cash, MoMo, VNPay, refund/capture state. |
-| `reviews` | Customer review and rating records. |
-| `chat_rooms` | Booking chat room. |
-| `messages` | Chat messages. |
-| `notifications` | In-app notification inbox. |
-| `files` | Supabase Storage file metadata. |
-| `admin_settings` | Operational configuration. |
+| Table                         | Purpose                                                            |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `profiles`                    | Shared user profile linked to Supabase Auth user id.               |
+| `providers`                   | Provider profile, verification state, status, public profile data. |
+| `services`                    | Massage service catalog.                                           |
+| `provider_services`           | Provider-specific offerings and prices.                            |
+| `provider_locations`          | Last-known provider location and freshness timestamp.              |
+| `customer_selected_locations` | Customer-confirmed booking locations.                              |
+| `bookings`                    | Direct booking and matching state.                                 |
+| `booking_participants`        | Preferred and backup provider participation.                       |
+| `payments`                    | Cash, MoMo, VNPay, refund/capture state.                           |
+| `reviews`                     | Customer review and rating records.                                |
+| `chat_rooms`                  | Booking chat room.                                                 |
+| `messages`                    | Chat messages.                                                     |
+| `notifications`               | In-app notification inbox.                                         |
+| `files`                       | Supabase Storage file metadata.                                    |
+| `admin_settings`              | Operational configuration.                                         |
 
 ## RLS Direction
 
 Use RLS as a second guardrail, but keep critical booking/payment/matching decisions in the API.
 
-| Area | Policy direction |
-| --- | --- |
-| Profiles | Users can read/update their own profile. Admins can read all. |
-| Providers | Public approved profile fields are readable by customers. Providers can update their own private profile. |
-| Bookings | Customers see their own bookings. Providers see assigned, preferred, or open eligible bookings. Admins see all. |
-| Messages | Only chat room participants and admins can read/write messages. |
-| Notifications | Users read/update their own notification rows. Admins can inspect all. |
-| Files | Owners and admins can access private files. Public provider media can be served through a public bucket/CDN. |
+| Area          | Policy direction                                                                                                |
+| ------------- | --------------------------------------------------------------------------------------------------------------- |
+| Profiles      | Users can read/update their own profile. Admins can read all.                                                   |
+| Providers     | Public approved profile fields are readable by customers. Providers can update their own private profile.       |
+| Bookings      | Customers see their own bookings. Providers see assigned, preferred, or open eligible bookings. Admins see all. |
+| Messages      | Only chat room participants and admins can read/write messages.                                                 |
+| Notifications | Users read/update their own notification rows. Admins can inspect all.                                          |
+| Files         | Owners and admins can access private files. Public provider media can be served through a public bucket/CDN.    |
 
 ## Biggest Risks
 
