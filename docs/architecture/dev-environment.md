@@ -83,6 +83,14 @@ It currently covers:
 - Docker Compose and smoke tests when Docker is available
 - Flutter dependency/analyze checks when Flutter is available
 
+For external integrations, use focused checks before asking the app to run against real providers:
+
+```powershell
+npm.cmd run external:check:supabase
+npm.cmd run external:check:maps
+npm.cmd run external:check:payments
+```
+
 After Docker Desktop is installed and running, use:
 
 ```powershell

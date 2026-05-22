@@ -225,7 +225,16 @@ node .\infra\scripts\check-external-setup.mjs
 powershell -ExecutionPolicy Bypass -File .\infra\scripts\verify-local.ps1 -WithServices
 ```
 
-Run strict mode before production-like E2E testing:
+Run phase-specific checks before each external E2E pass:
+
+```powershell
+node .\infra\scripts\check-external-setup.mjs --phase=supabase-auth
+node .\infra\scripts\check-external-setup.mjs --phase=maps
+node .\infra\scripts\check-external-setup.mjs --phase=payments
+node .\infra\scripts\check-external-setup.mjs --phase=storage
+```
+
+Run strict mode only before production-like E2E testing, because it requires every recommended external integration at once:
 
 ```powershell
 node .\infra\scripts\check-external-setup.mjs --strict

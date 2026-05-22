@@ -3,11 +3,28 @@ import { resolve } from 'node:path';
 
 const envFile = process.argv.find((arg) => arg.startsWith('--env='))?.slice('--env='.length) ?? '.env';
 const strict = process.argv.includes('--strict');
+const phase = process.argv.find((arg) => arg.startsWith('--phase='))?.slice('--phase='.length) ?? 'advisory';
 const envPath = resolve(envFile);
 const fileEnv = existsSync(envPath) ? parseEnv(readFileSync(envPath, 'utf8')) : {};
 const env = { ...fileEnv, ...process.env };
 
 const checks = [];
+const validPhases = new Set(['advisory', 'supabase-auth', 'maps', 'payments', 'storage', 'production']);
+
+if (!validPhases.has(phase)) {
+  console.error(
+    JSON.stringify(
+      {
+        ok: false,
+        error: `Unknown phase "${phase}".`,
+        validPhases: [...validPhases],
+      },
+      null,
+      2,
+    ),
+  );
+  process.exit(1);
+}
 
 addCheck(
   'workspace',
@@ -28,17 +45,31 @@ addRecommended(
   hasValue('MAPTILER_API_KEY'),
   'Set MAPTILER_API_KEY in .env or the shell before running Flutter with the MapTiler map.',
 );
+addPhaseRequired(
+  'maps',
+  'MAPTILER_API_KEY for map screens',
+  hasValue('MAPTILER_API_KEY'),
+  'Create a MapTiler key and set MAPTILER_API_KEY before real map E2E.',
+  ['maps', 'production'],
+);
 addRecommended(
   'geocoding',
   'GEOAPIFY_API_KEY',
   hasValue('GEOAPIFY_API_KEY'),
   'Set GEOAPIFY_API_KEY in .env or the shell before using address search.',
 );
+addPhaseRequired(
+  'geocoding',
+  'GEOAPIFY_API_KEY for address search',
+  hasValue('GEOAPIFY_API_KEY'),
+  'Create a Geoapify key and set GEOAPIFY_API_KEY before address search E2E.',
+  ['maps', 'production'],
+);
 
 addRecommended(
   'supabase',
   'SUPABASE_URL',
-  hasValue('SUPABASE_URL'),
+  isHttpsUrl('SUPABASE_URL'),
   'Set SUPABASE_URL if using Supabase directly for map/location storage.',
 );
 addRecommended(
@@ -50,8 +81,29 @@ addRecommended(
 addRecommended(
   'supabase',
   'SUPABASE_JWT_SECRET',
-  hasValue('SUPABASE_JWT_SECRET'),
+  hasSecretLikeValue('SUPABASE_JWT_SECRET'),
   'Set SUPABASE_JWT_SECRET on the API before accepting Supabase Auth access tokens.',
+);
+addPhaseRequired(
+  'supabase',
+  'SUPABASE_URL for Phone Auth',
+  isHttpsUrl('SUPABASE_URL'),
+  'Set SUPABASE_URL=https://<project-ref>.supabase.co before AUTH_BACKEND=supabase E2E.',
+  ['supabase-auth', 'production'],
+);
+addPhaseRequired(
+  'supabase',
+  'SUPABASE_ANON_KEY for Flutter OTP',
+  hasValue('SUPABASE_ANON_KEY'),
+  'Set SUPABASE_ANON_KEY from Supabase Project Settings > API.',
+  ['supabase-auth', 'production'],
+);
+addPhaseRequired(
+  'supabase',
+  'SUPABASE_JWT_SECRET for API token verification',
+  hasSecretLikeValue('SUPABASE_JWT_SECRET'),
+  'Set SUPABASE_JWT_SECRET from Supabase Project Settings > API > JWT secret.',
+  ['supabase-auth', 'production'],
 );
 
 addRecommended(
@@ -79,11 +131,25 @@ addRecommended(
   allHaveValue(['MOMO_PARTNER_CODE', 'MOMO_ACCESS_KEY', 'MOMO_SECRET_KEY']),
   'Fill MoMo merchant credentials before MoMo E2E.',
 );
+addPhaseRequired(
+  'payments',
+  'MoMo credentials',
+  allHaveValue(['MOMO_PARTNER_CODE', 'MOMO_ACCESS_KEY', 'MOMO_SECRET_KEY']),
+  'Fill MOMO_PARTNER_CODE, MOMO_ACCESS_KEY, and MOMO_SECRET_KEY before payment E2E.',
+  ['payments', 'production'],
+);
 addRecommended(
   'payments',
   'VNPay credentials',
   allHaveValue(['VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET']),
   'Fill VNPay merchant credentials before VNPay E2E.',
+);
+addPhaseRequired(
+  'payments',
+  'VNPay credentials',
+  allHaveValue(['VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET']),
+  'Fill VNPAY_TMN_CODE and VNPAY_HASH_SECRET before VNPay E2E.',
+  ['payments', 'production'],
 );
 
 addRecommended(
@@ -100,14 +166,30 @@ addRecommended(
   ]),
   'Local MinIO is enough for MVP; fill STORAGE_PROVIDER plus production storage/CDN values before launch.',
 );
+addPhaseRequired(
+  'storage',
+  'production file storage',
+  allHaveValue([
+    'STORAGE_PROVIDER',
+    'S3_ENDPOINT',
+    'S3_REGION',
+    'S3_BUCKET',
+    'S3_ACCESS_KEY',
+    'S3_SECRET_KEY',
+    'S3_PUBLIC_BASE_URL',
+  ]),
+  'Fill production S3/Supabase Storage/R2 values before production-like storage E2E.',
+  ['storage', 'production'],
+);
 
 const requiredFailures = checks.filter((check) => check.required && check.status !== 'PASS');
 const recommendedFailures = checks.filter((check) => !check.required && check.status !== 'PASS');
 
 const result = {
   ok: requiredFailures.length === 0 && (!strict || recommendedFailures.length === 0),
-  mode: strict ? 'strict' : 'advisory',
+  mode: strict ? 'strict' : phase,
   envFile: existsSync(envPath) ? envPath : null,
+  phase,
   checks,
   nextActions: [...requiredFailures, ...(strict ? recommendedFailures : [])].map((check) => check.fix),
 };
@@ -138,8 +220,33 @@ function addRecommended(category, name, passed, fix) {
   });
 }
 
+function addPhaseRequired(category, name, passed, fix, phases) {
+  if (!phases.includes(phase)) {
+    return;
+  }
+  addCheck(category, name, passed, fix);
+}
+
 function hasValue(key) {
   return String(env[key] ?? '').trim().length > 0;
+}
+
+function hasSecretLikeValue(key) {
+  const value = String(env[key] ?? '').trim();
+  return value.length >= 16 && !/^change-me$/i.test(value);
+}
+
+function isHttpsUrl(key) {
+  const value = String(env[key] ?? '').trim();
+  if (!value) {
+    return false;
+  }
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 function allHaveValue(keys) {
