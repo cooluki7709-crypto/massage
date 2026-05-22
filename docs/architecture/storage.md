@@ -45,6 +45,20 @@ S3_PUBLIC_BASE_URL=https://<project-ref>.supabase.co/storage/v1/object/public/ha
 
 Confirm the exact Supabase S3 endpoint and access keys in the Supabase dashboard before production use. Keep these credentials server-side only.
 
+Run the Supabase storage policy draft after the core schema:
+
+```sql
+-- Supabase SQL editor
+\i infra/supabase/hands-core-schema.sql
+\i infra/supabase/storage-schema.sql
+```
+
+If using the Supabase dashboard SQL editor, paste `hands-core-schema.sql` first, then paste `storage-schema.sql`. The storage policy file creates:
+
+- `hands-public` for public provider profile/gallery media.
+- `hands-private` for provider verification and private moderation files.
+- owner/admin RLS policies for direct client access in a later migration phase.
+
 Private files are read through `GET /api/files/:id/read-url`, which checks that the requester is an admin or the owning provider before returning a short-lived signed GET URL.
 
 If storage variables are missing, the API deliberately falls back to placeholder URLs so local MVP flows remain usable.

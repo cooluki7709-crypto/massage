@@ -54,6 +54,8 @@ The schema includes:
 - `files`
 - `admin_settings`
 
+Storage policies are separated into `infra/supabase/storage-schema.sql` so bucket setup can be reviewed independently from app data tables.
+
 ## Safe Migration Order
 
 1. Keep NestJS OTP/JWT login as the mobile auth boundary.

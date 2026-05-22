@@ -155,6 +155,7 @@ Rules:
 - Provider verification files stay private.
 - Public provider profile media can be served through CDN.
 - Never commit uploaded files or service account credentials.
+- Supabase projects should run `infra/supabase/hands-core-schema.sql` first, then `infra/supabase/storage-schema.sql`.
 
 ## 6. Domains / Deployment
 
