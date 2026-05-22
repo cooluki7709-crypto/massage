@@ -38,15 +38,24 @@ Existing local run flags still apply:
 Auth backend modes:
 
 - `AUTH_BACKEND=nest` keeps the current NestJS OTP/JWT flow and is the default for MVP stability.
-- `AUTH_BACKEND=supabase` routes mobile OTP verification through Supabase Auth. Use this only after Supabase phone OTP is configured and the backend API accepts the resulting Supabase JWT or an exchange flow is added.
+- `AUTH_BACKEND=supabase` routes mobile OTP request and verification through Supabase Auth. Use this only after Supabase phone OTP is configured and the backend API is running with the matching Supabase JWT secret.
 
 The API now accepts Supabase Auth JWTs when `SUPABASE_JWT_SECRET` is configured. Supabase users are mapped to local Nest users through `User.supabaseUserId`, and phone OTP users are linked by phone number when possible.
 
 Mobile Supabase OTP flow uses a bridge session:
 
 - `AUTH_BACKEND=nest`: mobile verifies OTP directly with Nest and receives Nest API tokens.
-- `AUTH_BACKEND=supabase`: mobile verifies OTP with Supabase, then exchanges the Supabase access token at `/auth/supabase/exchange` for Nest API tokens.
+- `AUTH_BACKEND=supabase`: mobile first calls Supabase `signInWithOtp`, verifies the SMS code with Supabase, then exchanges the Supabase access token at `/auth/supabase/exchange` for Nest API tokens.
 - This keeps provider/customer roles, Socket.IO auth, and existing protected API routes stable while Supabase Auth becomes the OTP identity provider.
+
+Mobile auth code is now split by Clean Architecture boundaries:
+
+- `domain/entities/otp_request.dart`: OTP request result contract.
+- `domain/usecases/request_otp.dart`: screen-safe OTP request use case.
+- `data/datasources/*_otp_auth_remote_datasource.dart`: Nest or Supabase implementation.
+- `presentation/controllers/auth_controller.dart`: UI-facing methods for request and verify.
+
+Screens should call `requestOtp(...)` before `signInWithOtp(...)` when real phone login UI is enabled. The existing demo login remains available for local booking flow testing.
 
 After the API is running with the same `SUPABASE_JWT_SECRET`, run this smoke test to verify that Supabase-style access tokens are accepted by protected Nest routes:
 

@@ -8,6 +8,7 @@ import '../../data/datasources/supabase_otp_auth_remote_datasource.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/auth_session.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../domain/usecases/request_otp.dart';
 import '../../domain/usecases/sign_in_with_otp.dart';
 import '../controllers/auth_controller.dart';
 
@@ -36,11 +37,18 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   );
 });
 
+final requestOtpProvider = Provider<RequestOtp>((ref) {
+  return RequestOtp(ref.read(authRepositoryProvider));
+});
+
 final signInWithOtpProvider = Provider<SignInWithOtp>((ref) {
   return SignInWithOtp(ref.read(authRepositoryProvider));
 });
 
 final authControllerProvider =
     StateNotifierProvider<AuthController, AuthSession?>((ref) {
-  return AuthController(ref.read(signInWithOtpProvider));
+  return AuthController(
+    requestOtp: ref.read(requestOtpProvider),
+    signInWithOtp: ref.read(signInWithOtpProvider),
+  );
 });

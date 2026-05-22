@@ -1,11 +1,24 @@
 import '../../../../core/api_client.dart';
 import '../models/auth_session_model.dart';
+import '../models/otp_request_model.dart';
 import 'auth_remote_datasource.dart';
 
 class NestOtpAuthRemoteDataSource implements AuthRemoteDataSource {
   const NestOtpAuthRemoteDataSource(this._api);
 
   final ApiClient _api;
+
+  @override
+  Future<OtpRequestModel> requestOtp({
+    required String phone,
+    required String role,
+  }) async {
+    final result = await _api.postJson('/auth/request-otp', {
+      'phone': phone,
+      'role': role,
+    });
+    return OtpRequestModel.fromJson(result as Map<String, dynamic>);
+  }
 
   @override
   Future<AuthSessionModel> verifyOtp({

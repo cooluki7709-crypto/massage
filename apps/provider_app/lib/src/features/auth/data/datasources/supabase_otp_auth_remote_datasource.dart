@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/api_client.dart';
 import '../models/auth_session_model.dart';
+import '../models/otp_request_model.dart';
 import 'auth_remote_datasource.dart';
 
 class SupabaseOtpAuthRemoteDataSource implements AuthRemoteDataSource {
@@ -9,6 +10,25 @@ class SupabaseOtpAuthRemoteDataSource implements AuthRemoteDataSource {
 
   final SupabaseClient _client;
   final ApiClient _api;
+
+  @override
+  Future<OtpRequestModel> requestOtp({
+    required String phone,
+    required String role,
+  }) async {
+    await _client.auth.signInWithOtp(
+      phone: phone,
+      channel: OtpChannel.sms,
+      shouldCreateUser: true,
+    );
+
+    return OtpRequestModel(
+      phone: phone,
+      role: role,
+      status: 'OTP_REQUESTED',
+      deliveryMethod: 'SUPABASE_SMS',
+    );
+  }
 
   @override
   Future<AuthSessionModel> verifyOtp({

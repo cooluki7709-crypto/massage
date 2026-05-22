@@ -1,6 +1,7 @@
 import '../../../../core/api_client.dart';
 import '../../../../core/realtime_socket.dart';
 import '../../domain/entities/auth_session.dart';
+import '../../domain/entities/otp_request.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
 
@@ -16,6 +17,14 @@ class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource _remoteDataSource;
   final ApiClient _apiClient;
   final RealtimeSocket _realtimeSocket;
+
+  @override
+  Future<OtpRequest> requestOtp({
+    required String phone,
+    required String role,
+  }) {
+    return _remoteDataSource.requestOtp(phone: phone, role: role);
+  }
 
   @override
   Future<AuthSession> signInWithOtp({
