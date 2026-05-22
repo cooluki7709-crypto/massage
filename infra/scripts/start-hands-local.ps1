@@ -1,7 +1,8 @@
 param(
   [string]$RepoRoot = "C:\dev\massage-vn-workspace\repo",
   [int]$ApiPort = 3100,
-  [int]$AdminPort = 3101
+  [int]$AdminPort = 3101,
+  [switch]$SkipAdmin
 )
 
 $ErrorActionPreference = "Stop"
@@ -67,6 +68,33 @@ function Ensure-WorkspaceReady {
   }
 }
 
+function Import-DotEnvIfPresent {
+  param([string]$Root)
+
+  $envPath = Join-Path $Root ".env"
+  if (-not (Test-Path $envPath)) {
+    return
+  }
+
+  Get-Content $envPath | ForEach-Object {
+    $line = $_.Trim()
+    if (-not $line -or $line.StartsWith("#")) {
+      return
+    }
+
+    $separatorIndex = $line.IndexOf("=")
+    if ($separatorIndex -lt 1) {
+      return
+    }
+
+    $key = $line.Substring(0, $separatorIndex).Trim()
+    $value = $line.Substring($separatorIndex + 1).Trim().Trim("'").Trim('"')
+    if (-not [Environment]::GetEnvironmentVariable($key, "Process")) {
+      [Environment]::SetEnvironmentVariable($key, $value, "Process")
+    }
+  }
+}
+
 function Clear-ApiDist {
   param([string]$Root)
 
@@ -82,7 +110,10 @@ $statePath = Join-Path $logDir "state.json"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
 Assert-PortFree -Port $ApiPort
-Assert-PortFree -Port $AdminPort
+if (-not $SkipAdmin) {
+  Assert-PortFree -Port $AdminPort
+}
+Import-DotEnvIfPresent -Root $RepoRoot
 Ensure-WorkspaceReady -Root $RepoRoot
 Clear-ApiDist -Root $RepoRoot
 
@@ -93,7 +124,9 @@ $apiCommand = @"
 Set-Location '$RepoRoot'
 `$env:API_PORT='$ApiPort'
 `$env:ADMIN_API_BASE_URL='http://localhost:$ApiPort/api'
-npm.cmd run dev --workspace @massage-vn/api *> '$apiLog'
+npm.cmd run build --workspace @massage-vn/api *> '$apiLog'
+if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
+npm.cmd run start --workspace @massage-vn/api *> '$apiLog'
 "@
 
 $adminCommand = @"
@@ -111,14 +144,17 @@ $apiProcess = Start-Process powershell -ArgumentList @(
   $apiCommand
 ) -WindowStyle Hidden -PassThru
 
-$adminProcess = Start-Process powershell -ArgumentList @(
-  "-NoLogo",
-  "-NoProfile",
-  "-ExecutionPolicy",
-  "Bypass",
-  "-Command",
-  $adminCommand
-) -WindowStyle Hidden -PassThru
+$adminProcess = $null
+if (-not $SkipAdmin) {
+  $adminProcess = Start-Process powershell -ArgumentList @(
+    "-NoLogo",
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-Command",
+    $adminCommand
+  ) -WindowStyle Hidden -PassThru
+}
 
 $state = [pscustomobject]@{
   appName = "HANDS"
@@ -127,15 +163,21 @@ $state = [pscustomobject]@{
   apiPort = $ApiPort
   adminPort = $AdminPort
   apiPid = $apiProcess.Id
-  adminPid = $adminProcess.Id
+  adminPid = if ($adminProcess) { $adminProcess.Id } else { $null }
   startedAt = (Get-Date).ToString("o")
 }
 $state | ConvertTo-Json | Set-Content -Path $statePath -Encoding utf8
 
 Wait-HttpReady -Url "http://localhost:$ApiPort/api/health" -TimeoutSeconds 90
-Wait-HttpReady -Url "http://localhost:$AdminPort" -TimeoutSeconds 90 -AllowedStatusCodes @(200, 307, 308, 404)
+if (-not $SkipAdmin) {
+  Wait-HttpReady -Url "http://localhost:$AdminPort" -TimeoutSeconds 90 -AllowedStatusCodes @(200, 307, 308, 404)
+}
 
 Write-Host "HANDS local services started"
 Write-Host "API:   http://localhost:$ApiPort/api/health"
-Write-Host "Admin: http://localhost:$AdminPort"
+if ($SkipAdmin) {
+  Write-Host "Admin: skipped, existing admin can continue using http://localhost:$ApiPort/api"
+} else {
+  Write-Host "Admin: http://localhost:$AdminPort"
+}
 Write-Host "Logs:  $logDir"

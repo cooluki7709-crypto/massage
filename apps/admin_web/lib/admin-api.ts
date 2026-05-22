@@ -61,7 +61,12 @@ export type AdminBooking = {
   address?: unknown;
   lat?: string | number;
   lng?: string | number;
-  preferredProvider?: { id?: string; displayName?: string | null; status?: string; user?: { phone?: string; fullName?: string | null } };
+  preferredProvider?: {
+    id?: string;
+    displayName?: string | null;
+    status?: string;
+    user?: { phone?: string; fullName?: string | null };
+  };
   participants?: Array<{
     id: string;
     status: string;
@@ -79,7 +84,11 @@ export type AdminBooking = {
       locationSnapshots?: AdminLocationSnapshot[];
     };
   }>;
-  services?: Array<{ price?: number; quantity?: number; service?: { name?: string; durationMin?: number; basePrice?: number } }>;
+  services?: Array<{
+    price?: number;
+    quantity?: number;
+    service?: { name?: string; durationMin?: number; basePrice?: number };
+  }>;
   payment?: {
     id?: string;
     status: string;
@@ -257,6 +266,36 @@ export type AdminNotification = {
     pushDevice?: { platform?: string; token?: string; enabled?: boolean };
   }>;
 };
+
+export type AdminExternalReadiness = {
+  ok: boolean;
+  timestamp: string;
+  checks: Array<{
+    name: string;
+    category: string;
+    status: 'READY' | 'PARTIAL' | 'BLOCKED';
+    configured: string[];
+    missing: string[];
+    invalid?: string[];
+    detail: string;
+  }>;
+};
+
+export async function apiGet<T>(path: string, fallback: T): Promise<T> {
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return fallback;
+    }
+
+    return (await response.json()) as T;
+  } catch {
+    return fallback;
+  }
+}
 
 export async function adminGet<T>(path: string, fallback: T): Promise<T> {
   try {

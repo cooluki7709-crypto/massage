@@ -2,10 +2,12 @@ import Link from 'next/link';
 import {
   AdminBooking,
   AdminEarningSummary,
+  AdminExternalReadiness,
   AdminNotification,
   AdminPayment,
   AdminProvider,
   AdminRefund,
+  apiGet,
   adminGet,
 } from '../lib/admin-api';
 
@@ -26,24 +28,30 @@ type OpsQueueItem = {
 };
 
 export default async function DashboardPage() {
-  const [providers, bookings, payments, earnings, refunds, notifications] = await Promise.all([
-    adminGet<AdminProvider[]>('/admin/providers', []),
-    adminGet<AdminBooking[]>('/admin/bookings', []),
-    adminGet<AdminPayment[]>('/admin/payments', []),
-    adminGet<AdminEarningSummary>('/admin/earnings/summary', {
-      count: 0,
-      grossAmount: 0,
-      platformFee: 0,
-      tipAmount: 0,
-      netAmount: 0,
-      pendingNetAmount: 0,
-      availableNetAmount: 0,
-      paidNetAmount: 0,
-      currency: 'VND',
-    }),
-    adminGet<AdminRefund[]>('/admin/refunds', []),
-    adminGet<AdminNotification[]>('/admin/notifications', []),
-  ]);
+  const [providers, bookings, payments, earnings, refunds, notifications, externalReadiness] =
+    await Promise.all([
+      adminGet<AdminProvider[]>('/admin/providers', []),
+      adminGet<AdminBooking[]>('/admin/bookings', []),
+      adminGet<AdminPayment[]>('/admin/payments', []),
+      adminGet<AdminEarningSummary>('/admin/earnings/summary', {
+        count: 0,
+        grossAmount: 0,
+        platformFee: 0,
+        tipAmount: 0,
+        netAmount: 0,
+        pendingNetAmount: 0,
+        availableNetAmount: 0,
+        paidNetAmount: 0,
+        currency: 'VND',
+      }),
+      adminGet<AdminRefund[]>('/admin/refunds', []),
+      adminGet<AdminNotification[]>('/admin/notifications', []),
+      apiGet<AdminExternalReadiness>('/health/external', {
+        ok: false,
+        timestamp: new Date(0).toISOString(),
+        checks: [],
+      }),
+    ]);
 
   const queue = buildOpsQueue({ providers, bookings, payments, refunds, notifications, earnings });
   const activeBookings = bookings.filter((booking) => activeBookingStatuses.has(booking.status));
@@ -157,27 +165,33 @@ export default async function DashboardPage() {
         </div>
 
         <div className="card">
-          <h2>External setup blockers</h2>
+          <div className="risk-watch-header">
+            <div>
+              <h2>External setup readiness</h2>
+              <p className="muted">
+                Live API environment check. Secrets are never shown, only configured/missing status.
+              </p>
+            </div>
+            <span className={`signal ${externalReadiness.ok ? 'signal-ok' : 'signal-warn'}`}>
+              {externalReadiness.ok ? 'Ready' : 'Needs setup'}
+            </span>
+          </div>
           <p className="muted">
             These are not code errors. They require console/account values before real E2E testing.
           </p>
           <div className="stack">
-            <ExternalBlocker
-              title="Supabase Auth"
-              detail="SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_JWT_SECRET"
-              href="/notifications"
-            />
-            <ExternalBlocker
-              title="Maps and address search"
-              detail="MAPTILER_API_KEY, GEOAPIFY_API_KEY"
-              href="/bookings"
-            />
-            <ExternalBlocker title="Payments" detail="MoMo and VNPay merchant credentials" href="/payments" />
-            <ExternalBlocker
-              title="Push provider"
-              detail="OneSignal or another OS-level push provider decision"
-              href="/notifications"
-            />
+            {externalReadiness.checks.map((check) => (
+              <ExternalReadinessRow check={check} key={`${check.category}-${check.name}`} />
+            ))}
+            {externalReadiness.checks.length === 0 && (
+              <div className="ops-row">
+                <div>
+                  <strong>API external readiness unavailable</strong>
+                  <p className="muted">Start the HANDS API and refresh this dashboard.</p>
+                </div>
+                <span className="pill pill-warning">BLOCKED</span>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -245,18 +259,44 @@ export default async function DashboardPage() {
   );
 }
 
-function ExternalBlocker({ title, detail, href }: { title: string; detail: string; href: string }) {
+function ExternalReadinessRow({ check }: { check: AdminExternalReadiness['checks'][number] }) {
+  const href = externalSetupHref(check.category);
+  const missing = [...check.missing, ...(check.invalid ?? [])];
+
   return (
     <div className="ops-row">
       <div>
-        <strong>{title}</strong>
-        <p className="muted">{detail}</p>
+        <strong>{check.name}</strong>
+        <p className="muted">{missing.length > 0 ? missing.join(', ') : check.detail}</p>
+        {check.configured.length > 0 && <p className="muted">Configured: {check.configured.join(', ')}</p>}
       </div>
-      <Link className="text-link" href={href}>
-        Related page
-      </Link>
+      <div className="actions">
+        <span className={`pill ${check.status === 'READY' ? 'pill-success' : 'pill-warning'}`}>
+          {check.status}
+        </span>
+        <Link className="text-link" href={href}>
+          Related page
+        </Link>
+      </div>
     </div>
   );
+}
+
+function externalSetupHref(category: string) {
+  if (category === 'payments') {
+    return '/payments';
+  }
+  if (category === 'push' || category === 'sms') {
+    return '/notifications';
+  }
+  if (category === 'storage') {
+    return '/providers';
+  }
+  if (category === 'maps') {
+    return '/bookings';
+  }
+
+  return '/';
 }
 
 function InfoRow({ label, value, detail }: { label: string; value: string; detail: string }) {

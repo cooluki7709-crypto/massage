@@ -4,6 +4,7 @@ The API exposes two public operational checks:
 
 - `GET /api/health` confirms the Nest app is running.
 - `GET /api/health/ready` checks database, Redis, and storage configuration readiness.
+- `GET /api/health/external` checks external account/API-key readiness without exposing secret values.
 
 ## Readiness Checks
 
@@ -18,6 +19,7 @@ Storage can be in `placeholder` mode for local MVP flows. Readiness only fails f
 ```powershell
 Invoke-RestMethod http://localhost:3100/api/health
 Invoke-RestMethod http://localhost:3100/api/health/ready
+Invoke-RestMethod http://localhost:3100/api/health/external
 ```
 
 The E2E smoke script calls both checks before exercising product flows.

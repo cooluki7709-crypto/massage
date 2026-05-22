@@ -14,4 +14,9 @@ export class HealthController {
   readiness() {
     return this.health.readiness();
   }
+
+  @Get('health/external')
+  externalReadiness() {
+    return this.health.externalReadiness();
+  }
 }

@@ -12,6 +12,7 @@ Local MVP auth uses `POST /auth/verify-otp` with dev OTP `123456`.
 
 - `GET /health`
 - `GET /health/ready`
+- `GET /health/external`
 - `POST /auth/request-otp`
 - `POST /auth/verify-otp`
 - `POST /auth/refresh`
@@ -101,6 +102,7 @@ The retry queue stores DB notifications first. Delivery attempts are recorded in
 Callbacks are placeholder parser routes in the MVP. Real MoMo/VNPay signature validation must be added before production.
 
 Manual admin refunds move the payment to `REFUNDED`, mark the booking as `REFUNDED`, create a `Refund` row, and cancel unpaid provider earnings for that booking.
+
 ## Phase 1 Direct Booking Notes
 
 - `POST /customer/bookings` can include an optional `providerId` for the first MVP direct-booking flow.
