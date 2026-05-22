@@ -228,6 +228,13 @@ Before launch:
 
 ## One-Time Full Check
 
+Generate the external registration pack first. It lists all accounts, console paths, Android package names, env values, and verification commands in one place:
+
+```powershell
+cd C:\dev\massage-vn-workspace\repo
+npm.cmd run external:pack
+```
+
 Run this before real device or emulator testing:
 
 ```powershell

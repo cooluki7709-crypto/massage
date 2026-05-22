@@ -32,6 +32,7 @@ const setupOrder = [
       'Keep the service role key server-side only; it is used by admin operations to sync approved provider roles.',
     ],
     commands: [
+      'npm.cmd run external:pack',
       'npm.cmd run external:check:supabase',
       '$env:SUPABASE_JWT_SECRET="<project-jwt-secret>"; $env:API_BASE_URL="http://localhost:3100/api"; npm.cmd run auth:supabase-smoke',
     ],
@@ -47,6 +48,7 @@ const setupOrder = [
       'No routing, directions, or realtime streaming API is needed for MVP cost control.',
     ],
     commands: [
+      'npm.cmd run external:pack',
       'npm.cmd run external:check:maps',
       'powershell -ExecutionPolicy Bypass -File .\\infra\\scripts\\run-hands-emulator.ps1 -App customer',
     ],

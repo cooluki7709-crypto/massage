@@ -14,9 +14,11 @@ const activeStatuses = new Set(['OPEN_MATCHING', 'MATCHED', 'PROVIDER_ON_THE_WAY
 export function BookingMonitor({ bookings }: Props) {
   const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState(() => new Date());
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [nowMs, setNowMs] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const [view, setView] = useState<'active' | 'chat' | 'all'>('active');
+  const currentTimeMs = nowMs ?? 0;
 
   const orderedBookings = useMemo(
     () =>
@@ -38,10 +40,14 @@ export function BookingMonitor({ bookings }: Props) {
     const active = orderedBookings.filter((booking) => activeStatuses.has(booking.status));
     const noParticipants = open.filter((booking) => (booking.participants?.length ?? 0) === 0);
     const waitingSelection = open.filter((booking) => fallbackParticipants(booking).length > 0);
-    const preferredPending = open.filter((booking) => booking.preferredProvider && isPreferredAwaitingDecision(booking));
+    const preferredPending = open.filter(
+      (booking) => booking.preferredProvider && isPreferredAwaitingDecision(booking),
+    );
     const backupChosen = orderedBookings.filter((booking) => isBackupSelected(booking));
     const chatLive = orderedBookings.filter((booking) => Boolean(booking.chatRoom));
-    const highRisk = orderedBookings.filter((booking) => bookingRiskFlags(booking).some((flag) => flag.severity === 'high'));
+    const highRisk = orderedBookings.filter((booking) =>
+      bookingRiskFlags(booking, currentTimeMs).some((flag) => flag.severity === 'high'),
+    );
     return [
       ['Active bookings', active.length.toString()],
       ['Open matching', open.length.toString()],
@@ -53,7 +59,7 @@ export function BookingMonitor({ bookings }: Props) {
       ['Backup selected', backupChosen.length.toString()],
       ['Chat live', chatLive.length.toString()],
     ];
-  }, [orderedBookings]);
+  }, [currentTimeMs, orderedBookings]);
 
   const visibleBookings = useMemo(() => {
     if (view === 'chat') {
@@ -66,6 +72,9 @@ export function BookingMonitor({ bookings }: Props) {
   }, [orderedBookings, view]);
 
   useEffect(() => {
+    setLastRefresh(new Date());
+    setNowMs(Date.now());
+
     if (!autoRefresh) {
       return;
     }
@@ -73,7 +82,9 @@ export function BookingMonitor({ bookings }: Props) {
     const timer = window.setInterval(() => {
       startTransition(() => {
         router.refresh();
-        setLastRefresh(new Date());
+        const refreshedAt = new Date();
+        setLastRefresh(refreshedAt);
+        setNowMs(refreshedAt.getTime());
       });
     }, 10000);
 
@@ -85,7 +96,9 @@ export function BookingMonitor({ bookings }: Props) {
       <section className="toolbar">
         <div>
           <h1>Booking Monitor</h1>
-          <p className="muted">Live operational view for matching, provider selection, chat, and payment readiness.</p>
+          <p className="muted">
+            Live operational view for matching, provider selection, chat, and payment readiness.
+          </p>
         </div>
         <div className="actions">
           <button type="button" onClick={() => setAutoRefresh((value) => !value)}>
@@ -96,7 +109,9 @@ export function BookingMonitor({ bookings }: Props) {
             onClick={() => {
               startTransition(() => {
                 router.refresh();
-                setLastRefresh(new Date());
+                const refreshedAt = new Date();
+                setLastRefresh(refreshedAt);
+                setNowMs(refreshedAt.getTime());
               });
             }}
           >
@@ -116,7 +131,7 @@ export function BookingMonitor({ bookings }: Props) {
 
       <div className="monitor-meta">
         <span>{isPending ? 'Refreshing...' : 'Ready'}</span>
-        <span>Last refresh {lastRefresh.toLocaleTimeString()}</span>
+        <span>Last refresh {lastRefresh ? lastRefresh.toLocaleTimeString() : 'loading...'}</span>
       </div>
 
       <div className="actions" style={{ marginTop: 16 }}>
@@ -135,7 +150,9 @@ export function BookingMonitor({ bookings }: Props) {
         <span>
           Showing {visibleBookings.length} of {orderedBookings.length} bookings
         </span>
-        <span>{view === 'active' ? 'Dispatch focus' : view === 'chat' ? 'Live service focus' : 'Full history'}</span>
+        <span>
+          {view === 'active' ? 'Dispatch focus' : view === 'chat' ? 'Live service focus' : 'Full history'}
+        </span>
       </div>
 
       <section className="card" style={{ marginTop: 16 }}>
@@ -153,7 +170,7 @@ export function BookingMonitor({ bookings }: Props) {
           </thead>
           <tbody>
             {visibleBookings.map((booking) => {
-              const flags = bookingRiskFlags(booking);
+              const flags = bookingRiskFlags(booking, currentTimeMs);
               const risk = riskLevel(flags);
               return (
                 <tr id={`booking-${booking.id}`} key={booking.id}>
@@ -165,12 +182,14 @@ export function BookingMonitor({ bookings }: Props) {
                     </strong>
                     <div className="muted">{booking.services?.[0]?.service?.name ?? 'Service pending'}</div>
                     <div className="muted">{formatDate(booking.scheduledStartAt)}</div>
-                    <div className="muted">{recencyLabel(booking)}</div>
+                    <div className="muted">{recencyLabel(booking, nowMs)}</div>
                   </td>
                   <td>
                     <StatusBadge status={booking.status} />
                     <div className="muted">Chat {booking.chatRoom ? 'ready' : 'not ready'}</div>
-                    <div className="muted">{booking.expiresAt ? `Expires ${formatDate(booking.expiresAt)}` : 'No expiry set'}</div>
+                    <div className="muted">
+                      {booking.expiresAt ? `Expires ${formatDate(booking.expiresAt)}` : 'No expiry set'}
+                    </div>
                   </td>
                   <td>
                     {booking.customerProfile?.user?.fullName ?? 'Customer'}
@@ -180,7 +199,9 @@ export function BookingMonitor({ bookings }: Props) {
                     <strong>{booking.participants?.length ?? 0} joined</strong>
                     <div className="muted">Preferred {booking.preferredProvider?.displayName ?? 'none'}</div>
                     <div className="muted">
-                      {booking.preferredProvider?.user?.phone ? `Preferred phone ${booking.preferredProvider.user.phone}` : 'Preferred provider not set'}
+                      {booking.preferredProvider?.user?.phone
+                        ? `Preferred phone ${booking.preferredProvider.user.phone}`
+                        : 'Preferred provider not set'}
                     </div>
                     <div className="muted">{selectionPathLabel(booking)}</div>
                     <div className="participant-list" style={{ marginTop: 8 }}>
@@ -190,21 +211,24 @@ export function BookingMonitor({ bookings }: Props) {
                     <div className="participant-list" style={{ marginTop: 8 }}>
                       {booking.preferredProvider && (
                         <span className="pill" style={{ background: '#eef6e8', borderColor: '#b9d4a8' }}>
-                          Preferred: {booking.preferredProvider.displayName ?? 'Provider'}
-                          {' '}
+                          Preferred: {booking.preferredProvider.displayName ?? 'Provider'}{' '}
                           {preferredProviderStateLabel(booking)}
                         </span>
                       )}
-                      {booking.selectedProvider && booking.selectedProvider.id !== booking.preferredProvider?.id && (
-                        <span className="pill pill-success">
-                          Final: {booking.selectedProvider.displayName ?? 'Provider'}
-                        </span>
-                      )}
-                      {fallbackParticipants(booking).slice(0, 4).map((participant) => (
-                        <span className="pill" key={participant.id}>
-                          Backup: {participant.providerProfile?.displayName ?? 'Provider'} ({participant.status})
-                        </span>
-                      ))}
+                      {booking.selectedProvider &&
+                        booking.selectedProvider.id !== booking.preferredProvider?.id && (
+                          <span className="pill pill-success">
+                            Final: {booking.selectedProvider.displayName ?? 'Provider'}
+                          </span>
+                        )}
+                      {fallbackParticipants(booking)
+                        .slice(0, 4)
+                        .map((participant) => (
+                          <span className="pill" key={participant.id}>
+                            Backup: {participant.providerProfile?.displayName ?? 'Provider'} (
+                            {participant.status})
+                          </span>
+                        ))}
                     </div>
                     {fallbackParticipants(booking).length > 4 && (
                       <div className="muted" style={{ marginTop: 6 }}>
@@ -253,7 +277,9 @@ export function BookingMonitor({ bookings }: Props) {
             })}
             {visibleBookings.length === 0 && (
               <tr>
-                <td colSpan={7}>No bookings loaded. Start the API and run the smoke flow to populate this table.</td>
+                <td colSpan={7}>
+                  No bookings loaded. Start the API and run the smoke flow to populate this table.
+                </td>
               </tr>
             )}
           </tbody>
@@ -299,7 +325,11 @@ function opsSignal(booking: AdminBooking) {
   if (booking.status === 'REFUNDED') {
     return <span className="signal signal-warn">Refunded</span>;
   }
-  if (booking.status === 'OPEN_MATCHING' && booking.preferredProvider && isPreferredAwaitingDecision(booking)) {
+  if (
+    booking.status === 'OPEN_MATCHING' &&
+    booking.preferredProvider &&
+    isPreferredAwaitingDecision(booking)
+  ) {
     return <span className="signal signal-warn">Preferred provider pending</span>;
   }
   if (booking.status === 'OPEN_MATCHING' && participantCount === 0) {
@@ -322,13 +352,17 @@ type BookingRiskFlag = {
   title: string;
 };
 
-function bookingRiskFlags(booking: AdminBooking): BookingRiskFlag[] {
+function bookingRiskFlags(booking: AdminBooking, nowMs: number): BookingRiskFlag[] {
   const flags: BookingRiskFlag[] = [];
   const paymentStatus = booking.payment?.status;
   const participantCount = booking.participants?.length ?? 0;
-  const expired = booking.expiresAt ? new Date(booking.expiresAt).getTime() < Date.now() : false;
+  const expired = nowMs > 0 && booking.expiresAt ? new Date(booking.expiresAt).getTime() < nowMs : false;
 
-  if (booking.status === 'CANCELLED' && booking.payment && !['RELEASED', 'REFUNDED'].includes(paymentStatus ?? '')) {
+  if (
+    booking.status === 'CANCELLED' &&
+    booking.payment &&
+    !['RELEASED', 'REFUNDED'].includes(paymentStatus ?? '')
+  ) {
     flags.push({ severity: 'high', title: 'Cancelled payment unresolved' });
   }
   if (booking.status === 'COMPLETED' && paymentStatus === 'AUTHORIZED') {
@@ -346,10 +380,17 @@ function bookingRiskFlags(booking: AdminBooking): BookingRiskFlag[] {
   if (booking.status === 'MATCHED' && !booking.chatRoom) {
     flags.push({ severity: 'high', title: 'Matched without chat' });
   }
-  if (['PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE'].includes(booking.status) && !hasProviderLocation(booking)) {
+  if (
+    ['PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE'].includes(booking.status) &&
+    !hasProviderLocation(booking)
+  ) {
     flags.push({ severity: 'medium', title: 'No provider location signal' });
   }
-  if (booking.chatRoom && (booking.chatRoom.messages?.length ?? 0) === 0 && ['MATCHED', 'PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE'].includes(booking.status)) {
+  if (
+    booking.chatRoom &&
+    (booking.chatRoom.messages?.length ?? 0) === 0 &&
+    ['MATCHED', 'PROVIDER_ON_THE_WAY', 'ARRIVED', 'IN_SERVICE'].includes(booking.status)
+  ) {
     flags.push({ severity: 'low', title: 'Chat quiet' });
   }
   if (paymentStatus === 'AUTHORIZED' && !booking.payment?.providerRef) {
@@ -391,7 +432,11 @@ function nextAction(booking: AdminBooking) {
   if (booking.status === 'REFUNDED') {
     return 'Refund is recorded. Check the refund board and customer communication.';
   }
-  if (booking.status === 'OPEN_MATCHING' && booking.preferredProvider && isPreferredAwaitingDecision(booking)) {
+  if (
+    booking.status === 'OPEN_MATCHING' &&
+    booking.preferredProvider &&
+    isPreferredAwaitingDecision(booking)
+  ) {
     return 'Wait for the preferred provider, but monitor fallback therapist supply.';
   }
   if (booking.status === 'OPEN_MATCHING' && participantCount === 0) {
@@ -429,13 +474,16 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleString();
 }
 
-function recencyLabel(booking: AdminBooking) {
+function recencyLabel(booking: AdminBooking, nowMs: number | null) {
   const timestamp = booking.createdAt ?? booking.scheduledStartAt ?? booking.expiresAt;
   if (!timestamp) {
     return 'Created time unavailable';
   }
+  if (!nowMs) {
+    return 'Recency loading...';
+  }
 
-  const minutesAgo = Math.max(0, Math.round((Date.now() - new Date(timestamp).getTime()) / 60000));
+  const minutesAgo = Math.max(0, Math.round((nowMs - new Date(timestamp).getTime()) / 60000));
   if (minutesAgo < 1) {
     return 'Updated just now';
   }
@@ -457,15 +505,16 @@ function isSelectedProviderParticipant(booking: AdminBooking) {
   }
 
   return (booking.participants ?? []).some(
-    (participant) => participant.providerProfile?.id === selectedProviderId && participant.status !== 'REJECTED',
+    (participant) =>
+      participant.providerProfile?.id === selectedProviderId && participant.status !== 'REJECTED',
   );
 }
 
 function isBackupSelected(booking: AdminBooking) {
   return Boolean(
     booking.selectedProvider?.id &&
-      booking.preferredProvider?.id &&
-      booking.selectedProvider.id !== booking.preferredProvider.id,
+    booking.preferredProvider?.id &&
+    booking.selectedProvider.id !== booking.preferredProvider.id,
   );
 }
 
@@ -565,7 +614,11 @@ function preferredParticipantState(booking: AdminBooking) {
     return null;
   }
 
-  return (booking.participants ?? []).find((participant) => participant.providerProfile?.id === preferredProviderId) ?? null;
+  return (
+    (booking.participants ?? []).find(
+      (participant) => participant.providerProfile?.id === preferredProviderId,
+    ) ?? null
+  );
 }
 
 function isPreferredAwaitingDecision(booking: AdminBooking) {
@@ -576,7 +629,11 @@ function isPreferredAwaitingDecision(booking: AdminBooking) {
   if (!participant) {
     return true;
   }
-  return participant.status !== 'ACCEPTED' && participant.status !== 'SELECTED' && participant.status !== 'REJECTED';
+  return (
+    participant.status !== 'ACCEPTED' &&
+    participant.status !== 'SELECTED' &&
+    participant.status !== 'REJECTED'
+  );
 }
 
 function preferredProviderStateLabel(booking: AdminBooking) {

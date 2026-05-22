@@ -17,6 +17,7 @@
     "external:check:storage": "node infra/scripts/check-external-setup.mjs --phase=storage",
     "external:check:production": "node infra/scripts/check-external-setup.mjs --phase=production",
     "external:check:strict": "node infra/scripts/check-external-setup.mjs --strict",
+    "external:pack": "node infra/scripts/external-registration-pack.mjs",
     "supabase:schema:check": "node infra/scripts/check-supabase-schema.mjs",
     "auth:supabase-smoke": "node infra/scripts/supabase-auth-smoke.mjs",
     "dev-env:check": "powershell -ExecutionPolicy Bypass -File infra/scripts/check-dev-env.ps1",
