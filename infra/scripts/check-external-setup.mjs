@@ -35,7 +35,7 @@ addCheck(
 addRecommended(
   'push',
   'production push provider',
-  false,
+  hasValue('ONESIGNAL_APP_ID'),
   'Choose OneSignal or another OS push provider before production launch.',
 );
 
@@ -68,6 +68,12 @@ addPhaseRequired(
 
 addRecommended(
   'supabase',
+  'AUTH_BACKEND',
+  hasExpectedValue('AUTH_BACKEND', 'supabase'),
+  'Set AUTH_BACKEND=supabase when running the real Supabase mobile OTP flow.',
+);
+addRecommended(
+  'supabase',
   'SUPABASE_URL',
   isHttpsUrl('SUPABASE_URL'),
   'Set SUPABASE_URL if using Supabase directly for map/location storage.',
@@ -83,6 +89,13 @@ addRecommended(
   'SUPABASE_JWT_SECRET',
   hasSecretLikeValue('SUPABASE_JWT_SECRET'),
   'Set SUPABASE_JWT_SECRET on the API before accepting Supabase Auth access tokens.',
+);
+addPhaseRequired(
+  'supabase',
+  'AUTH_BACKEND=supabase for Phone Auth',
+  hasExpectedValue('AUTH_BACKEND', 'supabase'),
+  'Set AUTH_BACKEND=supabase before Supabase Phone Auth E2E.',
+  ['supabase-auth', 'production'],
 );
 addPhaseRequired(
   'supabase',
@@ -229,6 +242,14 @@ function addPhaseRequired(category, name, passed, fix, phases) {
 
 function hasValue(key) {
   return String(env[key] ?? '').trim().length > 0;
+}
+
+function hasExpectedValue(key, expected) {
+  return (
+    String(env[key] ?? '')
+      .trim()
+      .toLowerCase() === expected.toLowerCase()
+  );
 }
 
 function hasSecretLikeValue(key) {

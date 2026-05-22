@@ -5,9 +5,10 @@ const setupOrder = [
     id: 'supabase',
     title: 'Supabase Auth and database',
     purpose: 'Required before Firebase-free production login and direct client data access.',
-    env: ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_JWT_SECRET'],
+    env: ['AUTH_BACKEND', 'SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_JWT_SECRET'],
     notes: [
       'Create one Supabase project for HANDS staging first.',
+      'Set AUTH_BACKEND=supabase only when Supabase Phone Auth is ready to test.',
       'Copy the project URL and anon key from Supabase project settings.',
       'Set the JWT secret on the API so access tokens can be verified server-side.',
     ],
@@ -38,12 +39,7 @@ const setupOrder = [
     id: 'notifications',
     title: 'SMS and OS push',
     purpose: 'Required before real OTP delivery and native push notifications.',
-    env: [
-      'SMS_PROVIDER',
-      'SMS_API_URL',
-      'SMS_API_KEY',
-      'ONESIGNAL_APP_ID or equivalent provider configuration',
-    ],
+    env: ['SMS_PROVIDER', 'SMS_API_URL', 'SMS_API_KEY', 'ONESIGNAL_APP_ID'],
     notes: [
       'Local OTP can stay on SMS_PROVIDER=dev.',
       'Production OTP needs a Vietnam-capable SMS vendor.',
@@ -130,7 +126,7 @@ export default async function SetupPage() {
                   <strong>Readiness API unavailable</strong>
                   <p className="muted">Start the HANDS API and refresh this page.</p>
                 </div>
-                <span className="pill pill-warning">BLOCKED</span>
+                <span className="pill pill-warn">BLOCKED</span>
               </div>
             )}
           </div>
@@ -236,6 +232,9 @@ function buildSummary(readiness: AdminExternalReadiness) {
 }
 
 function setupGroupMatches(groupId: string, category: string) {
+  if (groupId === 'supabase') {
+    return category === 'supabase';
+  }
   if (groupId === 'notifications') {
     return category === 'sms' || category === 'push';
   }

@@ -20,7 +20,7 @@ Flutter run flags:
 ```powershell
 --dart-define=SUPABASE_URL=https://your-project.supabase.co
 --dart-define=SUPABASE_ANON_KEY=your-anon-key
---dart-define=AUTH_BACKEND=nest
+--dart-define=AUTH_BACKEND=supabase
 API env:
 SUPABASE_JWT_SECRET=your-project-jwt-secret
 SUPABASE_JWT_AUDIENCE=authenticated
@@ -78,7 +78,7 @@ npm.cmd run auth:supabase-smoke
 The emulator/device scripts pass these values from shell environment variables when present:
 
 ```powershell
-$env:AUTH_BACKEND="nest"
+$env:AUTH_BACKEND="supabase"
 $env:SUPABASE_URL="https://your-project.supabase.co"
 $env:SUPABASE_ANON_KEY="your-anon-key"
 powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-emulator.ps1 -App customer

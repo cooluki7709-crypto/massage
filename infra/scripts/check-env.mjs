@@ -36,6 +36,8 @@ const recommended = [
   'VNPAY_HASH_SECRET',
   'SUPABASE_JWT_SECRET',
   'SUPABASE_JWT_AUDIENCE',
+  'AUTH_BACKEND',
+  'ONESIGNAL_APP_ID',
 ];
 
 const insecureValues = new Set(['change-me', 'changeme', 'secret', 'password', '']);

@@ -39,6 +39,7 @@ export class HealthService {
   externalReadiness() {
     const checks = [
       this.externalGroup('Supabase Auth', 'supabase', [
+        { key: 'AUTH_BACKEND', expected: 'supabase' },
         { key: 'SUPABASE_URL', validator: 'https-url' },
         { key: 'SUPABASE_ANON_KEY' },
         { key: 'SUPABASE_JWT_SECRET', validator: 'secret' },
@@ -62,14 +63,7 @@ export class HealthService {
         { key: 'SMS_API_URL' },
         { key: 'SMS_API_KEY', validator: 'secret' },
       ]),
-      {
-        name: 'OS push provider',
-        category: 'push',
-        status: 'BLOCKED',
-        missing: ['ONESIGNAL_APP_ID or equivalent provider configuration'],
-        configured: [],
-        detail: 'Current delivery is intentionally in-app only until a production push provider is chosen.',
-      },
+      this.pushProviderExternalReadiness(),
     ];
 
     return {
@@ -142,10 +136,26 @@ export class HealthService {
     };
   }
 
+  private pushProviderExternalReadiness() {
+    const oneSignalAppId = this.config.get<string>('ONESIGNAL_APP_ID')?.trim();
+
+    return {
+      name: 'OS push provider',
+      category: 'push',
+      status: oneSignalAppId ? 'PARTIAL' : 'BLOCKED',
+      missing: oneSignalAppId ? [] : ['ONESIGNAL_APP_ID'],
+      configured: oneSignalAppId ? ['ONESIGNAL_APP_ID'] : [],
+      invalid: [],
+      detail: oneSignalAppId
+        ? 'A push provider app id is configured, but backend delivery is still intentionally in-app only.'
+        : 'Current delivery is intentionally in-app only until a production push provider is chosen.',
+    };
+  }
+
   private externalGroup(
     name: string,
     category: string,
-    requirements: Array<{ key: string; validator?: 'https-url' | 'secret' }>,
+    requirements: Array<{ key: string; validator?: 'https-url' | 'secret'; expected?: string }>,
   ) {
     const configured: string[] = [];
     const missing: string[] = [];
@@ -155,6 +165,11 @@ export class HealthService {
       const value = this.config.get<string>(requirement.key)?.trim() ?? '';
       if (!value) {
         missing.push(requirement.key);
+        continue;
+      }
+
+      if (requirement.expected && value.toLowerCase() !== requirement.expected.toLowerCase()) {
+        invalid.push(requirement.key);
         continue;
       }
 

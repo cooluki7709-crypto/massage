@@ -26,6 +26,12 @@ Future OS-level push still needs a provider decision:
 - Current backend adapter: `IN_APP_ONLY` in `apps/api/src/notifications/push-delivery.service.ts`
 - Mobile apps should not restore `google-services.json` unless the push strategy changes intentionally
 
+Planned provider value:
+
+```dotenv
+ONESIGNAL_APP_ID=
+```
+
 Verification:
 
 ```powershell
@@ -250,6 +256,7 @@ Last checked from `C:\dev\massage-vn-workspace\repo` on 2026-05-22:
 - MapTiler API key: pending
 - Geoapify API key: pending
 - Supabase URL / anon key / JWT secret: pending for real Supabase OTP
+- Mobile auth switch: still `AUTH_BACKEND=nest` locally until Supabase Phone Auth is configured
 - Local MinIO storage: ready for MVP
 - Production SMS provider: not selected
 - MoMo / VNPay merchant credentials: not filled
@@ -257,7 +264,7 @@ Last checked from `C:\dev\massage-vn-workspace\repo` on 2026-05-22:
 
 Phase-specific external checks currently block only on missing external console values:
 
-- `supabase-auth`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET`
+- `supabase-auth`: `AUTH_BACKEND=supabase`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET`
 - `maps`: `MAPTILER_API_KEY`, `GEOAPIFY_API_KEY`
 - `payments`: `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY`, `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`
 
