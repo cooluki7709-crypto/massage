@@ -12,9 +12,9 @@ The Flutter apps no longer use Firebase.
 | --- | --- | --- |
 | Customer | `apps/customer_app/lib/src/features/notification/data/datasources/in_app_notification_token_datasource.dart` | Keeps notification setup behind the existing repository boundary without registering an OS push token. |
 | Provider | `apps/provider_app/lib/src/features/notification/data/datasources/in_app_notification_token_datasource.dart` | Keeps notification setup behind the existing repository boundary without registering an OS push token. |
-| API | `apps/api/src/notifications/fcm-push.service.ts` | Sends FCM HTTP v1 push messages and records delivery state. |
+| API | `apps/api/src/notifications/push-delivery.service.ts` | Records in-app-only delivery decisions and avoids external OS push calls. |
 
-No Flutter code currently uses Firebase Auth, Firestore, Firebase Storage, Realtime Database, Cloud Functions, Cloud Messaging, or Firebase Core. The API FCM adapter is still present as a legacy backend adapter until a production push provider is selected.
+No Flutter or API code currently calls Firebase Auth, Firestore, Firebase Storage, Realtime Database, Cloud Functions, Cloud Messaging, Firebase Core, or FCM HTTP APIs.
 
 ## Target Client Structure
 
@@ -83,7 +83,7 @@ Firebase has been removed from the Flutter apps after isolating notification beh
 
 7. Firebase removal
    - Mobile Firebase packages, Gradle plugin, and `google-services.json` files are removed.
-   - Remove API FCM service after the replacement push adapter is verified.
+   - API FCM service is removed and replaced by an in-app-only delivery adapter.
 
 ## Supabase Data Model Direction
 

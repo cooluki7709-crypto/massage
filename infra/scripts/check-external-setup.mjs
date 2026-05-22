@@ -10,12 +10,7 @@ const env = { ...fileEnv, ...process.env };
 const checks = [];
 
 addCheck('workspace', 'project root', existsSync(resolve('package.json')), 'Run this script from C:\\dev\\massage-vn-workspace\\repo.');
-addRecommended(
-  'push',
-  'FCM backend adapter credentials',
-  hasValue('FCM_PROJECT_ID') && hasReadableServiceAccount(),
-  'Optional only while the legacy API FCM adapter exists. Mobile apps now use in-app notifications and no longer need google-services.json.',
-);
+addRecommended('push', 'production push provider', false, 'Choose OneSignal or another OS push provider before production launch.');
 
 addRecommended(
   'maps',
@@ -90,14 +85,6 @@ function hasValue(key) {
 
 function allHaveValue(keys) {
   return keys.every(hasValue);
-}
-
-function hasReadableServiceAccount() {
-  const filePath = env.FCM_SERVICE_ACCOUNT_FILE ? resolve(String(env.FCM_SERVICE_ACCOUNT_FILE)) : null;
-  if (filePath && existsSync(filePath)) {
-    return true;
-  }
-  return hasValue('FCM_SERVICE_ACCOUNT_JSON') || hasValue('FCM_SERVICE_ACCOUNT_JSON_BASE64');
 }
 
 function parseEnv(source) {

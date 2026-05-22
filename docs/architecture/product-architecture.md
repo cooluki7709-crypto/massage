@@ -13,7 +13,7 @@ flowchart LR
   API --> R["Redis"]
   API --> S["S3/R2 Storage"]
   API --> Pay["MoMo/VNPay/Cash"]
-  API --> Push["FCM"]
+  API --> Push["In-app notifications / future push adapter"]
   API <--> WS["Socket.IO Rooms"]
 ```
 
@@ -59,4 +59,3 @@ Defaults:
 - Private verification files
 - Public provider images through CDN
 - No hardcoded secrets
-

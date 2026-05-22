@@ -23,7 +23,7 @@ The Flutter apps no longer use Firebase mobile SDKs. MVP notification behavior i
 Future OS-level push still needs a provider decision:
 
 - Recommended direction: OneSignal or another push provider with a backend adapter
-- Legacy backend adapter still present: FCM HTTP v1 in `apps/api/src/notifications/fcm-push.service.ts`
+- Current backend adapter: `IN_APP_ONLY` in `apps/api/src/notifications/push-delivery.service.ts`
 - Mobile apps should not restore `google-services.json` unless the push strategy changes intentionally
 
 Verification:

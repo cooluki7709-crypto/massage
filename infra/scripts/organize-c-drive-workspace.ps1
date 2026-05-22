@@ -11,7 +11,6 @@ $secretsTarget = Join-Path $Root "secrets"
 $apkTarget = Join-Path $Root "references\apk"
 $analysisTarget = Join-Path $Root "references\analysis"
 
-$serviceAccountSource = Join-Path $workspaceBase "local-secrets\massage-vn-firebase-adminsdk.json"
 $xapkSource = "C:\Users\laboy\Downloads\Glow+-+Massage+&+Spa+24_7_3.11.4_apkcombo.com.xapk"
 $blackboxSource = Join-Path $workspaceBase "apk_blackbox_results_glow"
 
@@ -46,10 +45,6 @@ if ($repoCode -ge 8) {
   throw "robocopy repo sync failed with exit code $repoCode"
 }
 
-if (Test-Path $serviceAccountSource) {
-  Copy-Item -LiteralPath $serviceAccountSource -Destination (Join-Path $secretsTarget "massage-vn-firebase-adminsdk.json") -Force
-}
-
 if (Test-Path $xapkSource) {
   Copy-Item -LiteralPath $xapkSource -Destination (Join-Path $apkTarget (Split-Path $xapkSource -Leaf)) -Force
 }
@@ -67,20 +62,6 @@ if (Test-Path $blackboxSource) {
   $analysisCode = $LASTEXITCODE
   if ($analysisCode -ge 8) {
     throw "robocopy analysis sync failed with exit code $analysisCode"
-  }
-}
-
-$envPath = Join-Path $repoTarget ".env"
-if (Test-Path $envPath) {
-  $envText = Get-Content -Raw $envPath
-  $targetSecretPath = "C:\dev\massage-vn-workspace\secrets\massage-vn-firebase-adminsdk.json"
-  $updated = [Regex]::Replace(
-    $envText,
-    '(?m)^FCM_SERVICE_ACCOUNT_FILE=.*$',
-    "FCM_SERVICE_ACCOUNT_FILE=$targetSecretPath"
-  )
-  if ($updated -ne $envText) {
-    Set-Content -Path $envPath -Value $updated -Encoding utf8
   }
 }
 

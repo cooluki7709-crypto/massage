@@ -2,7 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Prisma } from '@prisma/client';
 import { Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
-import { FcmPushService } from './fcm-push.service';
+import { PushDeliveryService } from './push-delivery.service';
 
 type NotificationSendJob = {
   notificationId: string;
@@ -12,7 +12,7 @@ type NotificationSendJob = {
 export class NotificationRetryProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly fcm: FcmPushService,
+    private readonly pushDelivery: PushDeliveryService,
   ) {
     super();
   }
@@ -36,7 +36,7 @@ export class NotificationRetryProcessor extends WorkerHost {
     const data = toStringData(notification.data);
 
     for (const device of devices) {
-      const result = await this.fcm.send({
+      const result = await this.pushDelivery.send({
         token: device.token,
         title: notification.title,
         body: notification.body,
