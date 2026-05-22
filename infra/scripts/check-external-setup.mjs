@@ -9,8 +9,18 @@ const env = { ...fileEnv, ...process.env };
 
 const checks = [];
 
-addCheck('workspace', 'project root', existsSync(resolve('package.json')), 'Run this script from C:\\dev\\massage-vn-workspace\\repo.');
-addRecommended('push', 'production push provider', false, 'Choose OneSignal or another OS push provider before production launch.');
+addCheck(
+  'workspace',
+  'project root',
+  existsSync(resolve('package.json')),
+  'Run this script from C:\\dev\\massage-vn-workspace\\repo.',
+);
+addRecommended(
+  'push',
+  'production push provider',
+  false,
+  'Choose OneSignal or another OS push provider before production launch.',
+);
 
 addRecommended(
   'maps',
@@ -25,21 +35,64 @@ addRecommended(
   'Set GEOAPIFY_API_KEY in .env or the shell before using address search.',
 );
 
-addRecommended('supabase', 'SUPABASE_URL', hasValue('SUPABASE_URL'), 'Set SUPABASE_URL if using Supabase directly for map/location storage.');
-addRecommended('supabase', 'SUPABASE_ANON_KEY', hasValue('SUPABASE_ANON_KEY'), 'Set SUPABASE_ANON_KEY if using Supabase directly from clients.');
+addRecommended(
+  'supabase',
+  'SUPABASE_URL',
+  hasValue('SUPABASE_URL'),
+  'Set SUPABASE_URL if using Supabase directly for map/location storage.',
+);
+addRecommended(
+  'supabase',
+  'SUPABASE_ANON_KEY',
+  hasValue('SUPABASE_ANON_KEY'),
+  'Set SUPABASE_ANON_KEY if using Supabase directly from clients.',
+);
 
-addRecommended('sms', 'SMS_PROVIDER', hasValue('SMS_PROVIDER'), 'Use SMS_PROVIDER=dev locally; choose a real SMS provider before launch.');
-addRecommended('sms', 'SMS_API_URL', hasValue('SMS_API_URL'), 'Set the production SMS API URL before real OTP launch.');
-addRecommended('sms', 'SMS_API_KEY', hasValue('SMS_API_KEY'), 'Set the production SMS API key before real OTP launch.');
+addRecommended(
+  'sms',
+  'SMS_PROVIDER',
+  hasValue('SMS_PROVIDER'),
+  'Use SMS_PROVIDER=dev locally; choose a real SMS provider before launch.',
+);
+addRecommended(
+  'sms',
+  'SMS_API_URL',
+  hasValue('SMS_API_URL'),
+  'Set the production SMS API URL before real OTP launch.',
+);
+addRecommended(
+  'sms',
+  'SMS_API_KEY',
+  hasValue('SMS_API_KEY'),
+  'Set the production SMS API key before real OTP launch.',
+);
 
-addRecommended('payments', 'MoMo credentials', allHaveValue(['MOMO_PARTNER_CODE', 'MOMO_ACCESS_KEY', 'MOMO_SECRET_KEY']), 'Fill MoMo merchant credentials before MoMo E2E.');
-addRecommended('payments', 'VNPay credentials', allHaveValue(['VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET']), 'Fill VNPay merchant credentials before VNPay E2E.');
+addRecommended(
+  'payments',
+  'MoMo credentials',
+  allHaveValue(['MOMO_PARTNER_CODE', 'MOMO_ACCESS_KEY', 'MOMO_SECRET_KEY']),
+  'Fill MoMo merchant credentials before MoMo E2E.',
+);
+addRecommended(
+  'payments',
+  'VNPay credentials',
+  allHaveValue(['VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET']),
+  'Fill VNPay merchant credentials before VNPay E2E.',
+);
 
 addRecommended(
   'storage',
   'S3-compatible storage',
-  allHaveValue(['S3_ENDPOINT', 'S3_REGION', 'S3_BUCKET', 'S3_ACCESS_KEY', 'S3_SECRET_KEY', 'S3_PUBLIC_BASE_URL']),
-  'Local MinIO is enough for MVP; fill production storage/CDN values before launch.',
+  allHaveValue([
+    'STORAGE_PROVIDER',
+    'S3_ENDPOINT',
+    'S3_REGION',
+    'S3_BUCKET',
+    'S3_ACCESS_KEY',
+    'S3_SECRET_KEY',
+    'S3_PUBLIC_BASE_URL',
+  ]),
+  'Local MinIO is enough for MVP; fill STORAGE_PROVIDER plus production storage/CDN values before launch.',
 );
 
 const requiredFailures = checks.filter((check) => check.required && check.status !== 'PASS');
@@ -99,7 +152,10 @@ function parseEnv(source) {
       continue;
     }
     const key = line.slice(0, index).trim();
-    const value = line.slice(index + 1).trim().replace(/^['"]|['"]$/g, '');
+    const value = line
+      .slice(index + 1)
+      .trim()
+      .replace(/^['"]|['"]$/g, '');
     entries[key] = value;
   }
   return entries;

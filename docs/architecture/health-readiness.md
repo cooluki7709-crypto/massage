@@ -9,7 +9,7 @@ The API exposes two public operational checks:
 
 - `database`: runs `SELECT 1` through Prisma.
 - `redis`: sends `PING` through the Redis state service.
-- `storage`: verifies S3/R2-compatible environment variables are configured.
+- `storage`: verifies S3-compatible environment variables are configured for MinIO, Cloudflare R2, or Supabase Storage S3.
 
 Storage can be in `placeholder` mode for local MVP flows. Readiness only fails for database or Redis failures because placeholder storage is intentionally supported for development.
 

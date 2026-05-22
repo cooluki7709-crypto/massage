@@ -46,10 +46,8 @@ export class FilesService {
           'content-type': input.contentType,
         },
       },
-      storageMode: presignedPutUrl ? 's3-compatible-presigned' : 'placeholder',
-      note: presignedPutUrl
-        ? 'Upload with PUT before the presigned URL expires.'
-        : 'Set S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, and S3_SECRET_KEY to enable real presigned uploads.',
+      storageMode: this.s3.storageMode(),
+      note: this.s3.configurationNote(),
     };
   }
 
@@ -81,7 +79,7 @@ export class FilesService {
     return {
       file,
       read: { method: 'GET', url: presignedGetUrl ?? `/storage-read-placeholder/${file.key}` },
-      storageMode: presignedGetUrl ? 's3-compatible-presigned' : 'placeholder',
+      storageMode: this.s3.storageMode(),
     };
   }
 

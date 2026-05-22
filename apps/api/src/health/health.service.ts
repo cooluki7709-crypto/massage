@@ -57,9 +57,18 @@ export class HealthService {
   private storageStatus() {
     const required = ['S3_ENDPOINT', 'S3_BUCKET', 'S3_ACCESS_KEY', 'S3_SECRET_KEY'];
     const missing = required.filter((key) => !this.config.get<string>(key));
+    const provider = this.config.get<string>('STORAGE_PROVIDER')?.trim() || 's3-compatible';
+    const mode =
+      missing.length > 0
+        ? 'placeholder'
+        : provider === 'supabase-storage-s3'
+          ? 'supabase-storage-s3'
+          : 's3-compatible-presigned';
+
     return {
       ok: missing.length === 0,
-      mode: missing.length === 0 ? 's3-compatible-presigned' : 'placeholder',
+      provider,
+      mode,
       missing,
       publicBaseUrlConfigured: Boolean(this.config.get<string>('S3_PUBLIC_BASE_URL')),
     };

@@ -8,6 +8,8 @@ type PresignInput = {
   expiresInSeconds?: number;
 };
 
+export type StorageMode = 's3-compatible-presigned' | 'supabase-storage-s3' | 'placeholder';
+
 @Injectable()
 export class S3PresignService {
   constructor(private readonly config: ConfigService) {}
@@ -15,10 +17,31 @@ export class S3PresignService {
   isConfigured() {
     return Boolean(
       this.config.get<string>('S3_ENDPOINT') &&
-        this.config.get<string>('S3_BUCKET') &&
-        this.config.get<string>('S3_ACCESS_KEY') &&
-        this.config.get<string>('S3_SECRET_KEY'),
+      this.config.get<string>('S3_BUCKET') &&
+      this.config.get<string>('S3_ACCESS_KEY') &&
+      this.config.get<string>('S3_SECRET_KEY'),
     );
+  }
+
+  storageMode(): StorageMode {
+    if (!this.isConfigured()) {
+      return 'placeholder';
+    }
+
+    const provider = this.config.get<string>('STORAGE_PROVIDER')?.trim();
+    if (provider === 'supabase-storage-s3') {
+      return 'supabase-storage-s3';
+    }
+
+    return 's3-compatible-presigned';
+  }
+
+  configurationNote() {
+    if (this.isConfigured()) {
+      return 'Upload with PUT before the presigned URL expires.';
+    }
+
+    return 'Set S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, and S3_SECRET_KEY for MinIO, R2, or Supabase Storage S3 uploads.';
   }
 
   publicUrl(key: string) {

@@ -18,6 +18,7 @@ const required = [
 ];
 
 const recommended = [
+  'STORAGE_PROVIDER',
   'S3_ENDPOINT',
   'S3_REGION',
   'S3_BUCKET',
@@ -67,7 +68,10 @@ function parseEnv(source) {
       continue;
     }
     const key = line.slice(0, index).trim();
-    const value = line.slice(index + 1).trim().replace(/^['"]|['"]$/g, '');
+    const value = line
+      .slice(index + 1)
+      .trim()
+      .replace(/^['"]|['"]$/g, '');
     entries[key] = value;
   }
   return entries;

@@ -124,17 +124,30 @@ Before launch, confirm:
 
 ## 5. Storage / CDN
 
-MVP can run on local MinIO. Production should use S3-compatible storage or Cloudflare R2.
+MVP can run on local MinIO. Production should use Supabase Storage S3, S3-compatible storage, or Cloudflare R2.
 
 Required values:
 
 ```dotenv
+STORAGE_PROVIDER=s3-compatible
 S3_ENDPOINT=
 S3_REGION=
 S3_BUCKET=
 S3_ACCESS_KEY=
 S3_SECRET_KEY=
 S3_PUBLIC_BASE_URL=
+```
+
+Supabase Storage S3 example:
+
+```dotenv
+STORAGE_PROVIDER=supabase-storage-s3
+S3_ENDPOINT=https://<project-ref>.storage.supabase.co/storage/v1/s3
+S3_REGION=auto
+S3_BUCKET=hands-files
+S3_ACCESS_KEY=
+S3_SECRET_KEY=
+S3_PUBLIC_BASE_URL=https://<project-ref>.supabase.co/storage/v1/object/public/hands-files
 ```
 
 Rules:
