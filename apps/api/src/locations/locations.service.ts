@@ -15,6 +15,9 @@ export class LocationsService {
     if (!Number.isFinite(input.lat) || !Number.isFinite(input.lng)) {
       throw new BadRequestException('lat and lng are required');
     }
+    if (!isVietnamCoordinate(input.lat, input.lng)) {
+      throw new BadRequestException('Selected location must be inside Vietnam');
+    }
     if (!input.addressText?.trim()) {
       throw new BadRequestException('addressText is required');
     }
@@ -33,4 +36,8 @@ export class LocationsService {
       },
     });
   }
+}
+
+function isVietnamCoordinate(lat: number, lng: number) {
+  return lat >= 8.0 && lat <= 24.0 && lng >= 102.0 && lng <= 110.0;
 }

@@ -13,9 +13,7 @@ export class ProvidersService {
   ) {}
 
   async findNearby(lat: number, lng: number) {
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      throw new BadRequestException('lat and lng query params are required');
-    }
+    assertVietnamCoordinate(lat, lng, 'lat and lng query params are required');
 
     const radiusMeters = Number(this.config.get<string>('PROVIDER_SEARCH_RADIUS_METERS') ?? 5000);
     const staleAfterMinutes = Number(this.config.get<string>('PROVIDER_STALE_AFTER_MINUTES') ?? 30);
@@ -49,7 +47,9 @@ export class ProvidersService {
           ...provider,
           currentLocationUpdatedAt,
           distanceMeters,
-          isRecentLocation: provider.currentLocationUpdatedAt ? provider.currentLocationUpdatedAt >= staleBefore : false,
+          isRecentLocation: provider.currentLocationUpdatedAt
+            ? provider.currentLocationUpdatedAt >= staleBefore
+            : false,
         };
       })
       .filter((provider) => provider.distanceMeters <= radiusMeters)
@@ -88,6 +88,7 @@ export class ProvidersService {
 
   async updateLocation(userId: string | undefined, input: { lat: number; lng: number }) {
     const provider = await this.requireProvider(userId);
+    assertVietnamCoordinate(input.lat, input.lng, 'Provider location must be inside Vietnam');
     const recordedAt = new Date();
     const updated = await this.prisma.providerProfile.update({
       where: { id: provider.id },
@@ -98,7 +99,10 @@ export class ProvidersService {
         locationSnapshots: { create: { lat: input.lat, lng: input.lng, recordedAt } },
       },
     });
-    await this.redisState.setProviderLocation(provider.id, { ...input, recordedAt: recordedAt.toISOString() });
+    await this.redisState.setProviderLocation(provider.id, {
+      ...input,
+      recordedAt: recordedAt.toISOString(),
+    });
     return { ...updated, currentLocationUpdatedAt: recordedAt.toISOString(), locationUpdated: true };
   }
 
@@ -166,11 +170,20 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   const dLat = toRadians(lat2 - lat1);
   const dLng = toRadians(lng2 - lng1);
   const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) ** 2;
+    Math.sin(dLat / 2) ** 2 + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) ** 2;
   return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function toRadians(value: number) {
   return (value * Math.PI) / 180;
+}
+
+function assertVietnamCoordinate(lat: number, lng: number, message: string) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !isVietnamCoordinate(lat, lng)) {
+    throw new BadRequestException(message);
+  }
+}
+
+function isVietnamCoordinate(lat: number, lng: number) {
+  return lat >= 8.0 && lat <= 24.0 && lng >= 102.0 && lng <= 110.0;
 }

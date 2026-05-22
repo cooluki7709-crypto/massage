@@ -13,7 +13,9 @@ async function request(path, options = {}) {
       await sleep(Math.max(1, retryAfterSeconds) * 1000);
       return request(path, { ...options, retryRateLimit: false });
     }
-    throw new Error(`${fetchOptions.method ?? 'GET'} ${path} failed: ${response.status} ${JSON.stringify(body)}`);
+    throw new Error(
+      `${fetchOptions.method ?? 'GET'} ${path} failed: ${response.status} ${JSON.stringify(body)}`,
+    );
   }
   return body;
 }
@@ -38,6 +40,19 @@ const getJson = (path, accessToken) =>
   });
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function expectRequestFailure(label, fn, expectedStatus) {
+  try {
+    await fn();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes(`failed: ${expectedStatus}`)) {
+      throw new Error(`${label} failed with an unexpected error: ${message}`);
+    }
+    return true;
+  }
+  throw new Error(`${label} unexpectedly succeeded`);
+}
 
 const health = await request('/health');
 const readiness = await request('/health/ready');
@@ -99,7 +114,9 @@ if (coupon.code !== couponCode.toUpperCase()) {
   throw new Error(`Coupon code was not normalized by admin create: ${JSON.stringify(coupon)}`);
 }
 if (couponPreview.discountAmount !== expectedCouponDiscount) {
-  throw new Error(`Coupon preview discount mismatch: ${JSON.stringify({ couponPreview, expectedCouponDiscount })}`);
+  throw new Error(
+    `Coupon preview discount mismatch: ${JSON.stringify({ couponPreview, expectedCouponDiscount })}`,
+  );
 }
 
 const verificationUpload = await postJson('/files/presign', providerAuth.accessToken, {
@@ -111,8 +128,14 @@ await postJson('/provider/verification/submit', providerAuth.accessToken, {
   fileIds: [verificationUpload.file.id],
 });
 await postJson(`/admin/providers/${providerAuth.user.providerProfile.id}/approve`, adminAuth.accessToken);
-await postJson(`/admin/providers/${backupProviderAuth.user.providerProfile.id}/approve`, adminAuth.accessToken);
-const verificationReadUrl = await getJson(`/files/${verificationUpload.file.id}/read-url`, adminAuth.accessToken);
+await postJson(
+  `/admin/providers/${backupProviderAuth.user.providerProfile.id}/approve`,
+  adminAuth.accessToken,
+);
+const verificationReadUrl = await getJson(
+  `/files/${verificationUpload.file.id}/read-url`,
+  adminAuth.accessToken,
+);
 
 await postJson('/provider/online', providerAuth.accessToken);
 await postJson('/provider/online', backupProviderAuth.accessToken);
@@ -132,15 +155,38 @@ const savedSelectedLocation = await postJson('/customer/locations/selected', cus
   lng: 106.7009,
   addressText: 'District 1, Ho Chi Minh City, Vietnam',
 });
-if (!savedSelectedLocation.id || savedSelectedLocation.addressText !== 'District 1, Ho Chi Minh City, Vietnam') {
+if (
+  !savedSelectedLocation.id ||
+  savedSelectedLocation.addressText !== 'District 1, Ho Chi Minh City, Vietnam'
+) {
   throw new Error(`Customer selected location was not saved: ${JSON.stringify(savedSelectedLocation)}`);
 }
 
-const nearbyProviders = await getJson('/customer/providers/nearby?lat=10.7769&lng=106.7009', customerAuth.accessToken);
+await expectRequestFailure(
+  'Out-of-country customer selected location',
+  () =>
+    postJson('/customer/locations/selected', customerAuth.accessToken, {
+      lat: 0,
+      lng: 0,
+      addressText: 'Invalid location',
+    }),
+  400,
+);
+
+const nearbyProviders = await getJson(
+  '/customer/providers/nearby?lat=10.7769&lng=106.7009',
+  customerAuth.accessToken,
+);
 const nearbyProvider = nearbyProviders.find((item) => item.id === providerAuth.user.providerProfile.id);
 if (!nearbyProvider?.currentLocationUpdatedAt || nearbyProvider.isRecentLocation !== true) {
   throw new Error(`Nearby provider payload is missing freshness metadata: ${JSON.stringify(nearbyProvider)}`);
 }
+
+await expectRequestFailure(
+  'Out-of-country provider search',
+  () => getJson('/customer/providers/nearby?lat=0&lng=0', customerAuth.accessToken),
+  400,
+);
 
 const booking = await postJson('/customer/bookings', customerAuth.accessToken, {
   serviceId: service.id,
@@ -216,15 +262,21 @@ const cancelledPaymentAfterSync = await getJson('/admin/payments', adminAuth.acc
   payments.find((item) => item.bookingId === cancellableMomoBooking.id),
 );
 if (cancelledPaymentAfterSync?.status !== 'RELEASED') {
-  throw new Error(`Released payment was overwritten by sync: ${JSON.stringify({ cancelledPaymentSync, cancelledPaymentAfterSync })}`);
+  throw new Error(
+    `Released payment was overwritten by sync: ${JSON.stringify({ cancelledPaymentSync, cancelledPaymentAfterSync })}`,
+  );
 }
 
 await postJson(`/provider/bookings/${booking.id}/join`, providerAuth.accessToken);
 await postJson(`/provider/bookings/${hybridBooking.id}/join`, backupProviderAuth.accessToken);
 
-const hybridMatched = await postJson(`/customer/bookings/${hybridBooking.id}/select-provider`, customerAuth.accessToken, {
-  providerId: backupProviderAuth.user.providerProfile.id,
-});
+const hybridMatched = await postJson(
+  `/customer/bookings/${hybridBooking.id}/select-provider`,
+  customerAuth.accessToken,
+  {
+    providerId: backupProviderAuth.user.providerProfile.id,
+  },
+);
 
 const matched = await postJson(`/customer/bookings/${booking.id}/select-provider`, customerAuth.accessToken, {
   providerId: providerAuth.user.providerProfile.id,
@@ -272,23 +324,39 @@ if (
 }
 const adminHybridBooking = adminBookings.find((item) => item.id === hybridBooking.id);
 if (!adminHybridBooking?.preferredProvider?.id || !adminHybridBooking?.selectedProvider?.id) {
-  throw new Error(`Hybrid booking is missing preferred/final provider state: ${JSON.stringify(adminHybridBooking)}`);
+  throw new Error(
+    `Hybrid booking is missing preferred/final provider state: ${JSON.stringify(adminHybridBooking)}`,
+  );
 }
 if (adminHybridBooking.preferredProvider.id === adminHybridBooking.selectedProvider.id) {
-  throw new Error(`Hybrid booking did not switch from preferred to backup provider: ${JSON.stringify(adminHybridBooking)}`);
+  throw new Error(
+    `Hybrid booking did not switch from preferred to backup provider: ${JSON.stringify(adminHybridBooking)}`,
+  );
 }
 const adminCancelledBooking = adminBookings.find((item) => item.id === cancellableMomoBooking.id);
 if (adminCancelledBooking?.status !== 'CANCELLED' || adminCancelledBooking?.payment?.status !== 'RELEASED') {
-  throw new Error(`Admin booking monitor did not expose cancellation release state: ${JSON.stringify(adminCancelledBooking)}`);
+  throw new Error(
+    `Admin booking monitor did not expose cancellation release state: ${JSON.stringify(adminCancelledBooking)}`,
+  );
 }
 const adminProviders = await getJson('/admin/providers', adminAuth.accessToken);
 const adminProvider = adminProviders.find((item) => item.id === providerAuth.user.providerProfile.id);
 if (!adminProvider?.user?.pushDevices?.some((device) => device.token === 'demo-provider-device-token')) {
-  throw new Error(`Admin provider payload is missing registered push device: ${JSON.stringify(adminProvider)}`);
+  throw new Error(
+    `Admin provider payload is missing registered push device: ${JSON.stringify(adminProvider)}`,
+  );
 }
-const adminBackupProvider = adminProviders.find((item) => item.id === backupProviderAuth.user.providerProfile.id);
-if (!adminBackupProvider?.user?.pushDevices?.some((device) => device.token === 'demo-backup-provider-device-token')) {
-  throw new Error(`Admin backup provider payload is missing registered push device: ${JSON.stringify(adminBackupProvider)}`);
+const adminBackupProvider = adminProviders.find(
+  (item) => item.id === backupProviderAuth.user.providerProfile.id,
+);
+if (
+  !adminBackupProvider?.user?.pushDevices?.some(
+    (device) => device.token === 'demo-backup-provider-device-token',
+  )
+) {
+  throw new Error(
+    `Admin backup provider payload is missing registered push device: ${JSON.stringify(adminBackupProvider)}`,
+  );
 }
 const payment = await getJson('/admin/payments', adminAuth.accessToken).then((payments) =>
   payments.find((item) => item.bookingId === booking.id),
@@ -302,7 +370,9 @@ const syncedMomo = momoPayment
 const releasedMomo = momoPayment
   ? await postJson(`/admin/payments/${momoPayment.id}/release`, adminAuth.accessToken)
   : null;
-const capturedCash = payment ? await postJson(`/admin/payments/${payment.id}/capture`, adminAuth.accessToken) : null;
+const capturedCash = payment
+  ? await postJson(`/admin/payments/${payment.id}/capture`, adminAuth.accessToken)
+  : null;
 const refund = payment ? await postJson(`/admin/payments/${payment.id}/refund`, adminAuth.accessToken) : null;
 const adminRefunds = await getJson('/admin/refunds', adminAuth.accessToken);
 const notifications = await getJson('/notifications', customerAuth.accessToken);
@@ -319,7 +389,10 @@ if (notificationToRetry) {
     (item) => item.id === notificationToRetry.id,
   );
   retryBeforeDeliveryCount = adminNotificationBeforeRetry?.deliveries?.length ?? 0;
-  const retryResult = await postJson(`/admin/notifications/${notificationToRetry.id}/retry`, adminAuth.accessToken);
+  const retryResult = await postJson(
+    `/admin/notifications/${notificationToRetry.id}/retry`,
+    adminAuth.accessToken,
+  );
   retryAccepted = Boolean(retryResult?.ok);
 }
 let retriedNotification = null;
@@ -352,7 +425,8 @@ console.log({
   adminBackupProviderPushDeviceCount: adminBackupProvider?.user?.pushDevices?.length ?? 0,
   hybridPreferredProviderId: adminHybridBooking?.preferredProvider?.id ?? null,
   hybridSelectedProviderId: adminHybridBooking?.selectedProvider?.id ?? null,
-  hybridSwitchedToBackup: adminHybridBooking?.preferredProvider?.id !== adminHybridBooking?.selectedProvider?.id,
+  hybridSwitchedToBackup:
+    adminHybridBooking?.preferredProvider?.id !== adminHybridBooking?.selectedProvider?.id,
   savedSelectedLocationId: savedSelectedLocation.id,
   nearbyProviderDistanceMeters: nearbyProvider.distanceMeters,
   nearbyProviderRecent: nearbyProvider.isRecentLocation,
