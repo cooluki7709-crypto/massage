@@ -37,7 +37,7 @@ Verification:
 ```powershell
 cd C:\dev\massage-vn-workspace\repo
 node .\infra\scripts\check-mobile-firebase.mjs
-node .\infra\scripts\check-external-setup.mjs --strict
+npm.cmd run external:check:strict
 ```
 
 ## 2. Low-Cost Maps And Address Search
@@ -227,23 +227,23 @@ Run this before real device or emulator testing:
 
 ```powershell
 cd C:\dev\massage-vn-workspace\repo
-node .\infra\scripts\check-external-setup.mjs
+npm.cmd run external:check
 powershell -ExecutionPolicy Bypass -File .\infra\scripts\verify-local.ps1 -WithServices
 ```
 
 Run phase-specific checks before each external E2E pass:
 
 ```powershell
-node .\infra\scripts\check-external-setup.mjs --phase=supabase-auth
-node .\infra\scripts\check-external-setup.mjs --phase=maps
-node .\infra\scripts\check-external-setup.mjs --phase=payments
-node .\infra\scripts\check-external-setup.mjs --phase=storage
+npm.cmd run external:check:supabase
+npm.cmd run external:check:maps
+npm.cmd run external:check:payments
+npm.cmd run external:check:storage
 ```
 
 Run strict mode only before production-like E2E testing, because it requires every recommended external integration at once:
 
 ```powershell
-node .\infra\scripts\check-external-setup.mjs --strict
+npm.cmd run external:check:strict
 ```
 
 ## Current Local Status
