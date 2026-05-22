@@ -677,10 +677,9 @@ class ProviderScheduleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final service = providerBookingService(booking);
-    final address = booking['address'] as Map<String, dynamic>?;
-    final payment = booking['payment'] as Map<String, dynamic>?;
-    final selectedProvider =
-        booking['selectedProvider'] as Map<String, dynamic>?;
+    final address = asMap(booking['address']);
+    final payment = asMap(booking['payment']);
+    final selectedProvider = asMap(booking['selectedProvider']);
     final isAssigned = selectedProvider != null;
     return Card(
       child: Padding(
@@ -737,14 +736,12 @@ class ProviderScheduleCard extends StatelessWidget {
 }
 
 Map<String, dynamic>? providerBookingService(Map<String, dynamic> booking) {
-  final services = booking['services'] is List<dynamic>
-      ? booking['services'] as List<dynamic>
-      : [];
-  if (services.isEmpty || services.first is! Map<String, dynamic>) {
+  final services = asList(booking['services']);
+  if (services.isEmpty) {
     return null;
   }
-  final service = (services.first as Map<String, dynamic>)['service'];
-  return service is Map<String, dynamic> ? service : null;
+  final service = asMap(asMap(services.first)?['service']);
+  return service;
 }
 
 bool isProviderActiveBooking(Map<String, dynamic> booking) {
@@ -1551,22 +1548,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> loadLatestChat() async {
     final bookings = await ref.read(providerRepositoryProvider).listBookings();
-    final bookingWithChat = bookings.cast<Map<String, dynamic>?>().firstWhere(
-          (item) => item?['chatRoom'] != null,
+    final bookingWithChat = bookings.map(asMap).firstWhere(
+          (item) => asMap(item?['chatRoom']) != null,
           orElse: () => null,
         );
-    final latestBooking =
-        bookings.isNotEmpty && bookings.first is Map<String, dynamic>
-            ? bookings.first as Map<String, dynamic>
-            : null;
+    final latestBooking = bookings.isNotEmpty ? asMap(bookings.first) : null;
     final booking = bookingWithChat ?? latestBooking;
-    final room = bookingWithChat?['chatRoom'] as Map<String, dynamic>?;
+    final room = asMap(bookingWithChat?['chatRoom']);
     if (room == null) {
       final status = booking?['status']?.toString();
-      final preferredProvider =
-          booking?['preferredProvider'] as Map<String, dynamic>?;
-      final selectedProvider =
-          booking?['selectedProvider'] as Map<String, dynamic>?;
+      final preferredProvider = asMap(booking?['preferredProvider']);
+      final selectedProvider = asMap(booking?['selectedProvider']);
       final selectedProviderId = selectedProvider?['id']?.toString();
       final preferredProviderId = preferredProvider?['id']?.toString();
       final myProviderId = ref
@@ -1592,13 +1584,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return;
     }
 
-    final roomId = room['id'] as String;
+    final roomId = room['id']?.toString();
+    if (roomId == null || roomId.isEmpty) {
+      setState(() => statusMessage = 'Chat room is not ready yet.');
+      return;
+    }
     ref.read(providerRepositoryProvider).joinChat(roomId);
     final loadedMessages =
         await ref.read(providerRepositoryProvider).listChatMessages(roomId);
     setState(() {
       chatRoomId = roomId;
-      bookingId = booking?['id'] as String?;
+      bookingId = booking?['id']?.toString();
       customerLat = asNum(booking?['lat'])?.toDouble();
       customerLng = asNum(booking?['lng'])?.toDouble();
       messages = loadedMessages;
@@ -1631,8 +1627,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           .read(providerRepositoryProvider)
           .updateLocation(bookingId: activeBookingId);
       setState(() {
-        lastSharedLat = location['lat'];
-        lastSharedLng = location['lng'];
+        lastSharedLat = asNum(location['lat'])?.toDouble();
+        lastSharedLng = asNum(location['lng'])?.toDouble();
         statusMessage =
             'Your current location was shared with the customer at ${formatCoordinate(lastSharedLat)} / ${formatCoordinate(lastSharedLng)}.';
       });
@@ -1707,7 +1703,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       'No messages yet. The first message will appear here as soon as either side sends one.')
             else
               for (final message in messages)
-                MessageTile(message: message as Map<String, dynamic>),
+                if (asMap(message) != null)
+                  MessageTile(message: asMap(message)!),
             const SizedBox(height: 12),
             TextField(
               controller: messageController,
@@ -1738,12 +1735,12 @@ class MessageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sender = message['sender'] as Map<String, dynamic>?;
+    final sender = asMap(message['sender']);
     return Card(
       child: ListTile(
         leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-        title: Text(message['body'] as String? ?? ''),
-        subtitle: Text(sender?['fullName'] as String? ?? 'Sender'),
+        title: Text(message['body']?.toString() ?? ''),
+        subtitle: Text(sender?['fullName']?.toString() ?? 'Sender'),
       ),
     );
   }
@@ -2256,6 +2253,20 @@ num? asNum(dynamic value) {
     return num.tryParse(value);
   }
   return null;
+}
+
+Map<String, dynamic>? asMap(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is Map) {
+    return Map<String, dynamic>.from(value);
+  }
+  return null;
+}
+
+List<dynamic> asList(dynamic value) {
+  return value is List<dynamic> ? value : const [];
 }
 
 class InfoCard extends StatelessWidget {

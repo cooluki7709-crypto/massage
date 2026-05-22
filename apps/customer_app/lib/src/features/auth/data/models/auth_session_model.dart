@@ -11,11 +11,26 @@ class AuthSessionModel extends AuthSession {
   });
 
   factory AuthSessionModel.fromJson(Map<String, dynamic> json) {
-    final user = json['user'] as Map<String, dynamic>;
+    final rawUser = json['user'];
+    if (rawUser is! Map) {
+      throw const FormatException('Auth response is missing user data.');
+    }
+
+    final user = Map<String, dynamic>.from(rawUser);
+    final userId = user['id']?.toString();
+    final accessToken = json['accessToken']?.toString();
+    final refreshToken = json['refreshToken']?.toString() ?? '';
+    if (userId == null ||
+        userId.isEmpty ||
+        accessToken == null ||
+        accessToken.isEmpty) {
+      throw const FormatException('Auth response is missing required tokens.');
+    }
+
     return AuthSessionModel(
-      userId: user['id'] as String,
-      accessToken: json['accessToken'] as String,
-      refreshToken: json['refreshToken'] as String,
+      userId: userId,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
       user: user,
     );
   }

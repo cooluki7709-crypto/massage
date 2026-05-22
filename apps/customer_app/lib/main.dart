@@ -2254,8 +2254,9 @@ class TherapistSelectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = participant['providerProfile'] as Map<String, dynamic>? ??
-        <String, dynamic>{};
+    final provider =
+        asMap(participant['providerProfile']) ?? <String, dynamic>{};
+    final providerName = provider['displayName']?.toString() ?? 'Provider';
     final distance = formatDistance(asDouble(participant['distanceMeters']));
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -2267,29 +2268,26 @@ class TherapistSelectionCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ProviderThumbnail(
-                    name: provider['displayName'] as String? ?? 'Provider',
-                    size: 84),
+                ProviderThumbnail(name: providerName, size: 84),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Text(
+                        providerName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
-                          Expanded(
-                            child: Text(
-                              provider['displayName'] as String? ?? 'Provider',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
                           const TherapistRoleTag(
                             label: 'Backup ready',
                             backgroundColor: Color(0xFFF8ECD4),
@@ -4032,16 +4030,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> loadLatestChat() async {
     final bookings = await ref.read(customerRepositoryProvider).listBookings();
-    final bookingWithChat = bookings.cast<Map<String, dynamic>?>().firstWhere(
-          (item) => item?['chatRoom'] != null,
+    final bookingWithChat = bookings.map(asMap).firstWhere(
+          (item) => asMap(item?['chatRoom']) != null,
           orElse: () => null,
         );
-    final latestBooking =
-        bookings.isNotEmpty && bookings.first is Map<String, dynamic>
-            ? bookings.first as Map<String, dynamic>
-            : null;
+    final latestBooking = bookings.isNotEmpty ? asMap(bookings.first) : null;
     final booking = bookingWithChat ?? latestBooking;
-    final room = bookingWithChat?['chatRoom'] as Map<String, dynamic>?;
+    final room = asMap(bookingWithChat?['chatRoom']);
     if (room == null) {
       final status = booking?['status']?.toString();
       final providerName = providerDisplayName(booking);
@@ -4061,7 +4056,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return;
     }
 
-    final roomId = room['id'] as String;
+    final roomId = room['id']?.toString();
+    if (roomId == null || roomId.isEmpty) {
+      setState(() => statusMessage = 'Chat room is not ready yet.');
+      return;
+    }
     ref.read(customerRepositoryProvider).joinChat(roomId);
     final loadedMessages =
         await ref.read(customerRepositoryProvider).listChatMessages(roomId);
@@ -4132,7 +4131,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       'No messages yet. Send the first message when you are ready.')
             else
               for (final message in messages)
-                MessageTile(message: message as Map<String, dynamic>),
+                if (asMap(message) != null)
+                  MessageTile(message: asMap(message)!),
             const SizedBox(height: 12),
             TextField(
               controller: messageController,
@@ -4163,12 +4163,12 @@ class MessageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sender = message['sender'] as Map<String, dynamic>?;
+    final sender = asMap(message['sender']);
     return Card(
       child: ListTile(
         leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-        title: Text(message['body'] as String? ?? ''),
-        subtitle: Text(sender?['fullName'] as String? ?? 'Sender'),
+        title: Text(message['body']?.toString() ?? ''),
+        subtitle: Text(sender?['fullName']?.toString() ?? 'Sender'),
       ),
     );
   }
@@ -4407,14 +4407,12 @@ Map<String, dynamic>? activeBookingProvider(Map<String, dynamic>? booking) {
 }
 
 double providerAverageRating(Map<String, dynamic> provider) {
-  final reviews = provider['reviews'] is List<dynamic>
-      ? provider['reviews'] as List<dynamic>
-      : [];
+  final reviews = asList(provider['reviews']);
   if (reviews.isEmpty) {
     return 5;
   }
   final total = reviews.fold<double>(0, (sum, item) {
-    final rating = asNum((item as Map<String, dynamic>)['rating']) ?? 0;
+    final rating = asNum(asMap(item)?['rating']) ?? 0;
     return sum + rating.toDouble();
   });
   return total / reviews.length;
@@ -4553,6 +4551,20 @@ num? asNum(dynamic value) {
 
 double? asDouble(dynamic value) {
   return asNum(value)?.toDouble();
+}
+
+Map<String, dynamic>? asMap(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is Map) {
+    return Map<String, dynamic>.from(value);
+  }
+  return null;
+}
+
+List<dynamic> asList(dynamic value) {
+  return value is List<dynamic> ? value : const [];
 }
 
 double bookingProgress(String status) {
