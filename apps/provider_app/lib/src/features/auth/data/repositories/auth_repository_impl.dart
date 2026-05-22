@@ -3,20 +3,34 @@ import '../../../../core/realtime_socket.dart';
 import '../../domain/entities/auth_session.dart';
 import '../../domain/entities/otp_request.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../datasources/auth_local_datasource.dart';
 import '../datasources/auth_remote_datasource.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   const AuthRepositoryImpl({
     required AuthRemoteDataSource remoteDataSource,
+    required AuthLocalDataSource localDataSource,
     required ApiClient apiClient,
     required RealtimeSocket realtimeSocket,
   })  : _remoteDataSource = remoteDataSource,
+        _localDataSource = localDataSource,
         _apiClient = apiClient,
         _realtimeSocket = realtimeSocket;
 
   final AuthRemoteDataSource _remoteDataSource;
+  final AuthLocalDataSource _localDataSource;
   final ApiClient _apiClient;
   final RealtimeSocket _realtimeSocket;
+
+  @override
+  Future<AuthSession?> restoreSession() async {
+    final session = await _localDataSource.readSession();
+    if (session == null) {
+      return null;
+    }
+    _activateSession(session);
+    return session;
+  }
 
   @override
   Future<OtpRequest> requestOtp({
@@ -34,9 +48,14 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     final session =
         await _remoteDataSource.verifyOtp(phone: phone, otp: otp, role: role);
+    await _localDataSource.saveSession(session);
+    _activateSession(session);
+    return session;
+  }
+
+  void _activateSession(AuthSession session) {
     _apiClient.accessToken = session.accessToken;
     _apiClient.refreshToken = session.refreshToken;
     _realtimeSocket.connect(session.accessToken);
-    return session;
   }
 }

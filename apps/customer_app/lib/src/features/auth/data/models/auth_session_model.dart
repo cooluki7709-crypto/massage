@@ -35,6 +35,14 @@ class AuthSessionModel extends AuthSession {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'user': user,
+      'accessToken': accessToken,
+      'refreshToken': refreshToken,
+    };
+  }
+
   factory AuthSessionModel.fromSupabaseSession({
     required Session? session,
     required String role,

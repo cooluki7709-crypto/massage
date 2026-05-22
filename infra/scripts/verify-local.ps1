@@ -82,6 +82,16 @@ function Test-TcpPort {
   }
 }
 
+function Get-FreeTcpPort {
+  $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+  try {
+    $listener.Start()
+    return $listener.LocalEndpoint.Port
+  } finally {
+    $listener.Stop()
+  }
+}
+
 function Test-LocalInfraReady {
   $postgresReady = Test-TcpPort -HostName "127.0.0.1" -Port 5432
   $redisReady = Test-TcpPort -HostName "127.0.0.1" -Port 6379
@@ -133,12 +143,17 @@ function Invoke-SmokeWithApi {
 }
 
 function Invoke-SmokeWithManagedApi {
+  $managedApiPort = Get-FreeTcpPort
+  $managedApiBaseUrl = "http://localhost:$managedApiPort/api"
+  $managedSocketBaseUrl = "http://localhost:$managedApiPort"
+  $managedHealthUrl = "$managedApiBaseUrl/health"
+
   $job = Start-Job -ScriptBlock {
     Set-Location $using:root
     $env:DATABASE_URL = "postgresql://massage:massage@localhost:5432/massage_vn?schema=public"
     $env:REDIS_URL = "redis://localhost:6379"
     $env:NODE_ENV = "development"
-    $env:API_PORT = "3000"
+    $env:API_PORT = "$using:managedApiPort"
     $env:JWT_ACCESS_SECRET = "dev-access-secret"
     $env:JWT_REFRESH_SECRET = "dev-refresh-secret"
     $env:DEV_OTP = "123456"
@@ -156,7 +171,7 @@ function Invoke-SmokeWithManagedApi {
     for ($i = 0; $i -lt 120; $i++) {
       Start-Sleep -Seconds 1
       try {
-        Invoke-RestMethod http://localhost:3000/api/health | Out-Null
+        Invoke-RestMethod $managedHealthUrl | Out-Null
         $ready = $true
         break
       } catch {}
@@ -164,11 +179,12 @@ function Invoke-SmokeWithManagedApi {
 
     if (-not $ready) {
       Receive-Job $job -Keep
-      Add-Result "api smoke against local services" "FAIL" "API did not become healthy within 120 seconds."
+      Add-Result "api smoke against local services" "FAIL" "Managed API did not become healthy on port $managedApiPort within 120 seconds."
       return
     }
 
-    Invoke-SmokeWithApi -ApiBaseUrl "http://localhost:3000/api" -SocketBaseUrl "http://localhost:3000"
+    Add-Result "api runtime source" "PASS" "Started managed HANDS API on $managedApiBaseUrl"
+    Invoke-SmokeWithApi -ApiBaseUrl $managedApiBaseUrl -SocketBaseUrl $managedSocketBaseUrl
   } finally {
     Stop-Job $job -ErrorAction SilentlyContinue
     Remove-Job $job -Force -ErrorAction SilentlyContinue

@@ -86,6 +86,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
   bool isOnline = false;
   bool loading = false;
   bool otpRequested = false;
+  bool restoringSession = true;
   String requestView = 'action';
   String? statusMessage;
   String? error;
@@ -94,6 +95,9 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
   void initState() {
     super.initState();
     _socket = ref.read(realtimeSocketProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(restoreSessionAndLoad());
+    });
   }
 
   @override
@@ -148,6 +152,27 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       'booking.expired'
     ]) {
       _socket.offEvent(event);
+    }
+  }
+
+  Future<void> restoreSessionAndLoad() async {
+    try {
+      final session =
+          await ref.read(authControllerProvider.notifier).restoreSession();
+      if (session != null) {
+        attachRealtimeListeners();
+        await goOnline();
+        await ref.read(providerLocationHeartbeatProvider).start();
+        await loadOpenBookings(showLoading: false);
+      }
+    } catch (exception) {
+      if (mounted) {
+        setState(() => error = '$exception');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => restoringSession = false);
+      }
     }
   }
 
@@ -400,7 +425,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                     }
                   },
           ),
-          if (loading) ...[
+          if (loading || restoringSession) ...[
             const SizedBox(height: 12),
             const LinearProgressIndicator(),
           ],

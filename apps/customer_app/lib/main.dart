@@ -90,6 +90,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   double? customerLng;
   bool loading = false;
   bool otpRequested = false;
+  bool restoringSession = true;
   String? error;
   String? notice;
 
@@ -97,10 +98,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = ref.read(authControllerProvider);
-      if (auth != null) {
-        unawaited(loadHome());
-      }
+      unawaited(restoreSessionAndLoad());
     });
   }
 
@@ -109,6 +107,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     loginPhoneController.dispose();
     loginOtpController.dispose();
     super.dispose();
+  }
+
+  Future<void> restoreSessionAndLoad() async {
+    try {
+      final session =
+          await ref.read(authControllerProvider.notifier).restoreSession();
+      if (session != null) {
+        await loadHome();
+      }
+    } catch (exception) {
+      if (mounted) {
+        setState(() => error = '$exception');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => restoringSession = false);
+      }
+    }
   }
 
   Future<void> requestLoginOtp() async {
@@ -336,7 +352,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          if (loading) const LinearProgressIndicator(),
+          if (loading || restoringSession) const LinearProgressIndicator(),
           if (error != null) ...[
             const SizedBox(height: 12),
             ErrorPanel(text: error!),

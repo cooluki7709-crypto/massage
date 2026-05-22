@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../core/app_config.dart';
 import '../../../../core/providers.dart';
+import '../../data/datasources/auth_local_datasource.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/datasources/nest_otp_auth_remote_datasource.dart';
 import '../../data/datasources/supabase_otp_auth_remote_datasource.dart';
@@ -9,6 +11,7 @@ import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/auth_session.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/request_otp.dart';
+import '../../domain/usecases/restore_auth_session.dart';
 import '../../domain/usecases/sign_in_with_otp.dart';
 import '../controllers/auth_controller.dart';
 
@@ -29,12 +32,24 @@ final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
   return NestOtpAuthRemoteDataSource(ref.read(apiClientProvider));
 });
 
+final authLocalDataSourceProvider = Provider<AuthLocalDataSource>((ref) {
+  return const AuthLocalDataSource(
+    storage: FlutterSecureStorage(),
+    storageKey: 'hands.provider.auth_session.v1',
+  );
+});
+
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(
     remoteDataSource: ref.read(authRemoteDataSourceProvider),
+    localDataSource: ref.read(authLocalDataSourceProvider),
     apiClient: ref.read(apiClientProvider),
     realtimeSocket: ref.read(realtimeSocketProvider),
   );
+});
+
+final restoreAuthSessionProvider = Provider<RestoreAuthSession>((ref) {
+  return RestoreAuthSession(ref.read(authRepositoryProvider));
 });
 
 final requestOtpProvider = Provider<RequestOtp>((ref) {
@@ -48,6 +63,7 @@ final signInWithOtpProvider = Provider<SignInWithOtp>((ref) {
 final authControllerProvider =
     StateNotifierProvider<AuthController, AuthSession?>((ref) {
   return AuthController(
+    restoreAuthSession: ref.read(restoreAuthSessionProvider),
     requestOtp: ref.read(requestOtpProvider),
     signInWithOtp: ref.read(signInWithOtpProvider),
   );

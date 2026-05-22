@@ -57,6 +57,13 @@ Mobile auth code is now split by Clean Architecture boundaries:
 
 Screens should call `requestOtp(...)` before `signInWithOtp(...)` when real phone login UI is enabled. The existing demo login remains available for local booking flow testing.
 
+Mobile sessions are persisted with `flutter_secure_storage` after OTP verification:
+
+- Customer key: `hands.customer.auth_session.v1`
+- Provider key: `hands.provider.auth_session.v1`
+- On app start, the saved Nest API session is restored, the API client receives the access/refresh tokens, and Socket.IO reconnects with the access token.
+- Provider restore also brings the provider online and starts the 10-minute location heartbeat so active providers do not need to log in again after reopening the app.
+
 After the API is running with the same `SUPABASE_JWT_SECRET`, run this smoke test to verify that Supabase-style access tokens are accepted by protected Nest routes:
 
 ```powershell
