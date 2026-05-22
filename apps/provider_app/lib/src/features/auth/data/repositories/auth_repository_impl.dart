@@ -5,9 +5,10 @@ import '../../domain/entities/otp_request.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_local_datasource.dart';
 import '../datasources/auth_remote_datasource.dart';
+import '../models/auth_session_model.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
-  const AuthRepositoryImpl({
+  AuthRepositoryImpl({
     required AuthRemoteDataSource remoteDataSource,
     required AuthLocalDataSource localDataSource,
     required ApiClient apiClient,
@@ -21,6 +22,7 @@ class AuthRepositoryImpl implements AuthRepository {
   final AuthLocalDataSource _localDataSource;
   final ApiClient _apiClient;
   final RealtimeSocket _realtimeSocket;
+  AuthSession? _activeSession;
 
   @override
   Future<AuthSession?> restoreSession() async {
@@ -56,14 +58,37 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> signOut() async {
     await _localDataSource.clearSession();
+    _activeSession = null;
+    _apiClient.onTokensRefreshed = null;
     _apiClient.accessToken = null;
     _apiClient.refreshToken = null;
     _realtimeSocket.dispose();
   }
 
   void _activateSession(AuthSession session) {
+    _activeSession = session;
     _apiClient.accessToken = session.accessToken;
     _apiClient.refreshToken = session.refreshToken;
+    _apiClient.onTokensRefreshed = _persistRefreshedSession;
     _realtimeSocket.connect(session.accessToken);
+  }
+
+  Future<void> _persistRefreshedSession(
+    String accessToken,
+    String refreshToken,
+  ) async {
+    final session = _activeSession;
+    if (session == null) {
+      return;
+    }
+    final refreshed = AuthSessionModel(
+      userId: session.userId,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      user: session.user,
+    );
+    _activeSession = refreshed;
+    await _localDataSource.saveSession(refreshed);
+    _realtimeSocket.connect(accessToken);
   }
 }

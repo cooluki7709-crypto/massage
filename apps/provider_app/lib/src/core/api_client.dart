@@ -11,10 +11,13 @@ class ApiClient {
   ApiClient({
     required this.baseUrl,
     this.tokenRefreshMode = TokenRefreshMode.nest,
+    this.onTokensRefreshed,
   });
 
   final String baseUrl;
   final TokenRefreshMode tokenRefreshMode;
+  Future<void> Function(String accessToken, String refreshToken)?
+      onTokensRefreshed;
   String? accessToken;
   String? refreshToken;
 
@@ -116,6 +119,7 @@ class ApiClient {
     if (nextRefreshToken is String && nextRefreshToken.isNotEmpty) {
       refreshToken = nextRefreshToken;
     }
+    await onTokensRefreshed?.call(accessToken!, refreshToken ?? '');
     return true;
   }
 }
