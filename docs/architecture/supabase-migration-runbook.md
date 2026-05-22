@@ -104,6 +104,21 @@ powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-emulator.ps1 
 
 Run [hands-core-schema.sql](/C:/dev/massage-vn-workspace/repo/infra/supabase/hands-core-schema.sql) in the Supabase SQL editor after creating the project.
 
+For a staging project, generate a single ordered SQL bundle first:
+
+```powershell
+cd C:\dev\massage-vn-workspace\repo
+npm.cmd run supabase:sql:pack
+```
+
+The generated file is written to:
+
+```text
+C:\dev\massage-vn-workspace\repo\infra\supabase\.generated\hands-staging-setup.sql
+```
+
+Paste that bundle into the Supabase SQL Editor for the HANDS staging project. The bundle includes `hands-core-schema.sql` first and `storage-schema.sql` second. It intentionally excludes `location-schema.sql` because that file is a standalone early draft; the current core schema already includes `provider_locations`, `customer_selected_locations`, and `nearby_providers`.
+
 The schema includes:
 
 - `profiles`
@@ -137,9 +152,29 @@ After changing Prisma enums or core models, run:
 
 ```powershell
 npm.cmd run supabase:schema:check
+npm.cmd run supabase:sql:pack
 ```
 
 This is a drift guard for the migration draft; it does not replace running the SQL in a Supabase staging project.
+
+## Staging Apply Checklist
+
+1. Create a Supabase project named `HANDS Staging`.
+2. Open SQL Editor and run the generated `hands-staging-setup.sql` bundle.
+3. Confirm there are no SQL errors.
+4. In Table Editor, confirm these tables exist: `profiles`, `providers`, `bookings`, `messages`, `provider_locations`, `files`.
+5. In Storage, confirm buckets `hands-public` and `hands-private` exist.
+6. In Authentication settings, enable Phone Auth and configure Vietnam-capable SMS delivery.
+7. Copy these values into the API environment only where appropriate:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_JWT_SECRET`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+8. Keep `AUTH_BACKEND=nest` until the API smoke and Supabase auth smoke pass.
+9. Run `npm.cmd run external:check:supabase`.
+10. Start the API with `SUPABASE_JWT_SECRET` and run `npm.cmd run auth:supabase-smoke`.
+
+Rollback during staging is simple: create a fresh staging Supabase project and rerun the generated bundle. Do not run destructive SQL against production-like data until backup/restore has been tested.
 
 ## Safe Migration Order
 

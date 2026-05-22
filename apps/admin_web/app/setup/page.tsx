@@ -33,6 +33,7 @@ const setupOrder = [
     ],
     commands: [
       'npm.cmd run external:pack',
+      'npm.cmd run supabase:sql:pack',
       'npm.cmd run external:check:supabase',
       '$env:SUPABASE_JWT_SECRET="<project-jwt-secret>"; $env:API_BASE_URL="http://localhost:3100/api"; npm.cmd run auth:supabase-smoke',
     ],
