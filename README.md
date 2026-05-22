@@ -80,7 +80,7 @@ Full local verification:
 npm run verify:local
 ```
 
-Mobile Firebase readiness check:
+Mobile Firebase removal check:
 
 ```powershell
 node infra/scripts/check-mobile-firebase.mjs
@@ -125,15 +125,7 @@ powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-emulator.ps1 
 powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-emulator.ps1 -App provider
 ```
 
-For real Android push delivery, add Firebase Android app configs here:
-
-- `apps/customer_app/android/app/google-services.json`
-- `apps/provider_app/android/app/google-services.json`
-
-Package names must match:
-
-- `com.massagevn.customer.customer_app`
-- `com.massagevn.provider.provider_app`
+Firebase mobile SDKs have been removed. Real OS-level push should be added later through a dedicated provider adapter such as OneSignal, not by reintroducing Firebase config by accident.
 
 If Git, Docker, or Flutter are missing, open PowerShell as Administrator and run:
 
@@ -153,7 +145,7 @@ This repository is structured for small, commit-ready phases. Phase 1 includes r
 
 ## Mobile MVP
 
-Customer and provider apps now have runtime API clients, demo OTP login, Bearer-token REST calls, and Socket.IO JWT handshake setup. See:
+Customer and provider apps now have runtime API clients, phone OTP request/verify screens, demo OTP login, Bearer-token REST calls, and Socket.IO JWT handshake setup. See:
 
 - `docs/architecture/mobile-api-integration.md`
 - `docs/architecture/localization-strategy.md`

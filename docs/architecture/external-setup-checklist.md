@@ -51,7 +51,7 @@ $env:MAPTILER_API_KEY="your-maptiler-key"
 $env:GEOAPIFY_API_KEY="your-geoapify-key"
 ```
 
-Optional direct Supabase values:
+Supabase values used by Auth now and direct database/storage later:
 
 ```dotenv
 SUPABASE_URL=
@@ -59,6 +59,22 @@ SUPABASE_ANON_KEY=
 SUPABASE_JWT_SECRET=
 SUPABASE_JWT_AUDIENCE=authenticated
 AUTH_BACKEND=nest
+```
+
+Recommended local auth setting while the product flow is still changing:
+
+```dotenv
+AUTH_BACKEND=nest
+```
+
+Switch mobile OTP to Supabase only after Supabase Phone Auth and the API JWT secret are configured:
+
+```dotenv
+AUTH_BACKEND=supabase
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_ANON_KEY=<anon-key>
+SUPABASE_JWT_SECRET=<project-jwt-secret>
+SUPABASE_JWT_AUDIENCE=authenticated
 ```
 
 The Flutter run scripts pass MapTiler and Geoapify keys as Dart defines:
@@ -88,10 +104,18 @@ SMS_SENDER_ID=HANDS
 
 Decision still needed:
 
-- Vietnam SMS provider
+- Supabase Phone Auth SMS provider or a backend SMS provider
 - OTP rate limits
 - resend cooldown
 - fraud monitoring rules
+
+Supabase Auth setup:
+
+1. Create or open the HANDS Supabase project.
+2. Enable Phone provider in Authentication.
+3. Configure the SMS provider supported by Supabase for Vietnam delivery.
+4. Copy `Project URL`, `anon public`, and the JWT secret into the local `.env`.
+5. Keep `AUTH_BACKEND=nest` until OTP sending is verified, then test `AUTH_BACKEND=supabase` on customer and provider apps.
 
 ## 4. Payments
 
@@ -215,7 +239,7 @@ Last checked from `C:\dev\massage-vn-workspace\repo`:
 - OS-level push provider: not selected
 - MapTiler API key: pending
 - Geoapify API key: pending
-- Supabase URL / anon key: optional for later direct Supabase location storage
+- Supabase URL / anon key / JWT secret: pending for real Supabase OTP
 - Local MinIO storage: ready for MVP
 - Production SMS provider: not selected
 - MoMo / VNPay merchant credentials: not filled
@@ -223,16 +247,16 @@ Last checked from `C:\dev\massage-vn-workspace\repo`:
 
 The next external setup items to complete are:
 
+- Supabase URL / anon key / JWT secret for real OTP migration
 - MapTiler API key
 - Geoapify API key
-- optional Supabase project if direct client storage is preferred later
 - production push provider decision
 
 ## Recommended Fill Order
 
-1. MapTiler and Geoapify keys
-2. Supabase project URL / anon key when direct client reads are enabled
-3. SMS provider
+1. Supabase project URL / anon key / JWT secret
+2. Supabase Phone Auth SMS configuration
+3. MapTiler and Geoapify keys
 4. MoMo and VNPay credentials
 5. Storage / CDN credentials
 6. Production push provider
