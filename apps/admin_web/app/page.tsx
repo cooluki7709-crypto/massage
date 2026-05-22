@@ -189,7 +189,7 @@ export default async function DashboardPage() {
                   <strong>API external readiness unavailable</strong>
                   <p className="muted">Start the HANDS API and refresh this dashboard.</p>
                 </div>
-                <span className="pill pill-warning">BLOCKED</span>
+                <span className="pill pill-warn">BLOCKED</span>
               </div>
             )}
           </div>

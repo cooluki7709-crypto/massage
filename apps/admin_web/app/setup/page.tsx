@@ -124,9 +124,11 @@ export default async function SetupPage() {
     checks: [],
   });
 
-  const summary = buildSummary(readiness);
+  const readinessUnavailable = isReadinessUnavailable(readiness);
+  const summary = buildSummary(readiness, readinessUnavailable);
   const groupStatuses = buildGroupStatuses(readiness);
-  const nextActions = buildNextOperatorActions(readiness);
+  const externalBacklog = buildExternalBacklog(readiness, readinessUnavailable);
+  const nextActions = buildNextOperatorActions(readiness, readinessUnavailable);
 
   return (
     <>
@@ -140,9 +142,11 @@ export default async function SetupPage() {
         </div>
         <div className="actions">
           <span className={`signal ${readiness.ok ? 'signal-ok' : 'signal-warn'}`}>
-            {readiness.ok ? 'Ready for E2E' : 'Needs setup'}
+            {readinessUnavailable ? 'API unavailable' : readiness.ok ? 'Ready for E2E' : 'Needs setup'}
           </span>
-          <span className="pill pill-info">Updated {formatDate(readiness.timestamp)}</span>
+          <span className="pill pill-info">
+            {readinessUnavailable ? 'Readiness not loaded' : `Updated ${formatDate(readiness.timestamp)}`}
+          </span>
         </div>
       </section>
 
@@ -170,7 +174,7 @@ export default async function SetupPage() {
       </section>
 
       <section className="detail-grid" style={{ marginBottom: 16 }}>
-        <div className="card">
+        <div className="card" id="live-readiness">
           <div className="risk-watch-header">
             <div>
               <h2>Next operator actions</h2>
@@ -267,14 +271,14 @@ export default async function SetupPage() {
           </span>
         </div>
         <div className="setup-backlog">
-          {buildExternalBacklog(readiness).map((item) => (
+          {externalBacklog.map((item) => (
             <a className="setup-backlog-item" href={`#${item.groupId}`} key={`${item.groupId}-${item.name}`}>
               <span>{item.groupTitle}</span>
               <strong>{item.name}</strong>
               <p className="muted">{item.reason}</p>
             </a>
           ))}
-          {buildExternalBacklog(readiness).length === 0 && (
+          {externalBacklog.length === 0 && (
             <p className="muted">All external readiness values are configured for the current environment.</p>
           )}
         </div>
@@ -371,7 +375,11 @@ function ReadinessRow({ check }: { check: AdminExternalReadiness['checks'][numbe
   );
 }
 
-function buildSummary(readiness: AdminExternalReadiness) {
+function buildSummary(readiness: AdminExternalReadiness, readinessUnavailable = false) {
+  if (readinessUnavailable) {
+    return { ready: 0, partial: 0, blocked: 1, missing: 1 };
+  }
+
   return readiness.checks.reduce(
     (summary, check) => ({
       ready: summary.ready + (check.status === 'READY' ? 1 : 0),
@@ -383,7 +391,19 @@ function buildSummary(readiness: AdminExternalReadiness) {
   );
 }
 
-function buildExternalBacklog(readiness: AdminExternalReadiness) {
+function buildExternalBacklog(readiness: AdminExternalReadiness, readinessUnavailable = false) {
+  if (readinessUnavailable) {
+    return [
+      {
+        groupId: 'live-readiness',
+        groupTitle: 'API runtime',
+        name: 'API readiness endpoint',
+        reason:
+          'Start the HANDS API or Docker services, then refresh this page before trusting setup status.',
+      },
+    ];
+  }
+
   return readiness.checks.flatMap((check) => {
     const group = setupOrder.find((setupGroup) => setupGroupMatches(setupGroup.id, check.category));
     const groupId = group?.id ?? 'setup';
@@ -410,10 +430,18 @@ function buildGroupStatuses(readiness: AdminExternalReadiness) {
   });
 }
 
-function buildNextOperatorActions(readiness: AdminExternalReadiness) {
-  const backlog = buildExternalBacklog(readiness);
+function buildNextOperatorActions(readiness: AdminExternalReadiness, readinessUnavailable = false) {
+  const backlog = buildExternalBacklog(readiness, readinessUnavailable);
   return backlog
     .map((item) => {
+      if (item.groupId === 'live-readiness') {
+        return {
+          ...item,
+          phase: 'Runtime check',
+          action: 'Start the API/Docker services and rerun setup doctor before external E2E.',
+          rank: -1,
+        };
+      }
       const groupIndex = setupOrder.findIndex((group) => group.id === item.groupId);
       const group = setupOrder[groupIndex] ?? setupOrder[0];
       return {
@@ -424,6 +452,10 @@ function buildNextOperatorActions(readiness: AdminExternalReadiness) {
       };
     })
     .sort((left, right) => left.rank - right.rank || left.name.localeCompare(right.name));
+}
+
+function isReadinessUnavailable(readiness: AdminExternalReadiness) {
+  return !readiness.ok && readiness.checks.length === 0;
 }
 
 function setupGroupMatches(groupId: string, category: string) {
