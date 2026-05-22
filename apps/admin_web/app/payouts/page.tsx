@@ -6,7 +6,7 @@ export default async function PayoutsPage() {
 
   return (
     <>
-      <h1>Payout Batches</h1>
+      <h1>Provider Payouts</h1>
       <section className="grid" style={{ marginBottom: 16 }}>
         <div className="card">
           <p>Total batches</p>
@@ -17,8 +17,8 @@ export default async function PayoutsPage() {
           <h2>{summary.needsReview}</h2>
         </div>
         <div className="card">
-          <p>Ready to transfer</p>
-          <h2>{summary.readyToTransfer}</h2>
+          <p>In progress</p>
+          <h2>{summary.inProgress}</h2>
         </div>
         <div className="card">
           <p>Settled</p>
@@ -26,21 +26,24 @@ export default async function PayoutsPage() {
         </div>
         <div className="card">
           <p>Total net</p>
-          <h2>
-            {summary.totalNetAmount} {summary.currency}
-          </h2>
+          <h2>{formatMoney(summary.totalNetAmount, summary.currency)}</h2>
         </div>
       </section>
 
       <div className="card">
         <div className="toolbar">
           <div>
-            <p className="muted">Provider settlement batches ordered so unresolved money movement stays at the top.</p>
+            <p className="muted">
+              Provider settlement batches ordered so unresolved money movement stays at the top.
+            </p>
           </div>
           <div className="participant-list">
             <span className="pill pill-success">Newest active first</span>
             <span className="pill pill-info">Payout signal</span>
-            <span className="pill pill-warn">Transfer readiness</span>
+            <span className="pill pill-warn">Reconciliation</span>
+            <a className="pill" href="/earnings">
+              Review earnings
+            </a>
           </div>
         </div>
 
@@ -53,51 +56,66 @@ export default async function PayoutsPage() {
               <th>Ops signal</th>
               <th>Transfer ref</th>
               <th>Earnings</th>
+              <th>Checklist</th>
               <th>Total</th>
               <th>Paid at</th>
             </tr>
           </thead>
           <tbody>
-            {batches.map((batch) => (
-              <tr key={batch.id}>
-                <td>
-                  <div>{shortId(batch.id)}</div>
-                  <div className="muted">{relativeTime(batch.createdAt)}</div>
-                </td>
-                <td>
-                  <div>{batch.providerProfile?.displayName ?? batch.providerProfile?.user?.phone ?? 'Unknown'}</div>
-                  <div className="muted">{batch.providerProfile?.user?.phone ?? 'No phone on file'}</div>
-                </td>
-                <td>
-                  <div>{humanizeStatus(batch.status)}</div>
-                  <div className="muted">{payoutPhase(batch.status)}</div>
-                </td>
-                <td>
-                  <span className={signalClass(batch.status)}>{opsSignal(batch)}</span>
-                  <div className="muted" style={{ marginTop: 6 }}>
-                    {opsHint(batch)}
-                  </div>
-                </td>
-                <td>
-                  <div>{batch.transferRef ?? '-'}</div>
-                  <div className="muted">{batch.notes?.trim() ? batch.notes : 'No transfer notes'}</div>
-                </td>
-                <td>
-                  <div>{batch.earnings?.length ?? 0} item(s)</div>
-                  <div className="muted">{earningsStatusHint(batch)}</div>
-                </td>
-                <td>
-                  {batch.totalNetAmount} {batch.currency}
-                </td>
-                <td>
-                  <div>{batch.paidAt ? new Date(batch.paidAt).toLocaleString() : '-'}</div>
-                  <div className="muted">{batch.paidAt ? relativeTime(batch.paidAt) : 'Awaiting settlement'}</div>
-                </td>
-              </tr>
-            ))}
+            {batches.map((batch) => {
+              const checklist = payoutChecklist(batch);
+              return (
+                <tr key={batch.id}>
+                  <td>
+                    <div>{shortId(batch.id)}</div>
+                    <div className="muted">{relativeTime(batch.createdAt)}</div>
+                  </td>
+                  <td>
+                    <div>
+                      {batch.providerProfile?.displayName ?? batch.providerProfile?.user?.phone ?? 'Unknown'}
+                    </div>
+                    <div className="muted">{batch.providerProfile?.user?.phone ?? 'No phone on file'}</div>
+                  </td>
+                  <td>
+                    <div>{humanizeStatus(batch.status)}</div>
+                    <div className="muted">{payoutPhase(batch.status)}</div>
+                  </td>
+                  <td>
+                    <span className={signalClass(batch.status)}>{opsSignal(batch)}</span>
+                    <div className="muted" style={{ marginTop: 6 }}>
+                      {opsHint(batch)}
+                    </div>
+                  </td>
+                  <td>
+                    <div>{batch.transferRef ?? '-'}</div>
+                    <div className="muted">{batch.notes?.trim() ? batch.notes : 'No transfer notes'}</div>
+                  </td>
+                  <td>
+                    <div>{batch.earnings?.length ?? 0} item(s)</div>
+                    <div className="muted">{earningsStatusHint(batch)}</div>
+                  </td>
+                  <td>
+                    <div className="participant-list">
+                      {checklist.map((item) => (
+                        <span className={item.ok ? 'pill pill-success' : 'pill pill-warn'} key={item.label}>
+                          {item.label}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td>{formatMoney(batch.totalNetAmount, batch.currency)}</td>
+                  <td>
+                    <div>{batch.paidAt ? new Date(batch.paidAt).toLocaleString() : '-'}</div>
+                    <div className="muted">
+                      {batch.paidAt ? relativeTime(batch.paidAt) : 'Awaiting settlement'}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {batches.length === 0 && (
               <tr>
-                <td colSpan={8}>No payout batches loaded.</td>
+                <td colSpan={9}>No payout batches loaded.</td>
               </tr>
             )}
           </tbody>
@@ -119,20 +137,18 @@ function sortBatches(batches: AdminPayoutBatch[]) {
 
 function payoutPriority(status: string) {
   switch (status) {
-    case 'PENDING':
+    case 'FAILED':
       return 0;
-    case 'PROCESSING':
+    case 'DRAFT':
       return 1;
-    case 'READY':
+    case 'PROCESSING':
       return 2;
     case 'PAID':
       return 3;
-    case 'FAILED':
-      return 4;
     case 'CANCELLED':
-      return 5;
+      return 4;
     default:
-      return 6;
+      return 5;
   }
 }
 
@@ -140,8 +156,8 @@ function buildSummary(batches: AdminPayoutBatch[]) {
   const currency = batches[0]?.currency ?? 'VND';
   return {
     total: batches.length,
-    needsReview: batches.filter((batch) => batch.status === 'PENDING' || batch.status === 'FAILED').length,
-    readyToTransfer: batches.filter((batch) => batch.status === 'READY' || batch.status === 'PROCESSING').length,
+    needsReview: batches.filter((batch) => batch.status === 'DRAFT' || batch.status === 'FAILED').length,
+    inProgress: batches.filter((batch) => batch.status === 'PROCESSING').length,
     settled: batches.filter((batch) => batch.status === 'PAID').length,
     totalNetAmount: batches.reduce((sum, batch) => sum + batch.totalNetAmount, 0),
     currency,
@@ -158,12 +174,10 @@ function humanizeStatus(status: string) {
 
 function payoutPhase(status: string) {
   switch (status) {
-    case 'PENDING':
+    case 'DRAFT':
       return 'Waiting for finance review';
     case 'PROCESSING':
       return 'Transfer is in motion';
-    case 'READY':
-      return 'Batch can be sent to banking';
     case 'PAID':
       return 'Settlement finished';
     case 'FAILED':
@@ -179,10 +193,9 @@ function signalClass(status: string) {
   switch (status) {
     case 'PAID':
       return 'signal signal-ok';
-    case 'READY':
     case 'PROCESSING':
       return 'signal signal-info';
-    case 'PENDING':
+    case 'DRAFT':
     case 'FAILED':
       return 'signal signal-warn';
     default:
@@ -192,14 +205,12 @@ function signalClass(status: string) {
 
 function opsSignal(batch: AdminPayoutBatch) {
   switch (batch.status) {
-    case 'PENDING':
+    case 'DRAFT':
       return 'Needs review';
-    case 'READY':
-      return 'Ready to transfer';
     case 'PROCESSING':
       return 'Transfer in progress';
     case 'PAID':
-      return 'Settled';
+      return batch.transferRef ? 'Settled' : 'Settled, missing ref';
     case 'FAILED':
       return 'Retry payout';
     case 'CANCELLED':
@@ -211,14 +222,14 @@ function opsSignal(batch: AdminPayoutBatch) {
 
 function opsHint(batch: AdminPayoutBatch) {
   switch (batch.status) {
-    case 'PENDING':
+    case 'DRAFT':
       return 'Check included earnings, confirm the therapist, and release only if totals look right.';
-    case 'READY':
-      return 'Transfer reference can be attached now and moved to processing.';
     case 'PROCESSING':
       return 'Watch for banking confirmation before marking the batch complete.';
     case 'PAID':
-      return 'Payment already landed. Keep this for reconciliation and support follow-up.';
+      return batch.transferRef
+        ? 'Payment already landed. Keep this for reconciliation and support follow-up.'
+        : 'Payment is marked paid but still needs a banking transfer reference.';
     case 'FAILED':
       return 'Review transfer notes and retry path before earnings age further.';
     case 'CANCELLED':
@@ -234,6 +245,20 @@ function earningsStatusHint(batch: AdminPayoutBatch) {
   }
   const payoutLinked = batch.earnings.filter((earning) => earning.payoutBatchId === batch.id).length;
   return `${payoutLinked}/${batch.earnings.length} linked to this batch`;
+}
+
+function payoutChecklist(batch: AdminPayoutBatch) {
+  const earnings = batch.earnings ?? [];
+  const allEarningsPaid = earnings.length > 0 && earnings.every((earning) => earning.status === 'PAID');
+  return [
+    { label: batch.transferRef ? 'Ref' : 'No ref', ok: Boolean(batch.transferRef) },
+    { label: allEarningsPaid ? 'Earnings paid' : 'Earnings open', ok: allEarningsPaid },
+    { label: batch.paidAt ? 'Paid date' : 'No paid date', ok: Boolean(batch.paidAt) },
+  ];
+}
+
+function formatMoney(amount: number, currency: string) {
+  return `${new Intl.NumberFormat('vi-VN').format(amount)} ${currency}`;
 }
 
 function shortId(value: string) {
