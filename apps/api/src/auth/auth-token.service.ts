@@ -47,6 +47,17 @@ export class AuthTokenService {
     throw new UnauthorizedException('Invalid bearer token');
   }
 
+  async authenticateSupabaseBearerToken(
+    token: string,
+    requestedRoles: Role[] = [],
+  ): Promise<AuthenticatedUser> {
+    const supabaseUser = await this.tryVerifySupabaseJwt(token, requestedRoles);
+    if (!supabaseUser) {
+      throw new UnauthorizedException('Invalid Supabase bearer token');
+    }
+    return supabaseUser;
+  }
+
   private tryVerifyNestJwt(token: string): AuthenticatedUser | null {
     try {
       const payload = this.jwt.verify<NestJwtPayload>(token, {
@@ -67,7 +78,10 @@ export class AuthTokenService {
     }
   }
 
-  private async tryVerifySupabaseJwt(token: string): Promise<AuthenticatedUser | null> {
+  private async tryVerifySupabaseJwt(
+    token: string,
+    requestedRoles: Role[] = [],
+  ): Promise<AuthenticatedUser | null> {
     const supabaseJwtSecret = this.config.get<string>('SUPABASE_JWT_SECRET');
     if (!supabaseJwtSecret) {
       return null;
@@ -87,7 +101,7 @@ export class AuthTokenService {
     }
 
     this.assertSupabaseAudience(payload);
-    const roles = this.resolveSupabaseRoles(payload);
+    const roles = this.resolveSupabaseRoles(payload, requestedRoles);
     const user = await this.syncSupabaseUser(payload, roles);
 
     return {
@@ -106,8 +120,9 @@ export class AuthTokenService {
     }
   }
 
-  private resolveSupabaseRoles(payload: SupabaseJwtPayload): Role[] {
+  private resolveSupabaseRoles(payload: SupabaseJwtPayload, requestedRoles: Role[] = []): Role[] {
     const rawRoles = [
+      ...requestedRoles,
       payload.app_metadata?.role,
       ...(payload.app_metadata?.roles ?? []),
       payload.user_metadata?.role,

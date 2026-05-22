@@ -1,12 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/api_client.dart';
 import '../models/auth_session_model.dart';
 import 'auth_remote_datasource.dart';
 
 class SupabaseOtpAuthRemoteDataSource implements AuthRemoteDataSource {
-  const SupabaseOtpAuthRemoteDataSource(this._client);
+  const SupabaseOtpAuthRemoteDataSource(this._client, this._api);
 
   final SupabaseClient _client;
+  final ApiClient _api;
 
   @override
   Future<AuthSessionModel> verifyOtp({
@@ -19,10 +21,15 @@ class SupabaseOtpAuthRemoteDataSource implements AuthRemoteDataSource {
       token: otp,
       type: OtpType.sms,
     );
-    return AuthSessionModel.fromSupabaseSession(
+    final supabaseSession = AuthSessionModel.fromSupabaseSession(
       session: response.session,
       role: role,
       phone: phone,
     );
+    final exchanged = await _api.postJson('/auth/supabase/exchange', {
+      'supabaseAccessToken': supabaseSession.accessToken,
+      'role': role,
+    });
+    return AuthSessionModel.fromJson(exchanged as Map<String, dynamic>);
   }
 }

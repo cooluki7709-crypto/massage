@@ -42,10 +42,11 @@ Auth backend modes:
 
 The API now accepts Supabase Auth JWTs when `SUPABASE_JWT_SECRET` is configured. Supabase users are mapped to local Nest users through `User.supabaseUserId`, and phone OTP users are linked by phone number when possible.
 
-Mobile API clients now choose token refresh behavior by auth backend:
+Mobile Supabase OTP flow uses a bridge session:
 
-- `AUTH_BACKEND=nest`: use the existing Nest `/auth/refresh` endpoint.
-- `AUTH_BACKEND=supabase`: do not call Nest `/auth/refresh`; Supabase session refresh should stay inside the Supabase auth datasource.
+- `AUTH_BACKEND=nest`: mobile verifies OTP directly with Nest and receives Nest API tokens.
+- `AUTH_BACKEND=supabase`: mobile verifies OTP with Supabase, then exchanges the Supabase access token at `/auth/supabase/exchange` for Nest API tokens.
+- This keeps provider/customer roles, Socket.IO auth, and existing protected API routes stable while Supabase Auth becomes the OTP identity provider.
 
 After the API is running with the same `SUPABASE_JWT_SECRET`, run this smoke test to verify that Supabase-style access tokens are accepted by protected Nest routes:
 

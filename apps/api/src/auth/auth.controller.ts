@@ -13,6 +13,11 @@ type VerifyOtpDto = {
   role?: Role;
 };
 
+type SupabaseExchangeDto = {
+  supabaseAccessToken: string;
+  role?: Role;
+};
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -30,5 +35,10 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body() body: { refreshToken: string }) {
     return this.auth.refresh(body.refreshToken);
+  }
+
+  @Post('supabase/exchange')
+  exchangeSupabaseSession(@Body() body: SupabaseExchangeDto) {
+    return this.auth.exchangeSupabaseSession(body);
   }
 }

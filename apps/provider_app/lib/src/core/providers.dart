@@ -8,9 +8,7 @@ export 'supabase_client_provider.dart';
 final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient(
     baseUrl: AppConfig.apiBaseUrl,
-    tokenRefreshMode: AppConfig.authBackend == AuthBackend.nest
-        ? TokenRefreshMode.nest
-        : TokenRefreshMode.disabled,
+    tokenRefreshMode: TokenRefreshMode.nest,
   );
 });
 

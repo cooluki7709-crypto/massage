@@ -22,6 +22,21 @@ if (!customer?.id || !customer?.customerProfile) {
   throw new Error(`Supabase JWT did not map to a customer user: ${JSON.stringify(customer)}`);
 }
 
+const providerSupabaseToken = signSupabaseToken({
+  sub: `smoke-provider-${randomUUID()}`,
+  aud: jwtAudience,
+  phone: `+848${Date.now().toString().slice(-8)}`,
+});
+const providerExchange = await postJson('/auth/supabase/exchange', {
+  supabaseAccessToken: providerSupabaseToken,
+  role: 'PROVIDER',
+});
+const provider = await getJson('/provider/me', providerExchange.accessToken);
+
+if (!provider?.id || !provider?.providerProfile) {
+  throw new Error(`Supabase exchange did not map to a provider user: ${JSON.stringify(provider)}`);
+}
+
 console.log(
   JSON.stringify(
     {
@@ -30,6 +45,8 @@ console.log(
       apiBaseUrl,
       customerUserId: customer.id,
       customerProfileId: customer.customerProfile.id,
+      providerUserId: provider.id,
+      providerProfileId: provider.providerProfile.id,
     },
     null,
     2,
@@ -45,6 +62,19 @@ async function getJson(path, accessToken) {
     throw new Error(`GET ${path} failed: ${response.status} ${JSON.stringify(body)}`);
   }
   return body;
+}
+
+async function postJson(path, body) {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const responseBody = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`POST ${path} failed: ${response.status} ${JSON.stringify(responseBody)}`);
+  }
+  return responseBody;
 }
 
 function signSupabaseToken(payload) {

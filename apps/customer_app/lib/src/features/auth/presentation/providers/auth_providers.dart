@@ -22,7 +22,7 @@ final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
         'AUTH_BACKEND=supabase requires SUPABASE_URL and SUPABASE_ANON_KEY.',
       );
     }
-    return SupabaseOtpAuthRemoteDataSource(client);
+    return SupabaseOtpAuthRemoteDataSource(client, ref.read(apiClientProvider));
   }
 
   return NestOtpAuthRemoteDataSource(ref.read(apiClientProvider));

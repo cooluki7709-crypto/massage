@@ -4,12 +4,16 @@ import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisStateService } from '../redis/redis-state.service';
+import { AuthTokenService } from './auth-token.service';
 import { OtpDeliveryService } from './otp-delivery.service';
 
 type RefreshPayload = {
   sub?: string;
   tokenType?: string;
 };
+
+const MOBILE_EXCHANGE_ROLES = [Role.CUSTOMER, Role.PROVIDER] as const;
+type MobileExchangeRole = (typeof MOBILE_EXCHANGE_ROLES)[number];
 
 @Injectable()
 export class AuthService {
@@ -22,6 +26,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly redisState: RedisStateService,
     private readonly otpDelivery: OtpDeliveryService,
+    private readonly authTokens: AuthTokenService,
   ) {}
 
   async requestOtp(input: { phone: string; role?: Role }) {
@@ -117,6 +122,37 @@ export class AuthService {
     };
   }
 
+  async exchangeSupabaseSession(input: { supabaseAccessToken: string; role?: Role }) {
+    const role = this.assertExchangeRole(input.role ?? Role.CUSTOMER);
+    const authenticated = await this.authTokens.authenticateSupabaseBearerToken(input.supabaseAccessToken, [
+      role,
+    ]);
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: authenticated.id },
+      include: { customerProfile: true, providerProfile: true },
+    });
+
+    const accessToken = this.jwt.sign({ sub: user.id, roles: user.roles, authProvider: 'supabase' });
+    const refreshToken = this.jwt.sign(
+      { sub: user.id, tokenType: 'refresh', authProvider: 'supabase' },
+      { secret: this.refreshSecret(), expiresIn: '30d' },
+    );
+
+    return {
+      user,
+      accessToken,
+      refreshToken,
+      exchangedFrom: 'supabase',
+    };
+  }
+
+  private assertExchangeRole(role: Role): MobileExchangeRole {
+    if (!MOBILE_EXCHANGE_ROLES.includes(role as MobileExchangeRole)) {
+      throw new UnauthorizedException('Supabase mobile exchange only supports CUSTOMER or PROVIDER roles');
+    }
+    return role as MobileExchangeRole;
+  }
+
   private async assertValidOtp(phone: string, otp: string) {
     const storedOtp = await this.getStoredOtp(phone);
     const isProduction = this.config.get<string>('NODE_ENV') === 'production';
@@ -133,7 +169,9 @@ export class AuthService {
     try {
       await this.redisState.setOtp(phone, otp);
     } catch (error) {
-      this.logger.warn(`Redis OTP store unavailable; using in-memory OTP fallback. ${(error as Error).message}`);
+      this.logger.warn(
+        `Redis OTP store unavailable; using in-memory OTP fallback. ${(error as Error).message}`,
+      );
       this.fallbackOtps.set(phone, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
     }
   }
@@ -145,7 +183,9 @@ export class AuthService {
         return otp;
       }
     } catch (error) {
-      this.logger.warn(`Redis OTP lookup unavailable; checking in-memory OTP fallback. ${(error as Error).message}`);
+      this.logger.warn(
+        `Redis OTP lookup unavailable; checking in-memory OTP fallback. ${(error as Error).message}`,
+      );
     }
 
     const fallback = this.fallbackOtps.get(phone);
