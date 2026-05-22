@@ -12,6 +12,7 @@ HANDS will move away from Firebase and keep the Flutter apps behind Clean Archit
 - API FCM HTTP delivery has been removed and replaced with in-app-only delivery records.
 - Mobile apps currently use in-app notifications instead of OS-level push tokens.
 - `supabase_flutter` is installed but no production flow depends on direct Supabase calls yet.
+- `npm.cmd run supabase:schema:check` verifies that the Supabase core SQL draft still includes the current Prisma enum values and MVP tables.
 
 ## Client Environment
 
@@ -118,11 +119,27 @@ The schema includes:
 - `messages`
 - `payments`
 - `reviews`
+- `provider_payout_batches`
+- `provider_earnings`
 - `notifications`
+- `push_devices`
+- `notification_deliveries`
 - `files`
+- `location_snapshots`
+- `coupons`
+- `refunds`
+- `admin_audit_logs`
 - `admin_settings`
 
 Storage policies are separated into `infra/supabase/storage-schema.sql` so bucket setup can be reviewed independently from app data tables.
+
+After changing Prisma enums or core models, run:
+
+```powershell
+npm.cmd run supabase:schema:check
+```
+
+This is a drift guard for the migration draft; it does not replace running the SQL in a Supabase staging project.
 
 ## Safe Migration Order
 

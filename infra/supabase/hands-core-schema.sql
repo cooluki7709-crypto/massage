@@ -48,10 +48,53 @@ begin
   create type public.payment_status as enum (
     'PENDING',
     'AUTHORIZED',
-    'PAID',
+    'CAPTURED',
     'FAILED',
-    'REFUNDED'
+    'REFUNDED',
+    'RELEASED'
   );
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.payment_method as enum ('MOMO', 'VNPAY', 'CASH');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.verification_status as enum ('DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.participant_status as enum ('JOINED', 'ACCEPTED', 'REJECTED', 'SELECTED', 'EXPIRED');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.review_status as enum ('PUBLISHED', 'HIDDEN', 'REPORTED');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.earning_status as enum ('PENDING', 'AVAILABLE', 'PAID', 'CANCELLED');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.payout_batch_status as enum ('DRAFT', 'PROCESSING', 'PAID', 'FAILED', 'CANCELLED');
 exception
   when duplicate_object then null;
 end $$;
@@ -81,12 +124,23 @@ create table if not exists public.providers (
   category text not null default 'massage',
   bio text,
   status public.provider_status not null default 'OFFLINE',
-  verification_status text not null default 'DRAFT',
+  verification_status public.verification_status not null default 'DRAFT',
   rating numeric(3, 2) not null default 0,
   review_count integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id)
+);
+
+create table if not exists public.provider_verifications (
+  id uuid primary key default gen_random_uuid(),
+  provider_id uuid not null unique references public.providers(id) on delete cascade,
+  status public.verification_status not null default 'DRAFT',
+  submitted_at timestamptz,
+  reviewed_at timestamptz,
+  rejection_reason text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.services (
@@ -162,7 +216,7 @@ create table if not exists public.booking_participants (
   booking_id uuid not null references public.bookings(id) on delete cascade,
   provider_id uuid not null references public.providers(id) on delete cascade,
   role text not null default 'BACKUP',
-  status text not null default 'JOINED',
+  status public.participant_status not null default 'JOINED',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (booking_id, provider_id)
@@ -188,10 +242,11 @@ create table if not exists public.payments (
   id uuid primary key default gen_random_uuid(),
   booking_id uuid not null references public.bookings(id) on delete cascade,
   customer_id uuid not null references public.profiles(id),
-  method text not null,
+  method public.payment_method not null,
   status public.payment_status not null default 'PENDING',
   amount_vnd integer not null check (amount_vnd >= 0),
   provider_reference text,
+  raw_meta jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -203,7 +258,40 @@ create table if not exists public.reviews (
   provider_id uuid not null references public.providers(id),
   rating integer not null check (rating between 1 and 5),
   body text,
+  tip_amount_vnd integer not null default 0,
+  status public.review_status not null default 'PUBLISHED',
+  report_reason text,
+  moderated_at timestamptz,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.provider_payout_batches (
+  id uuid primary key default gen_random_uuid(),
+  provider_id uuid not null references public.providers(id),
+  total_net_amount_vnd integer not null check (total_net_amount_vnd >= 0),
+  currency text not null default 'VND',
+  status public.payout_batch_status not null default 'DRAFT',
+  transfer_reference text,
+  notes text,
+  created_at timestamptz not null default now(),
+  paid_at timestamptz
+);
+
+create table if not exists public.provider_earnings (
+  id uuid primary key default gen_random_uuid(),
+  provider_id uuid not null references public.providers(id),
+  booking_id uuid not null unique references public.bookings(id) on delete cascade,
+  gross_amount_vnd integer not null check (gross_amount_vnd >= 0),
+  platform_fee_vnd integer not null check (platform_fee_vnd >= 0),
+  tip_amount_vnd integer not null default 0 check (tip_amount_vnd >= 0),
+  net_amount_vnd integer not null check (net_amount_vnd >= 0),
+  currency text not null default 'VND',
+  status public.earning_status not null default 'PENDING',
+  available_at timestamptz,
+  paid_at timestamptz,
+  payout_batch_id uuid references public.provider_payout_batches(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.notifications (
@@ -212,13 +300,35 @@ create table if not exists public.notifications (
   type text not null,
   title text not null,
   body text,
+  data jsonb,
   read_at timestamptz,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.push_devices (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  token text not null unique,
+  platform text not null,
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.notification_deliveries (
+  id uuid primary key default gen_random_uuid(),
+  notification_id uuid not null references public.notifications(id) on delete cascade,
+  push_device_id uuid not null references public.push_devices(id) on delete cascade,
+  provider text not null,
+  status text not null,
+  response jsonb,
+  attempted_at timestamptz not null default now()
 );
 
 create table if not exists public.files (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references public.profiles(id) on delete cascade,
+  provider_verification_id uuid references public.provider_verifications(id) on delete set null,
   bucket text not null,
   path text not null,
   visibility public.file_visibility not null default 'PRIVATE',
@@ -226,6 +336,44 @@ create table if not exists public.files (
   content_type text,
   created_at timestamptz not null default now(),
   unique (bucket, path)
+);
+
+create table if not exists public.location_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  booking_id uuid references public.bookings(id) on delete set null,
+  provider_id uuid not null references public.providers(id) on delete cascade,
+  latitude double precision not null check (latitude between -90 and 90),
+  longitude double precision not null check (longitude between -180 and 180),
+  recorded_at timestamptz not null default now()
+);
+
+create table if not exists public.coupons (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  description text,
+  discount jsonb not null,
+  active boolean not null default true,
+  starts_at timestamptz,
+  ends_at timestamptz
+);
+
+create table if not exists public.refunds (
+  id uuid primary key default gen_random_uuid(),
+  booking_id uuid not null references public.bookings(id) on delete cascade,
+  payment_id uuid not null references public.payments(id) on delete cascade,
+  amount_vnd integer not null check (amount_vnd >= 0),
+  reason text,
+  status text not null default 'REQUESTED',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.admin_audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid not null references public.profiles(id),
+  action text not null,
+  target text not null,
+  metadata jsonb,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists public.admin_settings (
@@ -237,6 +385,7 @@ create table if not exists public.admin_settings (
 
 create index if not exists providers_user_idx on public.providers(user_id);
 create index if not exists providers_status_idx on public.providers(status);
+create index if not exists provider_verifications_status_idx on public.provider_verifications(status);
 create index if not exists provider_locations_location_idx on public.provider_locations using gist(location);
 create index if not exists provider_locations_updated_idx on public.provider_locations(updated_at desc);
 create index if not exists customer_selected_locations_customer_idx
@@ -247,8 +396,17 @@ create index if not exists bookings_status_idx on public.bookings(status, create
 create index if not exists booking_participants_provider_idx
   on public.booking_participants(provider_id, created_at desc);
 create index if not exists messages_room_idx on public.messages(chat_room_id, created_at desc);
+create index if not exists provider_earnings_provider_idx on public.provider_earnings(provider_id, created_at desc);
+create index if not exists provider_earnings_status_idx on public.provider_earnings(status, created_at desc);
+create index if not exists provider_payout_batches_provider_idx on public.provider_payout_batches(provider_id, created_at desc);
 create index if not exists notifications_user_idx on public.notifications(user_id, created_at desc);
+create index if not exists push_devices_user_idx on public.push_devices(user_id, created_at desc);
+create index if not exists notification_deliveries_notification_idx
+  on public.notification_deliveries(notification_id, attempted_at desc);
 create index if not exists files_owner_idx on public.files(owner_id, created_at desc);
+create index if not exists location_snapshots_provider_idx on public.location_snapshots(provider_id, recorded_at desc);
+create index if not exists refunds_booking_idx on public.refunds(booking_id, created_at desc);
+create index if not exists admin_audit_logs_created_idx on public.admin_audit_logs(created_at desc);
 
 create or replace function public.is_admin()
 returns boolean
@@ -306,6 +464,7 @@ $$;
 
 alter table public.profiles enable row level security;
 alter table public.providers enable row level security;
+alter table public.provider_verifications enable row level security;
 alter table public.services enable row level security;
 alter table public.provider_services enable row level security;
 alter table public.provider_locations enable row level security;
@@ -317,8 +476,16 @@ alter table public.chat_rooms enable row level security;
 alter table public.messages enable row level security;
 alter table public.payments enable row level security;
 alter table public.reviews enable row level security;
+alter table public.provider_payout_batches enable row level security;
+alter table public.provider_earnings enable row level security;
 alter table public.notifications enable row level security;
+alter table public.push_devices enable row level security;
+alter table public.notification_deliveries enable row level security;
 alter table public.files enable row level security;
+alter table public.location_snapshots enable row level security;
+alter table public.coupons enable row level security;
+alter table public.refunds enable row level security;
+alter table public.admin_audit_logs enable row level security;
 alter table public.admin_settings enable row level security;
 
 drop policy if exists "profiles owner read" on public.profiles;
@@ -342,6 +509,17 @@ create policy "providers owner update"
   on public.providers for update
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
+
+drop policy if exists "provider verifications owner or admin read" on public.provider_verifications;
+create policy "provider verifications owner or admin read"
+  on public.provider_verifications for select
+  using (
+    public.is_admin()
+    or exists (
+      select 1 from public.providers p
+      where p.id = provider_id and p.user_id = auth.uid()
+    )
+  );
 
 drop policy if exists "services public read" on public.services;
 create policy "services public read"
@@ -445,6 +623,28 @@ create policy "payments owner read"
   on public.payments for select
   using (customer_id = auth.uid() or public.is_admin());
 
+drop policy if exists "provider earnings owner read" on public.provider_earnings;
+create policy "provider earnings owner read"
+  on public.provider_earnings for select
+  using (
+    public.is_admin()
+    or exists (
+      select 1 from public.providers p
+      where p.id = provider_id and p.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "provider payout batches owner read" on public.provider_payout_batches;
+create policy "provider payout batches owner read"
+  on public.provider_payout_batches for select
+  using (
+    public.is_admin()
+    or exists (
+      select 1 from public.providers p
+      where p.id = provider_id and p.user_id = auth.uid()
+    )
+  );
+
 drop policy if exists "reviews public read" on public.reviews;
 create policy "reviews public read"
   on public.reviews for select
@@ -461,10 +661,73 @@ create policy "notifications owner update"
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
+drop policy if exists "push devices owner read" on public.push_devices;
+create policy "push devices owner read"
+  on public.push_devices for select
+  using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "push devices owner write" on public.push_devices;
+create policy "push devices owner write"
+  on public.push_devices for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+drop policy if exists "notification deliveries owner read" on public.notification_deliveries;
+create policy "notification deliveries owner read"
+  on public.notification_deliveries for select
+  using (
+    public.is_admin()
+    or exists (
+      select 1
+      from public.notifications n
+      where n.id = notification_id
+        and n.user_id = auth.uid()
+    )
+  );
+
 drop policy if exists "files owner read" on public.files;
 create policy "files owner read"
   on public.files for select
   using (visibility = 'PUBLIC' or owner_id = auth.uid() or public.is_admin());
+
+drop policy if exists "location snapshots participant read" on public.location_snapshots;
+create policy "location snapshots participant read"
+  on public.location_snapshots for select
+  using (
+    public.is_admin()
+    or exists (
+      select 1
+      from public.providers p
+      where p.id = provider_id and p.user_id = auth.uid()
+    )
+    or exists (
+      select 1
+      from public.bookings b
+      where b.id = booking_id and b.customer_id = auth.uid()
+    )
+  );
+
+drop policy if exists "coupons active read" on public.coupons;
+create policy "coupons active read"
+  on public.coupons for select
+  using (active = true or public.is_admin());
+
+drop policy if exists "refunds owner read" on public.refunds;
+create policy "refunds owner read"
+  on public.refunds for select
+  using (
+    public.is_admin()
+    or exists (
+      select 1
+      from public.bookings b
+      where b.id = booking_id and b.customer_id = auth.uid()
+    )
+  );
+
+drop policy if exists "admin audit logs admin only" on public.admin_audit_logs;
+create policy "admin audit logs admin only"
+  on public.admin_audit_logs for select
+  using (public.is_admin());
 
 drop policy if exists "admin settings admin only" on public.admin_settings;
 create policy "admin settings admin only"
