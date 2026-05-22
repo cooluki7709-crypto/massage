@@ -8,6 +8,7 @@ Use the generated bundle for staging setup instead of pasting individual SQL fil
 
 ```powershell
 cd C:\dev\massage-vn-workspace\repo
+npm.cmd run setup:doctor
 npm.cmd run supabase:sql:pack
 ```
 

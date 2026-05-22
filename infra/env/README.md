@@ -27,6 +27,7 @@ Do not commit real `.env` files or secrets.
 
 ```powershell
 cd C:\dev\massage-vn-workspace\repo
+npm.cmd run setup:doctor
 node infra\scripts\check-env.mjs infra\env\hands-staging.env.example --template
 npm.cmd run external:check
 npm.cmd run supabase:sql:pack

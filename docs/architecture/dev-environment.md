@@ -86,6 +86,7 @@ It currently covers:
 For external integrations, use focused checks before asking the app to run against real providers:
 
 ```powershell
+npm.cmd run setup:doctor
 npm.cmd run external:check:supabase
 npm.cmd run external:check:maps
 npm.cmd run external:check:payments

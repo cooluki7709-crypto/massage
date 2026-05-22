@@ -108,6 +108,7 @@ For a staging project, generate a single ordered SQL bundle first:
 
 ```powershell
 cd C:\dev\massage-vn-workspace\repo
+npm.cmd run setup:doctor
 npm.cmd run supabase:sql:pack
 ```
 
@@ -171,8 +172,9 @@ This is a drift guard for the migration draft; it does not replace running the S
    - `SUPABASE_JWT_SECRET`
    - `SUPABASE_SERVICE_ROLE_KEY`
 8. Keep `AUTH_BACKEND=nest` until the API smoke and Supabase auth smoke pass.
-9. Run `npm.cmd run external:check:supabase`.
-10. Start the API with `SUPABASE_JWT_SECRET` and run `npm.cmd run auth:supabase-smoke`.
+9. Run `npm.cmd run setup:doctor`.
+10. Run `npm.cmd run external:check:supabase`.
+11. Start the API with `SUPABASE_JWT_SECRET` and run `npm.cmd run auth:supabase-smoke`.
 
 Rollback during staging is simple: create a fresh staging Supabase project and rerun the generated bundle. Do not run destructive SQL against production-like data until backup/restore has been tested.
 
