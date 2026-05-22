@@ -91,6 +91,7 @@ enum PayoutBatchStatus {
 
 model User {
   id              String           @id @default(cuid())
+  supabaseUserId  String?          @unique
   phone           String           @unique
   email           String?
   fullName        String?

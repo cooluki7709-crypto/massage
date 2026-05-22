@@ -1,13 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { Role } from '@prisma/client';
 import { Socket } from 'socket.io';
 import { AuthenticatedUser } from './auth.types';
-
-type JwtPayload = {
-  sub?: string;
-  roles?: Role[];
-};
+import { AuthTokenService } from './auth-token.service';
 
 export type AuthenticatedSocket = Socket & {
   data: {
@@ -17,27 +11,15 @@ export type AuthenticatedSocket = Socket & {
 
 @Injectable()
 export class SocketAuthService {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(private readonly authTokens: AuthTokenService) {}
 
-  authenticate(client: Socket): AuthenticatedUser {
+  async authenticate(client: Socket): Promise<AuthenticatedUser> {
     const token = extractSocketToken(client);
     if (!token) {
       throw new UnauthorizedException('Socket bearer token is required');
     }
 
-    const payload = this.jwt.verify<JwtPayload>(token, {
-      secret: process.env.JWT_ACCESS_SECRET ?? 'dev-access-secret',
-    });
-
-    if (!payload.sub) {
-      throw new UnauthorizedException('Invalid socket token subject');
-    }
-
-    const user = {
-      id: payload.sub,
-      roles: payload.roles ?? [],
-    };
-
+    const user = await this.authTokens.authenticateBearerToken(token);
     (client as AuthenticatedSocket).data.user = user;
     return user;
   }
@@ -69,4 +51,3 @@ function stripBearer(value: string) {
   const [scheme, token] = value.split(' ');
   return scheme === 'Bearer' ? token : value;
 }
-

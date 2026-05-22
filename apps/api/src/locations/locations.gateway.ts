@@ -27,7 +27,7 @@ export class LocationsGateway implements OnGatewayConnection {
 
   async handleConnection(client: Socket) {
     try {
-      const user = this.socketAuth.authenticate(client);
+      const user = await this.socketAuth.authenticate(client);
       await client.join(SOCKET_ROOMS.user(user.id));
     } catch {
       client.disconnect(true);

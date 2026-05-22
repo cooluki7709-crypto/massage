@@ -56,6 +56,8 @@ Optional direct Supabase values:
 ```dotenv
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
+SUPABASE_JWT_SECRET=
+SUPABASE_JWT_AUDIENCE=authenticated
 AUTH_BACKEND=nest
 ```
 

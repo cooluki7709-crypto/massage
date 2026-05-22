@@ -34,6 +34,8 @@ const recommended = [
   'MOMO_SECRET_KEY',
   'VNPAY_TMN_CODE',
   'VNPAY_HASH_SECRET',
+  'SUPABASE_JWT_SECRET',
+  'SUPABASE_JWT_AUDIENCE',
 ];
 
 const insecureValues = new Set(['change-me', 'changeme', 'secret', 'password', '']);

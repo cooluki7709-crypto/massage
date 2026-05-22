@@ -47,6 +47,12 @@ addRecommended(
   hasValue('SUPABASE_ANON_KEY'),
   'Set SUPABASE_ANON_KEY if using Supabase directly from clients.',
 );
+addRecommended(
+  'supabase',
+  'SUPABASE_JWT_SECRET',
+  hasValue('SUPABASE_JWT_SECRET'),
+  'Set SUPABASE_JWT_SECRET on the API before accepting Supabase Auth access tokens.',
+);
 
 addRecommended(
   'sms',

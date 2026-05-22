@@ -21,6 +21,9 @@ Flutter run flags:
 --dart-define=SUPABASE_URL=https://your-project.supabase.co
 --dart-define=SUPABASE_ANON_KEY=your-anon-key
 --dart-define=AUTH_BACKEND=nest
+API env:
+SUPABASE_JWT_SECRET=your-project-jwt-secret
+SUPABASE_JWT_AUDIENCE=authenticated
 ```
 
 Existing local run flags still apply:
@@ -36,6 +39,8 @@ Auth backend modes:
 
 - `AUTH_BACKEND=nest` keeps the current NestJS OTP/JWT flow and is the default for MVP stability.
 - `AUTH_BACKEND=supabase` routes mobile OTP verification through Supabase Auth. Use this only after Supabase phone OTP is configured and the backend API accepts the resulting Supabase JWT or an exchange flow is added.
+
+The API now accepts Supabase Auth JWTs when `SUPABASE_JWT_SECRET` is configured. Supabase users are mapped to local Nest users through `User.supabaseUserId`, and phone OTP users are linked by phone number when possible.
 
 The emulator/device scripts pass these values from shell environment variables when present:
 
