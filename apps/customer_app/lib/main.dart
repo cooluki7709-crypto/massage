@@ -82,11 +82,14 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final loginPhoneController = TextEditingController(text: '+84900000001');
+  final loginOtpController = TextEditingController(text: '123456');
   List<dynamic> providers = [];
   Map<String, dynamic>? activeBooking;
   double? customerLat;
   double? customerLng;
   bool loading = false;
+  bool otpRequested = false;
   String? error;
   String? notice;
 
@@ -99,6 +102,64 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         unawaited(loadHome());
       }
     });
+  }
+
+  @override
+  void dispose() {
+    loginPhoneController.dispose();
+    loginOtpController.dispose();
+    super.dispose();
+  }
+
+  Future<void> requestLoginOtp() async {
+    setState(() {
+      loading = true;
+      error = null;
+      notice = null;
+    });
+    try {
+      final result = await ref.read(authControllerProvider.notifier).requestOtp(
+            phone: loginPhoneController.text.trim(),
+          );
+      setState(() {
+        otpRequested = true;
+        notice = result.devOtp == null
+            ? 'OTP sent to ${result.phone}. Enter the SMS code to continue.'
+            : 'OTP requested for ${result.phone}. Local dev OTP: ${result.devOtp}.';
+      });
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> signInWithOtpAndLoad() async {
+    setState(() {
+      loading = true;
+      error = null;
+      notice = null;
+    });
+    try {
+      await ref.read(authControllerProvider.notifier).signInWithOtp(
+            phone: loginPhoneController.text.trim(),
+            otp: loginOtpController.text.trim(),
+          );
+      final pushResult =
+          await ref.read(registerCurrentDevicePushTokenProvider).call();
+      await loadHome();
+      if (mounted) {
+        setState(() => notice = pushResult.message);
+      }
+    } catch (exception) {
+      setState(() => error = '$exception');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
   }
 
   Future<void> loadHome() async {
@@ -286,9 +347,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
           if (auth == null) ...[
             const SizedBox(height: 12),
-            const EmptyPanel(
-                text:
-                    'Login to load the nearby therapist list, provider detail pages, and booking flow.'),
+            CustomerOtpLoginPanel(
+              phoneController: loginPhoneController,
+              otpController: loginOtpController,
+              otpRequested: otpRequested,
+              loading: loading,
+              onRequestOtp: requestLoginOtp,
+              onVerifyOtp: signInWithOtpAndLoad,
+              onDemoLogin: signInAndLoad,
+            ),
           ] else ...[
             if (activeBooking != null) ...[
               const SizedBox(height: 12),
@@ -311,6 +378,99 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class CustomerOtpLoginPanel extends StatelessWidget {
+  const CustomerOtpLoginPanel({
+    super.key,
+    required this.phoneController,
+    required this.otpController,
+    required this.otpRequested,
+    required this.loading,
+    required this.onRequestOtp,
+    required this.onVerifyOtp,
+    required this.onDemoLogin,
+  });
+
+  final TextEditingController phoneController;
+  final TextEditingController otpController;
+  final bool otpRequested;
+  final bool loading;
+  final VoidCallback onRequestOtp;
+  final VoidCallback onVerifyOtp;
+  final VoidCallback onDemoLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Customer login',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              'Use phone OTP for Supabase/Nest login, or keep using the local demo account while building the MVP.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Phone number',
+                hintText: '+84900000001',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'OTP code',
+                hintText: '123456',
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: loading ? null : onRequestOtp,
+                    icon: const Icon(Icons.sms_outlined),
+                    label: Text(otpRequested ? 'Resend OTP' : 'Request OTP'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: loading ? null : onVerifyOtp,
+                    icon: const Icon(Icons.login),
+                    label: const Text('Verify'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: loading ? null : onDemoLogin,
+                icon: const Icon(Icons.play_circle_outline),
+                label: const Text('Use local demo login'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

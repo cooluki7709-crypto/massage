@@ -27,11 +27,18 @@ class AuthController extends StateNotifier<AuthSession?> {
     return requestOtp(phone: '+84900000002');
   }
 
+  Future<void> signInWithOtp({
+    required String phone,
+    required String otp,
+    String role = 'PROVIDER',
+  }) async {
+    state = await _signInWithOtp(phone: phone, otp: otp, role: role);
+  }
+
   Future<void> signInDemoProvider() async {
-    state = await _signInWithOtp(
+    await signInWithOtp(
       phone: '+84900000002',
       otp: '123456',
-      role: 'PROVIDER',
     );
   }
 }
