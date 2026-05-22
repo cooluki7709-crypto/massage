@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { existsSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisStateService } from '../redis/redis-state.service';
 
@@ -38,6 +40,7 @@ export class HealthService {
 
   externalReadiness() {
     const checks = [
+      this.mobileFirebaseRemovalReadiness(),
       this.externalGroup('Supabase Auth', 'supabase', [
         { key: 'AUTH_BACKEND', expected: 'supabase' },
         { key: 'SUPABASE_URL', validator: 'https-url' },
@@ -150,6 +153,74 @@ export class HealthService {
         ? 'A push provider app id is configured, but backend delivery is still intentionally in-app only.'
         : 'Current delivery is intentionally in-app only until a production push provider is chosen.',
     };
+  }
+
+  private mobileFirebaseRemovalReadiness() {
+    const repoRoot = this.findRepoRoot();
+    const apps = [
+      {
+        name: 'customer_app',
+        pubspecPath: 'apps/customer_app/pubspec.yaml',
+        rootGradlePath: 'apps/customer_app/android/build.gradle.kts',
+        appGradlePath: 'apps/customer_app/android/app/build.gradle.kts',
+        configPath: 'apps/customer_app/android/app/google-services.json',
+      },
+      {
+        name: 'provider_app',
+        pubspecPath: 'apps/provider_app/pubspec.yaml',
+        rootGradlePath: 'apps/provider_app/android/build.gradle.kts',
+        appGradlePath: 'apps/provider_app/android/app/build.gradle.kts',
+        configPath: 'apps/provider_app/android/app/google-services.json',
+      },
+    ].map((app) => {
+      const pubspec = this.readRepoFile(repoRoot, app.pubspecPath);
+      const rootGradle = this.readRepoFile(repoRoot, app.rootGradlePath);
+      const appGradle = this.readRepoFile(repoRoot, app.appGradlePath);
+      const checked = pubspec !== null || rootGradle !== null || appGradle !== null;
+      const hasFirebasePackages =
+        /firebase_core|firebase_messaging|cloud_firestore|firebase_auth|firebase_storage/.test(pubspec ?? '');
+      const hasGoogleServicesPlugin = /com\.google\.gms\.google-services/.test(
+        `${rootGradle ?? ''}\n${appGradle ?? ''}`,
+      );
+      const hasGoogleServicesConfig = existsSync(join(repoRoot, app.configPath));
+      return {
+        name: app.name,
+        checked,
+        ok: checked && !hasFirebasePackages && !hasGoogleServicesPlugin && !hasGoogleServicesConfig,
+      };
+    });
+
+    const sourceAvailable = apps.every((app) => app.checked);
+    const failingApps = apps.filter((app) => !app.ok);
+
+    return {
+      name: 'Mobile Firebase removal guard',
+      category: 'mobile',
+      status: !sourceAvailable ? 'PARTIAL' : failingApps.length === 0 ? 'READY' : 'BLOCKED',
+      configured: apps.filter((app) => app.ok).map((app) => app.name),
+      missing: failingApps.map((app) => app.name),
+      invalid: [],
+      detail: !sourceAvailable
+        ? 'Mobile app source files were not available to this API runtime; run the local Firebase removal script from the repository.'
+        : failingApps.length === 0
+          ? 'Customer and provider Flutter apps are Firebase-free.'
+          : 'Remove Firebase packages, Google Services plugin usage, or google-services.json from the listed mobile apps.',
+    };
+  }
+
+  private findRepoRoot() {
+    const cwd = process.cwd();
+    const candidates = [cwd, resolve(cwd, '..', '..')];
+    return (
+      candidates.find((candidate) =>
+        existsSync(join(candidate, 'infra/scripts/check-mobile-firebase.mjs')),
+      ) ?? cwd
+    );
+  }
+
+  private readRepoFile(repoRoot: string, relativePath: string) {
+    const fullPath = join(repoRoot, relativePath);
+    return existsSync(fullPath) ? readFileSync(fullPath, 'utf8') : null;
   }
 
   private externalGroup(

@@ -60,7 +60,7 @@ if (!health.ok || !readiness.ok) {
   throw new Error(`API is not ready: ${JSON.stringify({ health, readiness })}`);
 }
 const externalReadiness = await request('/health/external');
-const expectedExternalCategories = ['supabase', 'maps', 'payments', 'storage', 'sms', 'push'];
+const expectedExternalCategories = ['mobile', 'supabase', 'maps', 'payments', 'storage', 'sms', 'push'];
 const externalCategories = new Set((externalReadiness.checks ?? []).map((check) => check.category));
 const missingExternalCategories = expectedExternalCategories.filter(
   (category) => !externalCategories.has(category),

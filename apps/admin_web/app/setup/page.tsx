@@ -2,6 +2,17 @@ import { AdminExternalReadiness, apiGet } from '../../lib/admin-api';
 
 const setupOrder = [
   {
+    id: 'mobile',
+    title: 'Mobile Firebase removal guard',
+    purpose: 'Required to keep the Flutter apps Firebase-free while Supabase migration continues.',
+    env: ['customer_app', 'provider_app'],
+    notes: [
+      'The Flutter apps should not contain Firebase packages.',
+      'Android builds should not use the Google Services Gradle plugin.',
+      'Do not restore google-services.json unless the push strategy changes intentionally.',
+    ],
+  },
+  {
     id: 'supabase',
     title: 'Supabase Auth and database',
     purpose: 'Required before Firebase-free production login and direct client data access.',
@@ -234,6 +245,9 @@ function buildSummary(readiness: AdminExternalReadiness) {
 function setupGroupMatches(groupId: string, category: string) {
   if (groupId === 'supabase') {
     return category === 'supabase';
+  }
+  if (groupId === 'mobile') {
+    return category === 'mobile';
   }
   if (groupId === 'notifications') {
     return category === 'sms' || category === 'push';
