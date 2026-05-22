@@ -1,0 +1,63 @@
+# HANDS Supabase Setup
+
+This folder contains the Supabase staging schema for the HANDS Firebase-free migration.
+
+Use the generated bundle for staging setup instead of pasting individual SQL files one by one.
+
+## Recommended Staging Flow
+
+```powershell
+cd C:\dev\massage-vn-workspace\repo
+npm.cmd run supabase:sql:pack
+```
+
+Then open this generated file and paste it into the Supabase SQL Editor:
+
+```text
+C:\dev\massage-vn-workspace\repo\infra\supabase\.generated\hands-staging-setup.sql
+```
+
+The generated bundle applies files in this order:
+
+1. `hands-core-schema.sql`
+2. `storage-schema.sql`
+
+`location-schema.sql` is intentionally excluded from the bundle. It is an early standalone draft; the current core schema already includes `provider_locations`, `customer_selected_locations`, and `nearby_providers`.
+
+## After Applying SQL
+
+Set these values in the API environment:
+
+```dotenv
+AUTH_BACKEND=nest
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_ANON_KEY=<anon-public-key>
+SUPABASE_JWT_SECRET=<project-jwt-secret>
+SUPABASE_JWT_AUDIENCE=authenticated
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key-server-only>
+```
+
+Keep `AUTH_BACKEND=nest` until Supabase Phone Auth and the API exchange smoke test pass. Switch to `AUTH_BACKEND=supabase` only for the Supabase OTP E2E pass.
+
+## Verification
+
+```powershell
+npm.cmd run supabase:schema:check
+npm.cmd run supabase:sql:pack
+npm.cmd run external:check:supabase
+```
+
+`external:check:supabase` is expected to fail until real Supabase project values are configured.
+
+After the API is running with `SUPABASE_JWT_SECRET`:
+
+```powershell
+npm.cmd run auth:supabase-smoke
+```
+
+## Production Safety
+
+- Never commit Supabase secrets.
+- Keep `SUPABASE_SERVICE_ROLE_KEY` server-side only.
+- Test on a fresh staging project before touching any production-like project.
+- Do not run destructive SQL against real data until backup and restore have been tested.
