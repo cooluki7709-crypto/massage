@@ -7,6 +7,7 @@
 - `POST /api/auth/verify-otp` validates the Redis OTP, consumes it after successful verification, and returns signed access/refresh tokens.
 - If Redis is unavailable in local development, the API uses an in-memory OTP fallback so the demo flow remains usable.
 - `POST /api/auth/refresh` verifies the refresh-token signature and `tokenType=refresh`.
+- `POST /api/auth/supabase/exchange` converts a verified Supabase Auth access token into the same HANDS access/refresh token shape used by the existing API.
 - Protected REST routes require `Authorization: Bearer <accessToken>`.
 - Auth routes are protected by a small in-memory rate limit in the API process.
 
@@ -15,6 +16,7 @@
 - `CUSTOMER` can manage customer profile, create bookings, select providers, and write reviews.
 - `PROVIDER` can go online/offline, update location, join/respond to bookings, and update service lifecycle.
 - `ADMIN` can review providers, inspect users/bookings/payments/reviews, create services, and refund payments.
+- Supabase exchange does not trust a mobile-requested role by itself. Provider exchange requires a token/provider mapping that is already trusted by the backend, either through Supabase metadata set by a trusted process or an existing local provider account linked by phone.
 
 ## Next Hardening
 

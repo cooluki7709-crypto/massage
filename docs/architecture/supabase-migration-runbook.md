@@ -47,6 +47,13 @@ Mobile Supabase OTP flow uses a bridge session:
 - `AUTH_BACKEND=nest`: mobile verifies OTP directly with Nest and receives Nest API tokens.
 - `AUTH_BACKEND=supabase`: mobile first calls Supabase `signInWithOtp`, verifies the SMS code with Supabase, then exchanges the Supabase access token at `/auth/supabase/exchange` for Nest API tokens.
 - This keeps provider/customer roles, Socket.IO auth, and existing protected API routes stable while Supabase Auth becomes the OTP identity provider.
+- The API does not trust the requested `role` by itself. `CUSTOMER` is the default role, but `PROVIDER` exchange is allowed only when the Supabase token carries a provider role in metadata or when the phone number already maps to a local HANDS provider account. This prevents a customer token from escalating into a provider session.
+
+Provider migration options:
+
+1. Preferred for MVP migration: keep provider onboarding/approval in the Nest admin flow first, then let Supabase OTP link by phone number.
+2. Later production option: set provider role metadata through a trusted backend/admin job after verification. Do not let the mobile client self-assign provider role metadata.
+3. Run `npm.cmd run auth:supabase-smoke` after configuring `SUPABASE_JWT_SECRET`; the smoke test checks customer mapping, provider mapping, invalid audience rejection, and provider role escalation rejection.
 
 Mobile auth code is now split by Clean Architecture boundaries:
 

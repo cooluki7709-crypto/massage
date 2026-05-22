@@ -122,6 +122,8 @@ Supabase Auth setup:
 3. Configure the SMS provider supported by Supabase for Vietnam delivery.
 4. Copy `Project URL`, `anon public`, and the JWT secret into the local `.env`.
 5. Keep `AUTH_BACKEND=nest` until OTP sending is verified, then test `AUTH_BACKEND=supabase` on customer and provider apps.
+6. Provider Supabase login must not rely on a client-selected role. A provider can exchange a Supabase session only if the phone number already belongs to an approved/local HANDS provider account or a trusted backend/admin process has placed `PROVIDER` in Supabase user metadata.
+7. After setting `SUPABASE_JWT_SECRET`, run `npm.cmd run auth:supabase-smoke` against the API to verify customer mapping, provider mapping, invalid audience rejection, and role escalation rejection.
 
 ## 4. Payments
 
