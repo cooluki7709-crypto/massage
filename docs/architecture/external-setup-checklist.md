@@ -193,7 +193,20 @@ Rules:
 - Provider verification files stay private.
 - Public provider profile media can be served through CDN.
 - Never commit uploaded files or service account credentials.
-- Supabase projects should run `infra/supabase/hands-core-schema.sql` first, then `infra/supabase/storage-schema.sql`.
+- Supabase projects should use the generated staging SQL bundle so schema, buckets, and RLS policies are applied in the expected order.
+
+Generate the bundle before applying Supabase SQL:
+
+```powershell
+cd C:\dev\massage-vn-workspace\repo
+npm.cmd run supabase:sql:pack
+```
+
+Then paste this generated file into the Supabase SQL Editor:
+
+```text
+C:\dev\massage-vn-workspace\repo\infra\supabase\.generated\hands-staging-setup.sql
+```
 
 ## 6. Domains / Deployment
 
@@ -233,6 +246,7 @@ Generate the external registration pack first. It lists all accounts, console pa
 ```powershell
 cd C:\dev\massage-vn-workspace\repo
 npm.cmd run external:pack
+npm.cmd run supabase:sql:pack
 ```
 
 Run this before real device or emulator testing:

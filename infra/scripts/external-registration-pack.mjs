@@ -29,10 +29,14 @@ const registrationItems = [
     setup: [
       'Create a staging project named HANDS.',
       'Enable Phone Auth and configure a Vietnam-capable SMS provider.',
-      'Run infra/supabase/hands-core-schema.sql, then storage-schema.sql in the SQL editor.',
+      'Run npm.cmd run supabase:sql:pack, then paste infra/supabase/.generated/hands-staging-setup.sql into the SQL editor.',
       'Keep the service role key only in the API environment.',
     ],
-    verify: ['npm.cmd run external:check:supabase', 'npm.cmd run auth:supabase-smoke'],
+    verify: [
+      'npm.cmd run supabase:sql:pack',
+      'npm.cmd run external:check:supabase',
+      'npm.cmd run auth:supabase-smoke',
+    ],
   },
   {
     order: 2,
