@@ -53,6 +53,14 @@ class AuthRepositoryImpl implements AuthRepository {
     return session;
   }
 
+  @override
+  Future<void> signOut() async {
+    await _localDataSource.clearSession();
+    _apiClient.accessToken = null;
+    _apiClient.refreshToken = null;
+    _realtimeSocket.dispose();
+  }
+
   void _activateSession(AuthSession session) {
     _apiClient.accessToken = session.accessToken;
     _apiClient.refreshToken = session.refreshToken;

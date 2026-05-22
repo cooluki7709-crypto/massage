@@ -13,6 +13,7 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/request_otp.dart';
 import '../../domain/usecases/restore_auth_session.dart';
 import '../../domain/usecases/sign_in_with_otp.dart';
+import '../../domain/usecases/sign_out.dart';
 import '../controllers/auth_controller.dart';
 
 export '../../domain/entities/auth_session.dart';
@@ -60,11 +61,16 @@ final signInWithOtpProvider = Provider<SignInWithOtp>((ref) {
   return SignInWithOtp(ref.read(authRepositoryProvider));
 });
 
+final signOutProvider = Provider<SignOut>((ref) {
+  return SignOut(ref.read(authRepositoryProvider));
+});
+
 final authControllerProvider =
     StateNotifierProvider<AuthController, AuthSession?>((ref) {
   return AuthController(
     restoreAuthSession: ref.read(restoreAuthSessionProvider),
     requestOtp: ref.read(requestOtpProvider),
     signInWithOtp: ref.read(signInWithOtpProvider),
+    signOut: ref.read(signOutProvider),
   );
 });

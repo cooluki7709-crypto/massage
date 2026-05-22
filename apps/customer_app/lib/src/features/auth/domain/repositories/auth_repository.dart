@@ -14,4 +14,6 @@ abstract class AuthRepository {
     required String otp,
     required String role,
   });
+
+  Future<void> signOut();
 }

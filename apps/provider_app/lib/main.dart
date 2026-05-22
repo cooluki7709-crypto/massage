@@ -2369,6 +2369,24 @@ class ProfileScreen extends ConsumerWidget {
                 );
               },
             ),
+          if (auth != null) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () async {
+                await ref.read(providerRepositoryProvider).goOffline();
+                ref.read(providerLocationHeartbeatProvider).stop();
+                await ref.read(authControllerProvider.notifier).signOut();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Signed out and provider is offline.')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.logout),
+              label: const Text('Sign out'),
+            ),
+          ],
         ],
       ),
     );

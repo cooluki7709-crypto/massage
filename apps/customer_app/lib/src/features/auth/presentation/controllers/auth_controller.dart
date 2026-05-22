@@ -5,20 +5,24 @@ import '../../domain/entities/otp_request.dart';
 import '../../domain/usecases/request_otp.dart';
 import '../../domain/usecases/restore_auth_session.dart';
 import '../../domain/usecases/sign_in_with_otp.dart';
+import '../../domain/usecases/sign_out.dart';
 
 class AuthController extends StateNotifier<AuthSession?> {
   AuthController({
     required RestoreAuthSession restoreAuthSession,
     required RequestOtp requestOtp,
     required SignInWithOtp signInWithOtp,
+    required SignOut signOut,
   })  : _restoreAuthSession = restoreAuthSession,
         _requestOtp = requestOtp,
         _signInWithOtp = signInWithOtp,
+        _signOut = signOut,
         super(null);
 
   final RestoreAuthSession _restoreAuthSession;
   final RequestOtp _requestOtp;
   final SignInWithOtp _signInWithOtp;
+  final SignOut _signOut;
 
   Future<AuthSession?> restoreSession() async {
     if (state != null) {
@@ -53,5 +57,10 @@ class AuthController extends StateNotifier<AuthSession?> {
       phone: '+84900000001',
       otp: '123456',
     );
+  }
+
+  Future<void> signOut() async {
+    await _signOut();
+    state = null;
   }
 }
