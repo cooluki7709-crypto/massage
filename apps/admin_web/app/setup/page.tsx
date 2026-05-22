@@ -32,6 +32,7 @@ const setupOrder = [
     ],
     notes: [
       'Create one Supabase project for HANDS staging first.',
+      'Use infra/env/hands-staging.env.example as the operator fill-in checklist.',
       'Set AUTH_BACKEND=supabase only when Supabase Phone Auth is ready to test.',
       'Copy the project URL and anon key from Supabase project settings.',
       'Set the JWT secret on the API so access tokens can be verified server-side.',
@@ -39,6 +40,7 @@ const setupOrder = [
     ],
     commands: [
       'npm.cmd run external:pack',
+      'Get-Content .\\infra\\env\\hands-staging.env.example',
       'npm.cmd run supabase:sql:pack',
       'npm.cmd run external:check:supabase',
       '$env:SUPABASE_JWT_SECRET="<project-jwt-secret>"; $env:API_BASE_URL="http://localhost:3100/api"; npm.cmd run auth:supabase-smoke',

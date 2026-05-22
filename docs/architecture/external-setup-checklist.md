@@ -8,6 +8,12 @@ Keep secrets outside Git. The recommended local secret folder is:
 C:\dev\massage-vn-workspace\secrets
 ```
 
+Use this staging template as the fill-in checklist when you receive external console values:
+
+```text
+C:\dev\massage-vn-workspace\repo\infra\env\hands-staging.env.example
+```
+
 ## Project Identity
 
 - App name: `HANDS`
