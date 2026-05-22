@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, ReviewStatus, VerificationStatus } from '@prisma/client';
+import { PayoutBatchStatus, Prisma, ReviewStatus, VerificationStatus } from '@prisma/client';
 import { EarningsService } from '../earnings/earnings.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -58,7 +58,12 @@ export class AdminService {
     return { ok: true, pushDeviceId: device.id };
   }
 
-  async reviewProvider(actorId: string, providerProfileId: string, status: VerificationStatus, reason?: string) {
+  async reviewProvider(
+    actorId: string,
+    providerProfileId: string,
+    status: VerificationStatus,
+    reason?: string,
+  ) {
     const verification = await this.prisma.providerVerification.upsert({
       where: { providerProfileId },
       update: {
@@ -87,8 +92,12 @@ export class AdminService {
       await this.notifications.create({
         userId: provider.userId,
         type: `provider.verification.${status.toLowerCase()}`,
-        title: status === VerificationStatus.APPROVED ? 'Verification approved' : 'Verification needs updates',
-        body: status === VerificationStatus.APPROVED ? 'You can now receive matching jobs.' : reason ?? 'Please update your documents.',
+        title:
+          status === VerificationStatus.APPROVED ? 'Verification approved' : 'Verification needs updates',
+        body:
+          status === VerificationStatus.APPROVED
+            ? 'You can now receive matching jobs.'
+            : (reason ?? 'Please update your documents.'),
         data: { providerProfileId, status, reason },
       });
     }
@@ -217,6 +226,20 @@ export class AdminService {
     return batch;
   }
 
+  async updatePayoutBatch(
+    actorId: string,
+    payoutBatchId: string,
+    input: { status?: PayoutBatchStatus; transferRef?: string | null; notes?: string | null },
+  ) {
+    const batch = await this.earnings.updatePayoutBatch(payoutBatchId, input);
+    await this.writeAudit(actorId, 'payout_batch.update', `payout_batch:${batch.id}`, {
+      status: batch.status,
+      transferRef: batch.transferRef,
+      earningCount: batch.earnings.length,
+    });
+    return batch;
+  }
+
   listReviews() {
     return this.prisma.review.findMany({
       orderBy: { createdAt: 'desc' },
@@ -225,7 +248,11 @@ export class AdminService {
     });
   }
 
-  async moderateReview(actorId: string, reviewId: string, input: { status: ReviewStatus; reportReason?: string }) {
+  async moderateReview(
+    actorId: string,
+    reviewId: string,
+    input: { status: ReviewStatus; reportReason?: string },
+  ) {
     return this.prisma.$transaction(async (tx) => {
       const review = await tx.review.update({
         where: { id: reviewId },

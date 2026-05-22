@@ -1,4 +1,5 @@
 import { AdminPayoutBatch, adminGet } from '../../lib/admin-api';
+import { markPayoutFailed, markPayoutPaid, markPayoutProcessing, updatePayoutTransferRef } from './actions';
 
 export default async function PayoutsPage() {
   const batches = sortBatches(await adminGet<AdminPayoutBatch[]>('/admin/payout-batches', []));
@@ -59,6 +60,7 @@ export default async function PayoutsPage() {
               <th>Checklist</th>
               <th>Total</th>
               <th>Paid at</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -110,18 +112,68 @@ export default async function PayoutsPage() {
                       {batch.paidAt ? relativeTime(batch.paidAt) : 'Awaiting settlement'}
                     </div>
                   </td>
+                  <td>
+                    <form className="actions" action={updatePayoutTransferRef}>
+                      <input type="hidden" name="payoutBatchId" value={batch.id} />
+                      <input
+                        aria-label="Transfer reference"
+                        name="transferRef"
+                        placeholder="Bank ref"
+                        defaultValue={batch.transferRef ?? ''}
+                      />
+                      <input
+                        aria-label="Transfer notes"
+                        name="notes"
+                        placeholder="Notes"
+                        defaultValue={batch.notes ?? ''}
+                      />
+                      <button type="submit">Save</button>
+                    </form>
+                    <div className="actions" style={{ marginTop: 8 }}>
+                      {batch.status === 'DRAFT' && (
+                        <PayoutStatusForm action={markPayoutProcessing} batch={batch} label="Processing" />
+                      )}
+                      {batch.status !== 'PAID' && batch.status !== 'CANCELLED' && (
+                        <PayoutStatusForm action={markPayoutPaid} batch={batch} label="Paid" />
+                      )}
+                      {batch.status === 'PROCESSING' && (
+                        <PayoutStatusForm action={markPayoutFailed} batch={batch} label="Failed" />
+                      )}
+                      {(batch.status === 'PAID' || batch.status === 'CANCELLED') && (
+                        <span className="muted">No status action</span>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               );
             })}
             {batches.length === 0 && (
               <tr>
-                <td colSpan={9}>No payout batches loaded.</td>
+                <td colSpan={10}>No payout batches loaded.</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
     </>
+  );
+}
+
+function PayoutStatusForm({
+  action,
+  batch,
+  label,
+}: {
+  action: (formData: FormData) => Promise<void>;
+  batch: AdminPayoutBatch;
+  label: string;
+}) {
+  return (
+    <form action={action}>
+      <input type="hidden" name="payoutBatchId" value={batch.id} />
+      <input type="hidden" name="transferRef" value={batch.transferRef ?? ''} />
+      <button type="submit">{label}</button>
+    </form>
   );
 }
 

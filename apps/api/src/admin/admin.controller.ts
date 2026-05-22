@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ReviewStatus, Role, VerificationStatus } from '@prisma/client';
+import { PayoutBatchStatus, ReviewStatus, Role, VerificationStatus } from '@prisma/client';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -88,6 +88,20 @@ export class AdminController {
     @Body() body: { providerProfileId: string; transferRef?: string; notes?: string },
   ) {
     return this.admin.createPayoutBatch(user.id, body);
+  }
+
+  @Patch('payout-batches/:id')
+  updatePayoutBatch(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      status?: PayoutBatchStatus;
+      transferRef?: string | null;
+      notes?: string | null;
+    },
+  ) {
+    return this.admin.updatePayoutBatch(user.id, id, body);
   }
 
   @Get('reviews')

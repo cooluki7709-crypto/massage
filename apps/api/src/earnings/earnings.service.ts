@@ -26,7 +26,8 @@ export class EarningsService {
     }
 
     const grossAmount =
-      booking.payment?.amount ?? booking.services.reduce((total, service) => total + service.price * service.quantity, 0);
+      booking.payment?.amount ??
+      booking.services.reduce((total, service) => total + service.price * service.quantity, 0);
     const tipAmount = booking.review?.tipAmount ?? 0;
     const platformFee = Math.round(grossAmount * DEFAULT_PLATFORM_FEE_RATE);
     const netAmount = grossAmount - platformFee + tipAmount;
@@ -129,7 +130,11 @@ export class EarningsService {
     });
   }
 
-  async createProviderPayoutBatch(input: { providerProfileId: string; transferRef?: string; notes?: string }) {
+  async createProviderPayoutBatch(input: {
+    providerProfileId: string;
+    transferRef?: string;
+    notes?: string;
+  }) {
     const provider = await this.prisma.providerProfile.findUnique({ where: { id: input.providerProfileId } });
     if (!provider) {
       throw new NotFoundException('Provider profile not found');
@@ -193,6 +198,61 @@ export class EarningsService {
     });
   }
 
+  async updatePayoutBatch(
+    payoutBatchId: string,
+    input: { status?: PayoutBatchStatus; transferRef?: string | null; notes?: string | null },
+  ) {
+    const existing = await this.prisma.providerPayoutBatch.findUnique({
+      where: { id: payoutBatchId },
+      include: { earnings: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('Payout batch not found');
+    }
+
+    const nextStatus = input.status;
+    if (nextStatus && !Object.values(PayoutBatchStatus).includes(nextStatus)) {
+      throw new BadRequestException('Invalid payout batch status');
+    }
+    if (existing.status === PayoutBatchStatus.PAID && nextStatus && nextStatus !== PayoutBatchStatus.PAID) {
+      throw new BadRequestException('Paid payout batches cannot be moved back to an unpaid status');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const paidAt = nextStatus === PayoutBatchStatus.PAID ? (existing.paidAt ?? new Date()) : undefined;
+      const batch = await tx.providerPayoutBatch.update({
+        where: { id: payoutBatchId },
+        data: {
+          status: nextStatus,
+          transferRef: input.transferRef === undefined ? undefined : normalizeNullable(input.transferRef),
+          notes: input.notes === undefined ? undefined : normalizeNullable(input.notes),
+          paidAt,
+        },
+      });
+
+      if (nextStatus === PayoutBatchStatus.PAID) {
+        await tx.providerEarning.updateMany({
+          where: {
+            payoutBatchId,
+            status: { not: EarningStatus.CANCELLED },
+          },
+          data: {
+            status: EarningStatus.PAID,
+            paidAt: batch.paidAt,
+          },
+        });
+      }
+
+      return tx.providerPayoutBatch.findUniqueOrThrow({
+        where: { id: payoutBatchId },
+        include: {
+          providerProfile: { include: { user: { select: { id: true, phone: true, fullName: true } } } },
+          earnings: { orderBy: { createdAt: 'desc' } },
+        },
+      });
+    });
+  }
+
   async listPayoutBatchesForProviderUser(userId: string) {
     const provider = await this.requireProviderProfile(userId);
     return this.prisma.providerPayoutBatch.findMany({
@@ -225,7 +285,10 @@ export class EarningsService {
 
   private async summaryWhere(where: Prisma.ProviderEarningWhereInput) {
     const [total, pending, available, paid, count] = await Promise.all([
-      this.prisma.providerEarning.aggregate({ where, _sum: { grossAmount: true, platformFee: true, tipAmount: true, netAmount: true } }),
+      this.prisma.providerEarning.aggregate({
+        where,
+        _sum: { grossAmount: true, platformFee: true, tipAmount: true, netAmount: true },
+      }),
       this.prisma.providerEarning.aggregate({
         where: { ...where, status: EarningStatus.PENDING },
         _sum: { netAmount: true },
@@ -261,4 +324,12 @@ export class EarningsService {
     }
     return provider;
   }
+}
+
+function normalizeNullable(value: string | null) {
+  if (value === null) {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }

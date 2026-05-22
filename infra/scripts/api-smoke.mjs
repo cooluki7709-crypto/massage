@@ -320,6 +320,13 @@ const payoutBatch = await postJson('/admin/payout-batches', adminAuth.accessToke
   transferRef: `SMOKE-${Date.now()}`,
   notes: 'Created by smoke test',
 });
+const payoutBatchUpdate = await patchJson(`/admin/payout-batches/${payoutBatch.id}`, adminAuth.accessToken, {
+  transferRef: `${payoutBatch.transferRef}-UPDATED`,
+  notes: 'Updated by smoke test',
+});
+if (payoutBatchUpdate.transferRef !== `${payoutBatch.transferRef}-UPDATED`) {
+  throw new Error(`Payout batch transfer reference was not updated: ${JSON.stringify(payoutBatchUpdate)}`);
+}
 const adminPayoutBatches = await getJson('/admin/payout-batches', adminAuth.accessToken);
 const adminBookings = await getJson('/admin/bookings', adminAuth.accessToken);
 const adminBooking = adminBookings.find((item) => item.id === booking.id);
