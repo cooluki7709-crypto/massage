@@ -59,6 +59,20 @@ const readiness = await request('/health/ready');
 if (!health.ok || !readiness.ok) {
   throw new Error(`API is not ready: ${JSON.stringify({ health, readiness })}`);
 }
+const externalReadiness = await request('/health/external');
+const expectedExternalCategories = ['supabase', 'maps', 'payments', 'storage', 'sms', 'push'];
+const externalCategories = new Set((externalReadiness.checks ?? []).map((check) => check.category));
+const missingExternalCategories = expectedExternalCategories.filter(
+  (category) => !externalCategories.has(category),
+);
+if (missingExternalCategories.length > 0) {
+  throw new Error(
+    `External readiness is missing categories: ${JSON.stringify({
+      missingExternalCategories,
+      externalReadiness,
+    })}`,
+  );
+}
 
 const customerAuth = await request('/auth/verify-otp', {
   method: 'POST',
@@ -452,4 +466,6 @@ console.log({
   retriedNotificationDeliveryCount: retriedNotification?.deliveries?.length ?? 0,
   retryDeliveryObserved: (retriedNotification?.deliveries?.length ?? 0) > retryBeforeDeliveryCount,
   readiness,
+  externalReadinessOk: externalReadiness.ok,
+  externalReadinessCategories: [...externalCategories].sort(),
 });
