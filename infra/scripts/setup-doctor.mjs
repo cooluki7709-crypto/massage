@@ -1,0 +1,116 @@
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const steps = [
+  {
+    name: 'root env example',
+    command: ['infra/scripts/check-env.mjs', '.env.example'],
+  },
+  {
+    name: 'staging env template',
+    command: ['infra/scripts/check-env.mjs', 'infra/env/hands-staging.env.example', '--template'],
+  },
+  {
+    name: 'external setup advisory',
+    command: ['infra/scripts/check-external-setup.mjs'],
+  },
+  {
+    name: 'external registration pack json',
+    command: ['infra/scripts/external-registration-pack.mjs', '--format=json'],
+  },
+  {
+    name: 'external registration pack file',
+    command: [
+      'infra/scripts/external-registration-pack.mjs',
+      '--out=infra/setup/.generated/hands-external-registration-pack.md',
+    ],
+  },
+  {
+    name: 'supabase sql pack',
+    command: ['infra/scripts/prepare-supabase-sql-pack.mjs'],
+  },
+  {
+    name: 'mobile firebase removal guard',
+    command: ['infra/scripts/check-mobile-firebase.mjs'],
+  },
+  {
+    name: 'flutter architecture guard',
+    command: ['infra/scripts/check-flutter-architecture.mjs'],
+  },
+  {
+    name: 'supabase schema alignment',
+    command: ['infra/scripts/check-supabase-schema.mjs'],
+  },
+];
+
+const results = steps.map(runStep);
+const generatedFiles = [
+  'infra/setup/.generated/hands-external-registration-pack.md',
+  'infra/supabase/.generated/hands-staging-setup.sql',
+].map((file) => {
+  const path = resolve(file);
+  return {
+    file,
+    exists: existsSync(path),
+  };
+});
+
+const failed = results.filter((result) => result.status !== 'PASS');
+const missingGenerated = generatedFiles.filter((file) => !file.exists);
+const ok = failed.length === 0 && missingGenerated.length === 0;
+
+console.log(
+  JSON.stringify(
+    {
+      ok,
+      purpose: 'HANDS external setup preflight before filling real console credentials.',
+      generatedFiles,
+      checks: results,
+      nextSteps: ok
+        ? [
+            'Open infra/setup/.generated/hands-external-registration-pack.md while creating external accounts.',
+            'Copy infra/env/hands-staging.env.example values into .env after external consoles are ready.',
+            'Paste infra/supabase/.generated/hands-staging-setup.sql into Supabase SQL Editor.',
+            'After filling values, run npm.cmd run external:check:supabase and npm.cmd run auth:supabase-smoke.',
+          ]
+        : failed.map((result) => result.fix),
+    },
+    null,
+    2,
+  ),
+);
+
+if (!ok) {
+  process.exitCode = 1;
+}
+
+function runStep(step) {
+  const child = spawnSync(process.execPath, step.command, {
+    encoding: 'utf8',
+    windowsHide: true,
+  });
+  const output = `${child.stdout ?? ''}${child.stderr ?? ''}`.trim();
+  return {
+    name: step.name,
+    status: child.status === 0 ? 'PASS' : 'FAIL',
+    command: `node ${step.command.join(' ')}`,
+    fix: `Run ${step.name} directly and resolve the reported error.`,
+    detail: child.status === 0 ? compactSuccess(output) : output.slice(-1200),
+  };
+}
+
+function compactSuccess(output) {
+  if (!output) {
+    return 'completed';
+  }
+  try {
+    const parsed = JSON.parse(output);
+    if (typeof parsed.ok === 'boolean') {
+      return parsed.ok ? 'ok=true' : 'ok=false';
+    }
+  } catch {
+    // Keep a short text preview for non-JSON tools.
+  }
+  return output.split(/\r?\n/).at(0)?.slice(0, 160) ?? 'completed';
+}

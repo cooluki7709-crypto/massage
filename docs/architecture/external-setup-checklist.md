@@ -251,6 +251,7 @@ Generate the external registration pack first. It lists all accounts, console pa
 
 ```powershell
 cd C:\dev\massage-vn-workspace\repo
+npm.cmd run setup:doctor
 npm.cmd run external:pack
 npm.cmd run external:pack:write
 npm.cmd run supabase:sql:pack

@@ -19,6 +19,7 @@
     "external:check:strict": "node infra/scripts/check-external-setup.mjs --strict",
     "external:pack": "node infra/scripts/external-registration-pack.mjs",
     "external:pack:write": "node infra/scripts/external-registration-pack.mjs --out=infra/setup/.generated/hands-external-registration-pack.md",
+    "setup:doctor": "node infra/scripts/setup-doctor.mjs",
     "supabase:schema:check": "node infra/scripts/check-supabase-schema.mjs",
     "supabase:sql:pack": "node infra/scripts/prepare-supabase-sql-pack.mjs",
     "mobile:architecture:check": "node infra/scripts/check-flutter-architecture.mjs",

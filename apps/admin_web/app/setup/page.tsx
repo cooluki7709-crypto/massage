@@ -39,6 +39,7 @@ const setupOrder = [
       'Keep the service role key server-side only; it is used by admin operations to sync approved provider roles.',
     ],
     commands: [
+      'npm.cmd run setup:doctor',
       'npm.cmd run external:pack',
       'npm.cmd run external:pack:write',
       'Get-Content .\\infra\\env\\hands-staging.env.example',
