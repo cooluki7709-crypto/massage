@@ -42,6 +42,15 @@ Auth backend modes:
 
 The API now accepts Supabase Auth JWTs when `SUPABASE_JWT_SECRET` is configured. Supabase users are mapped to local Nest users through `User.supabaseUserId`, and phone OTP users are linked by phone number when possible.
 
+After the API is running with the same `SUPABASE_JWT_SECRET`, run this smoke test to verify that Supabase-style access tokens are accepted by protected Nest routes:
+
+```powershell
+$env:API_BASE_URL="http://localhost:3000/api"
+$env:SUPABASE_JWT_SECRET="your-project-jwt-secret"
+$env:SUPABASE_JWT_AUDIENCE="authenticated"
+npm.cmd run auth:supabase-smoke
+```
+
 The emulator/device scripts pass these values from shell environment variables when present:
 
 ```powershell
