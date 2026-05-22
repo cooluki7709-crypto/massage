@@ -40,6 +40,7 @@ const setupOrder = [
     ],
     commands: [
       'npm.cmd run external:pack',
+      'npm.cmd run external:pack:write',
       'Get-Content .\\infra\\env\\hands-staging.env.example',
       'npm.cmd run supabase:sql:pack',
       'npm.cmd run external:check:supabase',

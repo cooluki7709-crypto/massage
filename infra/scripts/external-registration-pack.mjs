@@ -1,9 +1,12 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const envFile = process.argv.find((arg) => arg.startsWith('--env='))?.slice('--env='.length) ?? '.env';
 const format =
   process.argv.find((arg) => arg.startsWith('--format='))?.slice('--format='.length) ?? 'markdown';
+const outFile = process.argv.find((arg) => arg.startsWith('--out='))?.slice('--out='.length);
+const repoRoot = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const envPath = resolve(envFile);
 const fileEnv = existsSync(envPath) ? parseEnv(readFileSync(envPath, 'utf8')) : {};
 const env = { ...fileEnv, ...process.env };
@@ -157,7 +160,7 @@ const output = {
   project: {
     appName: 'HANDS',
     serviceArea: 'Vietnam nationwide',
-    workspace: 'C:\\dev\\massage-vn-workspace\\repo',
+    workspace: normalizePath(repoRoot),
     secretFolder: 'C:\\dev\\massage-vn-workspace\\secrets',
     androidApplicationIds: {
       customer: 'com.massagevn.customer.customer_app',
@@ -172,10 +175,31 @@ const output = {
   registrationItems,
 };
 
-if (format === 'json') {
-  console.log(JSON.stringify(output, null, 2));
+const renderedOutput = format === 'json' ? JSON.stringify(output, null, 2) : toMarkdown(output);
+
+if (outFile) {
+  const outputPath = resolve(outFile);
+  mkdirSync(dirname(outputPath), { recursive: true });
+  writeFileSync(outputPath, `${renderedOutput}\n`);
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        output: normalizePath(relative(repoRoot, outputPath)),
+        format,
+        summary: output.summary,
+        nextSteps: [
+          'Open the generated registration pack when filling external console values.',
+          'Keep real credentials in .env or the local secrets folder, never in the generated pack.',
+          'Run npm.cmd run external:check after filling values.',
+        ],
+      },
+      null,
+      2,
+    ),
+  );
 } else {
-  console.log(toMarkdown(output));
+  console.log(renderedOutput);
 }
 
 function toMarkdown(pack) {
@@ -264,4 +288,8 @@ function parseEnv(source) {
     entries[key] = value;
   }
   return entries;
+}
+
+function normalizePath(value) {
+  return value.replaceAll('/', '\\');
 }

@@ -252,7 +252,14 @@ Generate the external registration pack first. It lists all accounts, console pa
 ```powershell
 cd C:\dev\massage-vn-workspace\repo
 npm.cmd run external:pack
+npm.cmd run external:pack:write
 npm.cmd run supabase:sql:pack
+```
+
+The generated registration pack is written to:
+
+```text
+C:\dev\massage-vn-workspace\repo\infra\setup\.generated\hands-external-registration-pack.md
 ```
 
 Run this before real device or emulator testing:

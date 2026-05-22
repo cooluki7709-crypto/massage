@@ -5,6 +5,7 @@ build/
 coverage/
 backups/
 logs/
+infra/setup/.generated/
 infra/supabase/.generated/
 *.tsbuildinfo
 .gitconfig-codex
