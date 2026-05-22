@@ -18,12 +18,16 @@ export default async function EarningsPage() {
     adminGet<AdminEarningSummary>('/admin/earnings/summary', emptySummary),
     adminGet<AdminEarning[]>('/admin/earnings', []),
   ]);
+  const sortedEarnings = sortEarnings(earnings);
 
   const metrics = [
     ['Gross', summary.grossAmount],
     ['Platform fee', summary.platformFee],
     ['Tips', summary.tipAmount],
     ['Provider net', summary.netAmount],
+    ['Pending net', summary.pendingNetAmount],
+    ['Available net', summary.availableNetAmount],
+    ['Paid net', summary.paidNetAmount],
   ];
 
   return (
@@ -46,45 +50,79 @@ export default async function EarningsPage() {
               <th>Provider</th>
               <th>Booking</th>
               <th>Status</th>
-              <th>Gross</th>
-              <th>Fee</th>
-              <th>Tip</th>
+              <th>Payout batch</th>
+              <th>Gross / Fee / Tip</th>
               <th>Net</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {earnings.map((earning) => (
+            {sortedEarnings.map((earning) => (
               <tr key={earning.id}>
-                <td>{earning.providerProfile?.displayName ?? earning.providerProfile?.user?.phone ?? 'Unknown'}</td>
-                <td>{earning.bookingId}</td>
-                <td>{earning.status}</td>
-                <td>{earning.grossAmount}</td>
-                <td>{earning.platformFee}</td>
-                <td>{earning.tipAmount}</td>
                 <td>
-                  {earning.netAmount} {earning.currency}
+                  <div>
+                    {earning.providerProfile?.displayName ??
+                      earning.providerProfile?.user?.phone ??
+                      'Unknown'}
+                  </div>
+                  <div className="muted">{earning.providerProfile?.user?.phone ?? 'No phone on file'}</div>
                 </td>
                 <td>
-                  <form action={markEarningPaid}>
-                    <input type="hidden" name="earningId" value={earning.id} />
-                    <button type="submit" disabled={earning.status === 'PAID' || earning.status === 'CANCELLED'}>
-                      Mark paid
-                    </button>
-                  </form>
-                  {earning.providerProfile && earning.status !== 'PAID' && earning.status !== 'CANCELLED' && (
+                  <a className="text-link" href={`/bookings/${earning.bookingId}`}>
+                    {shortId(earning.bookingId)}
+                  </a>
+                  <div className="muted">
+                    {earning.createdAt ? relativeTime(earning.createdAt) : 'No create time'}
+                  </div>
+                </td>
+                <td>
+                  <span className={earningSignalClass(earning)}>{earningStatusLabel(earning)}</span>
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    {earningHint(earning)}
+                  </div>
+                </td>
+                <td>
+                  {earning.payoutBatchId ? (
+                    <a className="pill pill-info" href={`/payouts#${earning.payoutBatchId}`}>
+                      {shortId(earning.payoutBatchId)}
+                    </a>
+                  ) : (
+                    <span className="pill pill-warn">Not batched</span>
+                  )}
+                </td>
+                <td>
+                  <div>{formatMoney(earning.grossAmount, earning.currency)} gross</div>
+                  <div className="muted">
+                    {formatMoney(earning.platformFee, earning.currency)} platform fee
+                  </div>
+                  <div className="muted">{formatMoney(earning.tipAmount, earning.currency)} tip</div>
+                </td>
+                <td>
+                  <strong>{formatMoney(earning.netAmount, earning.currency)}</strong>
+                </td>
+                <td>
+                  {canDirectlyPay(earning) && (
+                    <form action={markEarningPaid}>
+                      <input type="hidden" name="earningId" value={earning.id} />
+                      <button type="submit">Direct mark paid</button>
+                    </form>
+                  )}
+                  {canCreatePayout(earning) && (
                     <form action={createProviderPayout} style={{ marginTop: 6 }}>
                       <input type="hidden" name="providerProfileId" value={earning.providerProfileId} />
                       <input type="hidden" name="transferRef" value={`MVP-${earning.providerProfileId}`} />
                       <button type="submit">Batch payout</button>
                     </form>
                   )}
+                  {!canDirectlyPay(earning) && !canCreatePayout(earning) && (
+                    <span className="muted">{earning.status === 'PAID' ? 'Paid' : 'No action'}</span>
+                  )}
                 </td>
               </tr>
             ))}
-            {earnings.length === 0 && (
+            {sortedEarnings.length === 0 && (
               <tr>
-                <td colSpan={8}>No earnings loaded.</td>
+                <td colSpan={7}>No earnings loaded.</td>
               </tr>
             )}
           </tbody>
@@ -92,4 +130,109 @@ export default async function EarningsPage() {
       </div>
     </>
   );
+}
+
+function sortEarnings(earnings: AdminEarning[]) {
+  return [...earnings].sort((left, right) => {
+    const scoreDiff = earningPriority(left) - earningPriority(right);
+    if (scoreDiff !== 0) {
+      return scoreDiff;
+    }
+    return Date.parse(right.createdAt ?? '') - Date.parse(left.createdAt ?? '');
+  });
+}
+
+function earningPriority(earning: AdminEarning) {
+  if (earning.status === 'CANCELLED') {
+    return 5;
+  }
+  if (earning.status === 'PAID') {
+    return 4;
+  }
+  if (earning.payoutBatchId) {
+    return 2;
+  }
+  if (earning.status === 'AVAILABLE') {
+    return 0;
+  }
+  return 1;
+}
+
+function earningSignalClass(earning: AdminEarning) {
+  if (earning.status === 'PAID') {
+    return 'signal signal-ok';
+  }
+  if (earning.status === 'CANCELLED') {
+    return 'signal signal-warn';
+  }
+  if (earning.payoutBatchId) {
+    return 'signal signal-info';
+  }
+  return 'signal signal-warn';
+}
+
+function earningStatusLabel(earning: AdminEarning) {
+  if (earning.payoutBatchId && earning.status !== 'PAID') {
+    return `${earning.status} / batched`;
+  }
+  return earning.status;
+}
+
+function earningHint(earning: AdminEarning) {
+  if (earning.status === 'PAID') {
+    return earning.paidAt ? `Paid ${relativeTime(earning.paidAt)}` : 'Paid without timestamp';
+  }
+  if (earning.status === 'CANCELLED') {
+    return 'Cancelled by refund or booking reversal';
+  }
+  if (earning.payoutBatchId) {
+    return 'Follow this from the payout batch screen';
+  }
+  if (earning.availableAt) {
+    return `Available ${relativeTime(earning.availableAt)}`;
+  }
+  return 'Ready for finance review';
+}
+
+function canDirectlyPay(earning: AdminEarning) {
+  return earning.status !== 'PAID' && earning.status !== 'CANCELLED' && !earning.payoutBatchId;
+}
+
+function canCreatePayout(earning: AdminEarning) {
+  return (
+    Boolean(earning.providerProfile) &&
+    earning.status !== 'PAID' &&
+    earning.status !== 'CANCELLED' &&
+    !earning.payoutBatchId
+  );
+}
+
+function formatMoney(amount: number, currency: string) {
+  return `${new Intl.NumberFormat('vi-VN').format(amount)} ${currency}`;
+}
+
+function shortId(value: string) {
+  return value.length > 12 ? value.slice(0, 12) : value;
+}
+
+function relativeTime(value: string) {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) {
+    return 'Unknown time';
+  }
+  const diffMs = Date.now() - timestamp;
+  const absoluteMinutes = Math.floor(Math.abs(diffMs) / 60000);
+  const suffix = diffMs >= 0 ? 'ago' : 'from now';
+  if (absoluteMinutes < 1) {
+    return diffMs >= 0 ? 'just now' : 'in less than 1m';
+  }
+  if (absoluteMinutes < 60) {
+    return `${absoluteMinutes}m ${suffix}`;
+  }
+  const hours = Math.floor(absoluteMinutes / 60);
+  if (hours < 24) {
+    return `${hours}h ${suffix}`;
+  }
+  const days = Math.floor(hours / 24);
+  return `${days}d ${suffix}`;
 }

@@ -166,6 +166,7 @@ export type AdminEarning = {
   availableAt?: string | null;
   paidAt?: string | null;
   payoutBatchId?: string | null;
+  createdAt?: string;
   providerProfile?: { displayName?: string | null; user?: { phone?: string; fullName?: string | null } };
 };
 

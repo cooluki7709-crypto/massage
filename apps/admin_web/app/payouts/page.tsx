@@ -67,7 +67,7 @@ export default async function PayoutsPage() {
             {batches.map((batch) => {
               const checklist = payoutChecklist(batch);
               return (
-                <tr key={batch.id}>
+                <tr id={batch.id} key={batch.id}>
                   <td>
                     <div>{shortId(batch.id)}</div>
                     <div className="muted">{relativeTime(batch.createdAt)}</div>
