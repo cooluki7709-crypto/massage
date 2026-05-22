@@ -56,6 +56,7 @@ Optional direct Supabase values:
 ```dotenv
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
+AUTH_BACKEND=nest
 ```
 
 The Flutter run scripts pass MapTiler and Geoapify keys as Dart defines:

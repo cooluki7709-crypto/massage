@@ -76,6 +76,9 @@ $appDir = switch ($App) {
 }
 $mapTilerApiKey = $env:MAPTILER_API_KEY
 $geoapifyApiKey = $env:GEOAPIFY_API_KEY
+$authBackend = $env:AUTH_BACKEND
+$supabaseUrl = $env:SUPABASE_URL
+$supabaseAnonKey = $env:SUPABASE_ANON_KEY
 
 $serial = Get-RunningEmulatorSerial
 if (-not $serial) {
@@ -110,6 +113,15 @@ try {
   }
   if ($geoapifyApiKey) {
     $flutterArgs += "--dart-define=GEOAPIFY_API_KEY=$geoapifyApiKey"
+  }
+  if ($authBackend) {
+    $flutterArgs += "--dart-define=AUTH_BACKEND=$authBackend"
+  }
+  if ($supabaseUrl) {
+    $flutterArgs += "--dart-define=SUPABASE_URL=$supabaseUrl"
+  }
+  if ($supabaseAnonKey) {
+    $flutterArgs += "--dart-define=SUPABASE_ANON_KEY=$supabaseAnonKey"
   }
   & flutter @flutterArgs
 } finally {

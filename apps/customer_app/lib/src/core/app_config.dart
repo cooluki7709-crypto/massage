@@ -1,3 +1,8 @@
+enum AuthBackend {
+  nest,
+  supabase,
+}
+
 class AppConfig {
   static const mapTilerApiKey = String.fromEnvironment(
     'MAPTILER_API_KEY',
@@ -38,4 +43,16 @@ class AppConfig {
 
   static bool get supabaseEnabled =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
+
+  static const authBackendValue = String.fromEnvironment(
+    'AUTH_BACKEND',
+    defaultValue: 'nest',
+  );
+
+  static AuthBackend get authBackend {
+    if (authBackendValue == 'supabase') {
+      return AuthBackend.supabase;
+    }
+    return AuthBackend.nest;
+  }
 }

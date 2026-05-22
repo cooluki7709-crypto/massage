@@ -20,6 +20,7 @@ Flutter run flags:
 ```powershell
 --dart-define=SUPABASE_URL=https://your-project.supabase.co
 --dart-define=SUPABASE_ANON_KEY=your-anon-key
+--dart-define=AUTH_BACKEND=nest
 ```
 
 Existing local run flags still apply:
@@ -29,6 +30,20 @@ Existing local run flags still apply:
 --dart-define=SOCKET_BASE_URL=http://10.0.2.2:3000
 --dart-define=MAPTILER_API_KEY=your-maptiler-key
 --dart-define=GEOAPIFY_API_KEY=your-geoapify-key
+```
+
+Auth backend modes:
+
+- `AUTH_BACKEND=nest` keeps the current NestJS OTP/JWT flow and is the default for MVP stability.
+- `AUTH_BACKEND=supabase` routes mobile OTP verification through Supabase Auth. Use this only after Supabase phone OTP is configured and the backend API accepts the resulting Supabase JWT or an exchange flow is added.
+
+The emulator/device scripts pass these values from shell environment variables when present:
+
+```powershell
+$env:AUTH_BACKEND="nest"
+$env:SUPABASE_URL="https://your-project.supabase.co"
+$env:SUPABASE_ANON_KEY="your-anon-key"
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\run-hands-emulator.ps1 -App customer
 ```
 
 ## SQL

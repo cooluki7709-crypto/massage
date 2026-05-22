@@ -23,7 +23,8 @@ class AuthRepositoryImpl implements AuthRepository {
     required String otp,
     required String role,
   }) async {
-    final session = await _remoteDataSource.verifyOtp(phone: phone, otp: otp, role: role);
+    final session =
+        await _remoteDataSource.verifyOtp(phone: phone, otp: otp, role: role);
     _apiClient.accessToken = session.accessToken;
     _apiClient.refreshToken = session.refreshToken;
     _realtimeSocket.connect(session.accessToken);
