@@ -26,16 +26,43 @@ const providerSupabaseToken = signSupabaseToken({
   sub: `smoke-provider-${randomUUID()}`,
   aud: jwtAudience,
   phone: `+848${Date.now().toString().slice(-8)}`,
+  app_metadata: { role: 'PROVIDER' },
+  user_metadata: { role: 'PROVIDER' },
 });
 const providerExchange = await postJson('/auth/supabase/exchange', {
   supabaseAccessToken: providerSupabaseToken,
   role: 'PROVIDER',
 });
 const provider = await getJson('/provider/me', providerExchange.accessToken);
+const directProvider = await getJson('/provider/me', providerSupabaseToken);
 
-if (!provider?.id || !provider?.providerProfile) {
+if (!provider?.id || !provider?.providerProfile || !directProvider?.providerProfile) {
   throw new Error(`Supabase exchange did not map to a provider user: ${JSON.stringify(provider)}`);
 }
+
+const escalationToken = signSupabaseToken({
+  sub: `smoke-escalation-${randomUUID()}`,
+  aud: jwtAudience,
+  phone: `+847${Date.now().toString().slice(-8)}`,
+  app_metadata: { role: 'CUSTOMER' },
+  user_metadata: { role: 'CUSTOMER' },
+});
+await postJson(
+  '/auth/supabase/exchange',
+  {
+    supabaseAccessToken: escalationToken,
+    role: 'PROVIDER',
+  },
+  401,
+);
+
+const invalidAudienceToken = signSupabaseToken({
+  sub: `smoke-invalid-audience-${randomUUID()}`,
+  aud: 'wrong-audience',
+  phone: `+846${Date.now().toString().slice(-8)}`,
+  app_metadata: { role: 'CUSTOMER' },
+});
+await getJson('/customer/me', invalidAudienceToken, 401);
 
 console.log(
   JSON.stringify(
@@ -47,32 +74,38 @@ console.log(
       customerProfileId: customer.customerProfile.id,
       providerUserId: provider.id,
       providerProfileId: provider.providerProfile.id,
+      directProviderRoute: true,
+      roleEscalationDenied: true,
+      invalidAudienceDenied: true,
     },
     null,
     2,
   ),
 );
 
-async function getJson(path, accessToken) {
+async function getJson(path, accessToken, expectedStatus = 200) {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     headers: { authorization: `Bearer ${accessToken}` },
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(`GET ${path} failed: ${response.status} ${JSON.stringify(body)}`);
+  if (response.status !== expectedStatus) {
+    throw new Error(`GET ${path} expected ${expectedStatus}: ${response.status} ${JSON.stringify(body)}`);
   }
   return body;
 }
 
-async function postJson(path, body) {
+async function postJson(path, body, expectedStatus = [200, 201]) {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
   const responseBody = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(`POST ${path} failed: ${response.status} ${JSON.stringify(responseBody)}`);
+  const expectedStatuses = Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus];
+  if (!expectedStatuses.includes(response.status)) {
+    throw new Error(
+      `POST ${path} expected ${expectedStatuses.join('/')} status: ${response.status} ${JSON.stringify(responseBody)}`,
+    );
   }
   return responseBody;
 }

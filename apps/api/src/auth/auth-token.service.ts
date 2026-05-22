@@ -101,12 +101,14 @@ export class AuthTokenService {
     }
 
     this.assertSupabaseAudience(payload);
-    const roles = this.resolveSupabaseRoles(payload, requestedRoles);
-    const user = await this.syncSupabaseUser(payload, roles);
+    const tokenRoles = this.resolveSupabaseRoles(payload);
+    const user = await this.syncSupabaseUser(payload, tokenRoles);
+    const effectiveRoles = Array.from(new Set([...user.roles, ...tokenRoles]));
+    this.assertRequestedRoles(effectiveRoles, requestedRoles);
 
     return {
       id: user.id,
-      roles: user.roles,
+      roles: effectiveRoles,
       authProvider: 'supabase',
       externalUserId: payload.sub,
     };
@@ -120,9 +122,8 @@ export class AuthTokenService {
     }
   }
 
-  private resolveSupabaseRoles(payload: SupabaseJwtPayload, requestedRoles: Role[] = []): Role[] {
+  private resolveSupabaseRoles(payload: SupabaseJwtPayload): Role[] {
     const rawRoles = [
-      ...requestedRoles,
       payload.app_metadata?.role,
       ...(payload.app_metadata?.roles ?? []),
       payload.user_metadata?.role,
@@ -134,6 +135,13 @@ export class AuthTokenService {
       .filter((role): role is Role => Object.values(Role).includes(role as Role));
 
     return roles.length > 0 ? Array.from(new Set(roles)) : [Role.CUSTOMER];
+  }
+
+  private assertRequestedRoles(effectiveRoles: Role[], requestedRoles: Role[]) {
+    const missingRoles = requestedRoles.filter((role) => !effectiveRoles.includes(role));
+    if (missingRoles.length > 0) {
+      throw new UnauthorizedException('Supabase token is not allowed for the requested role');
+    }
   }
 
   private async syncSupabaseUser(payload: SupabaseJwtPayload, roles: Role[]) {
