@@ -36,6 +36,13 @@ The current delivery adapter is intentionally `IN_APP_ONLY`. It records a skippe
 
 This keeps the local retry/audit flow visible in Admin Web while avoiding paid or vendor-specific push dependencies during the MVP.
 
+When a production provider is selected, keep the replacement behind `PushDeliveryService` and preserve this contract:
+
+- create the in-app `Notification` row before any OS push attempt
+- record every provider attempt in `NotificationDelivery`
+- disable only the specific `PushDevice` that receives a permanent provider token failure
+- keep retry behavior in BullMQ so booking and matching APIs do not wait on push latency
+
 ## Mobile Firebase Removal Check
 
 The repository includes `node infra/scripts/check-mobile-firebase.mjs` and the full local verifier runs it automatically. The check fails when either Flutter app still has Firebase packages, Google Services Gradle plugin usage, or `google-services.json`.

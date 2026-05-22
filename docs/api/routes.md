@@ -72,7 +72,7 @@ For `provider-verification` uploads, providers may omit `providerVerificationId`
 - `PATCH /notifications/device-token/register`
 - `POST /notifications/device-token/register`
 
-The retry queue stores DB notifications first. Delivery attempts are recorded in `NotificationDelivery`, and permanent FCM token failures automatically disable the affected `PushDevice` until the app registers it again.
+The retry queue stores DB notifications first. Delivery attempts are recorded in `NotificationDelivery`. The current adapter is `IN_APP_ONLY`; when a future OS push provider is enabled, permanent provider token failures should disable the affected `PushDevice` until the app registers a fresh token again.
 
 ## Admin
 
