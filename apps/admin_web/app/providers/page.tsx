@@ -1,5 +1,5 @@
 import { AdminProvider, adminGet } from '../../lib/admin-api';
-import { approveProvider, enablePushDevice, rejectProvider } from './actions';
+import { approveProvider, enablePushDevice, rejectProvider, syncSupabaseProviderRole } from './actions';
 
 type AdminPushDevice = NonNullable<NonNullable<AdminProvider['user']>['pushDevices']>[number];
 
@@ -57,66 +57,78 @@ export default async function ProvidersPage() {
                 </td>
                 <td>
                   <div className="participant-list" style={{ marginBottom: 8 }}>
-                    <span className={`pill ${provider.verification?.status === 'APPROVED' ? 'pill-success' : 'pill-warn'}`}>
+                    <span
+                      className={`pill ${provider.verification?.status === 'APPROVED' ? 'pill-success' : 'pill-warn'}`}
+                    >
                       {provider.verification?.status === 'APPROVED' ? 'Verified' : 'Needs review'}
                     </span>
-                    <span className={`pill ${provider.status === 'ONLINE_AVAILABLE' ? 'pill-success' : 'pill-neutral'}`}>
+                    <span
+                      className={`pill ${provider.status === 'ONLINE_AVAILABLE' ? 'pill-success' : 'pill-neutral'}`}
+                    >
                       {provider.status === 'ONLINE_AVAILABLE' ? 'Online now' : 'Not live'}
                     </span>
                     <span className={`pill ${hasHealthyPush(provider) ? 'pill-success' : 'pill-info'}`}>
                       {hasHealthyPush(provider) ? 'Push ready' : 'Push missing'}
                     </span>
+                    <span
+                      className={`pill ${provider.user?.supabaseUserId ? 'pill-success' : 'pill-neutral'}`}
+                    >
+                      {provider.user?.supabaseUserId ? 'Supabase linked' : 'Nest auth only'}
+                    </span>
                   </div>
                   <p className="muted">{providerActionHint(provider)}</p>
                 </td>
                 <td>
-                  {provider.user?.pushDevices?.length ? (
-                    provider.user.pushDevices.map((device) => (
-                      <div key={device.id} style={{ marginBottom: 8 }}>
-                        <p className="muted" style={{ marginBottom: 4 }}>
-                          {device.platform} / {device.enabled ? 'enabled' : 'disabled'} / {maskToken(device.token)}
-                        </p>
-                        {!device.enabled ? (
+                  {provider.user?.pushDevices?.length
+                    ? provider.user.pushDevices.map((device) => (
+                        <div key={device.id} style={{ marginBottom: 8 }}>
                           <p className="muted" style={{ marginBottom: 4 }}>
-                            Last failure: {readFailureCode(device) ?? 'Unknown'} / {readFailureStatus(device) ?? 'FAILED'}
+                            {device.platform} / {device.enabled ? 'enabled' : 'disabled'} /{' '}
+                            {maskToken(device.token)}
                           </p>
-                        ) : null}
-                        {readLastAttempt(device) ? (
-                          <p className="muted" style={{ marginBottom: 4 }}>
-                            Last attempt: {new Date(readLastAttempt(device) as string).toLocaleString()}
-                          </p>
-                        ) : null}
-                        {!device.enabled ? (
-                          <form action={enablePushDevice}>
-                            <input type="hidden" name="pushDeviceId" value={device.id} />
-                            <button type="submit">Re-enable</button>
-                          </form>
-                        ) : null}
-                      </div>
-                    ))
-                  ) : (
-                    'None'
-                  )}
+                          {!device.enabled ? (
+                            <p className="muted" style={{ marginBottom: 4 }}>
+                              Last failure: {readFailureCode(device) ?? 'Unknown'} /{' '}
+                              {readFailureStatus(device) ?? 'FAILED'}
+                            </p>
+                          ) : null}
+                          {readLastAttempt(device) ? (
+                            <p className="muted" style={{ marginBottom: 4 }}>
+                              Last attempt: {new Date(readLastAttempt(device) as string).toLocaleString()}
+                            </p>
+                          ) : null}
+                          {!device.enabled ? (
+                            <form action={enablePushDevice}>
+                              <input type="hidden" name="pushDeviceId" value={device.id} />
+                              <button type="submit">Re-enable</button>
+                            </form>
+                          ) : null}
+                        </div>
+                      ))
+                    : 'None'}
                 </td>
                 <td>
-                  {provider.verification?.files?.length ? (
-                    provider.verification.files.map((file) => (
-                      <p key={file.id} className="muted">
-                        {file.contentType} /{' '}
-                        {fileReadUrls.get(file.id) ? (
-                          <a href={fileReadUrls.get(file.id)} target="_blank" rel="noreferrer">
-                            {file.key}
-                          </a>
-                        ) : (
-                          file.key
-                        )}
-                      </p>
-                    ))
-                  ) : (
-                    'None'
-                  )}
+                  {provider.verification?.files?.length
+                    ? provider.verification.files.map((file) => (
+                        <p key={file.id} className="muted">
+                          {file.contentType} /{' '}
+                          {fileReadUrls.get(file.id) ? (
+                            <a href={fileReadUrls.get(file.id)} target="_blank" rel="noreferrer">
+                              {file.key}
+                            </a>
+                          ) : (
+                            file.key
+                          )}
+                        </p>
+                      ))
+                    : 'None'}
                 </td>
-                <td>{provider.services?.map((item) => item.service?.name).filter(Boolean).join(', ') || 'None'}</td>
+                <td>
+                  {provider.services
+                    ?.map((item) => item.service?.name)
+                    .filter(Boolean)
+                    .join(', ') || 'None'}
+                </td>
                 <td>
                   <div className="actions">
                     <form action={approveProvider}>
@@ -127,6 +139,12 @@ export default async function ProvidersPage() {
                       <input type="hidden" name="providerId" value={provider.id} />
                       <input type="hidden" name="reason" value="Rejected from admin dashboard" />
                       <button type="submit">Reject</button>
+                    </form>
+                    <form action={syncSupabaseProviderRole}>
+                      <input type="hidden" name="providerId" value={provider.id} />
+                      <button type="submit" disabled={provider.verification?.status !== 'APPROVED'}>
+                        Sync Supabase role
+                      </button>
                     </form>
                   </div>
                 </td>
@@ -177,6 +195,9 @@ function providerActionHint(provider: AdminProvider) {
   if (!hasHealthyPush(provider)) {
     return 'Therapist is live, but push registration should be checked before relying on alerts.';
   }
+  if (!provider.user?.supabaseUserId) {
+    return 'Therapist is operational in Nest auth. Supabase role sync will become available after Supabase OTP login links this phone.';
+  }
   return 'Therapist is ready for direct requests and fallback matching.';
 }
 
@@ -184,8 +205,8 @@ function buildProviderSummary(providers: AdminProvider[]) {
   const approved = providers.filter((provider) => provider.verification?.status === 'APPROVED').length;
   const online = providers.filter((provider) => provider.status === 'ONLINE_AVAILABLE').length;
   const pushReady = providers.filter((provider) => hasHealthyPush(provider)).length;
-  const pushDisabled = providers.filter(
-    (provider) => (provider.user?.pushDevices ?? []).some((device) => !device.enabled),
+  const pushDisabled = providers.filter((provider) =>
+    (provider.user?.pushDevices ?? []).some((device) => !device.enabled),
   ).length;
   const readyNow = providers.filter(
     (provider) =>
@@ -219,7 +240,11 @@ function sortProviders(providers: AdminProvider[]) {
 }
 
 function providerPriority(provider: AdminProvider) {
-  if (provider.verification?.status === 'APPROVED' && provider.status === 'ONLINE_AVAILABLE' && hasHealthyPush(provider)) {
+  if (
+    provider.verification?.status === 'APPROVED' &&
+    provider.status === 'ONLINE_AVAILABLE' &&
+    hasHealthyPush(provider)
+  ) {
     return 4;
   }
   if (provider.verification?.status === 'APPROVED' && provider.status === 'ONLINE_AVAILABLE') {

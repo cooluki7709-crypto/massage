@@ -24,6 +24,7 @@ Flutter run flags:
 API env:
 SUPABASE_JWT_SECRET=your-project-jwt-secret
 SUPABASE_JWT_AUDIENCE=authenticated
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 Existing local run flags still apply:
@@ -52,8 +53,15 @@ Mobile Supabase OTP flow uses a bridge session:
 Provider migration options:
 
 1. Preferred for MVP migration: keep provider onboarding/approval in the Nest admin flow first, then let Supabase OTP link by phone number.
-2. Later production option: set provider role metadata through a trusted backend/admin job after verification. Do not let the mobile client self-assign provider role metadata.
+2. Later production option: set provider role metadata through the trusted admin action `POST /api/admin/providers/:id/sync-supabase-role` after verification. Do not let the mobile client self-assign provider role metadata.
 3. Run `npm.cmd run auth:supabase-smoke` after configuring `SUPABASE_JWT_SECRET`; the smoke test checks customer mapping, provider mapping, invalid audience rejection, and provider role escalation rejection.
+
+Provider role metadata sync:
+
+- Required API values: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+- The service role key must stay server-side only and must never be passed to Flutter or Admin Web.
+- Admin provider approval automatically attempts a provider role sync when the HANDS user is already linked to `supabaseUserId`.
+- If the provider has not signed in through Supabase yet, the sync is skipped and recorded in the audit log. The provider can still operate through the existing Nest auth flow until Supabase OTP is enabled.
 
 Mobile auth code is now split by Clean Architecture boundaries:
 

@@ -90,6 +90,12 @@ addRecommended(
   hasSecretLikeValue('SUPABASE_JWT_SECRET'),
   'Set SUPABASE_JWT_SECRET on the API before accepting Supabase Auth access tokens.',
 );
+addRecommended(
+  'supabase',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  hasSecretLikeValue('SUPABASE_SERVICE_ROLE_KEY'),
+  'Set SUPABASE_SERVICE_ROLE_KEY on the API only when syncing approved provider roles into Supabase Auth metadata.',
+);
 addPhaseRequired(
   'supabase',
   'AUTH_BACKEND=supabase for Phone Auth',
@@ -116,6 +122,13 @@ addPhaseRequired(
   'SUPABASE_JWT_SECRET for API token verification',
   hasSecretLikeValue('SUPABASE_JWT_SECRET'),
   'Set SUPABASE_JWT_SECRET from Supabase Project Settings > API > JWT secret.',
+  ['supabase-auth', 'production'],
+);
+addPhaseRequired(
+  'supabase',
+  'SUPABASE_SERVICE_ROLE_KEY for provider role sync',
+  hasSecretLikeValue('SUPABASE_SERVICE_ROLE_KEY'),
+  'Set SUPABASE_SERVICE_ROLE_KEY from Supabase Project Settings > API. Keep it server-side only.',
   ['supabase-auth', 'production'],
 );
 

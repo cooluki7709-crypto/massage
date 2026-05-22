@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PayoutBatchStatus, Prisma, ReviewStatus, VerificationStatus } from '@prisma/client';
+import { SupabaseAdminService } from '../auth/supabase-admin.service';
 import { EarningsService } from '../earnings/earnings.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -10,6 +11,7 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly earnings: EarningsService,
     private readonly notifications: NotificationsService,
+    private readonly supabaseAdmin: SupabaseAdminService,
   ) {}
 
   listUsers() {
@@ -88,6 +90,7 @@ export class AdminService {
       where: { id: providerProfileId },
       select: { userId: true },
     });
+    let supabaseRoleSync = null;
     if (provider) {
       await this.notifications.create({
         userId: provider.userId,
@@ -100,9 +103,45 @@ export class AdminService {
             : (reason ?? 'Please update your documents.'),
         data: { providerProfileId, status, reason },
       });
+
+      if (status === VerificationStatus.APPROVED) {
+        supabaseRoleSync = await this.syncProviderSupabaseRole(actorId, providerProfileId);
+      }
     }
 
-    return verification;
+    return { ...verification, supabaseRoleSync };
+  }
+
+  async syncProviderSupabaseRole(actorId: string, providerProfileId: string) {
+    const provider = await this.prisma.providerProfile.findUniqueOrThrow({
+      where: { id: providerProfileId },
+      include: { user: true, verification: true },
+    });
+
+    if (provider.verification?.status !== VerificationStatus.APPROVED) {
+      const result = {
+        status: 'SKIPPED' as const,
+        configured: false,
+        supabaseUserId: provider.user.supabaseUserId,
+        reason: 'Provider must be approved before Supabase provider role sync.',
+      };
+      await this.writeAudit(actorId, 'provider.supabase_role_sync.skipped', `provider:${providerProfileId}`, {
+        result,
+      });
+      return result;
+    }
+
+    const result = await this.supabaseAdmin.grantProviderRole(provider.user.supabaseUserId);
+    await this.writeAudit(
+      actorId,
+      `provider.supabase_role_sync.${result.status.toLowerCase()}`,
+      `provider:${providerProfileId}`,
+      {
+        result,
+        userId: provider.userId,
+      },
+    );
+    return result;
   }
 
   listBookings() {

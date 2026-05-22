@@ -17,12 +17,19 @@ const setupOrder = [
     id: 'supabase',
     title: 'Supabase Auth and database',
     purpose: 'Required before Firebase-free production login and direct client data access.',
-    env: ['AUTH_BACKEND', 'SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_JWT_SECRET'],
+    env: [
+      'AUTH_BACKEND',
+      'SUPABASE_URL',
+      'SUPABASE_ANON_KEY',
+      'SUPABASE_JWT_SECRET',
+      'SUPABASE_SERVICE_ROLE_KEY',
+    ],
     notes: [
       'Create one Supabase project for HANDS staging first.',
       'Set AUTH_BACKEND=supabase only when Supabase Phone Auth is ready to test.',
       'Copy the project URL and anon key from Supabase project settings.',
       'Set the JWT secret on the API so access tokens can be verified server-side.',
+      'Keep the service role key server-side only; it is used by admin operations to sync approved provider roles.',
     ],
     commands: [
       'npm.cmd run external:check:supabase',

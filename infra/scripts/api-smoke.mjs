@@ -142,6 +142,15 @@ await postJson('/provider/verification/submit', providerAuth.accessToken, {
   fileIds: [verificationUpload.file.id],
 });
 await postJson(`/admin/providers/${providerAuth.user.providerProfile.id}/approve`, adminAuth.accessToken);
+const providerSupabaseRoleSync = await postJson(
+  `/admin/providers/${providerAuth.user.providerProfile.id}/sync-supabase-role`,
+  adminAuth.accessToken,
+);
+if (!['SKIPPED', 'SYNCED'].includes(providerSupabaseRoleSync.status)) {
+  throw new Error(
+    `Unexpected provider Supabase role sync result: ${JSON.stringify(providerSupabaseRoleSync)}`,
+  );
+}
 await postJson(
   `/admin/providers/${backupProviderAuth.user.providerProfile.id}/approve`,
   adminAuth.accessToken,
@@ -472,6 +481,7 @@ console.log({
   adminBookingDetailReady: true,
   adminProviderPushDeviceCount: adminProvider?.user?.pushDevices?.length ?? 0,
   adminBackupProviderPushDeviceCount: adminBackupProvider?.user?.pushDevices?.length ?? 0,
+  providerSupabaseRoleSyncStatus: providerSupabaseRoleSync.status,
   hybridPreferredProviderId: adminHybridBooking?.preferredProvider?.id ?? null,
   hybridSelectedProviderId: adminHybridBooking?.selectedProvider?.id ?? null,
   hybridSwitchedToBackup:

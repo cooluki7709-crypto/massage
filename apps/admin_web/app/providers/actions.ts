@@ -16,6 +16,13 @@ export async function rejectProvider(formData: FormData) {
   revalidatePath('/providers');
 }
 
+export async function syncSupabaseProviderRole(formData: FormData) {
+  const providerId = String(formData.get('providerId'));
+  await adminPost(`/admin/providers/${providerId}/sync-supabase-role`, {}, null);
+  revalidatePath('/providers');
+  revalidatePath('/audit-log');
+}
+
 export async function enablePushDevice(formData: FormData) {
   const pushDeviceId = String(formData.get('pushDeviceId'));
   await adminPost(`/admin/push-devices/${pushDeviceId}/enable`, {}, null);

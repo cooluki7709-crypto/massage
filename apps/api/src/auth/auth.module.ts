@@ -7,6 +7,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { OtpDeliveryService } from './otp-delivery.service';
 import { RolesGuard } from './roles.guard';
 import { SocketAuthService } from './socket-auth.service';
+import { SupabaseAdminService } from './supabase-admin.service';
 
 @Global()
 @Module({
@@ -17,7 +18,24 @@ import { SocketAuthService } from './socket-auth.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthTokenService, OtpDeliveryService, JwtAuthGuard, RolesGuard, SocketAuthService],
-  exports: [AuthService, AuthTokenService, OtpDeliveryService, JwtModule, JwtAuthGuard, RolesGuard, SocketAuthService],
+  providers: [
+    AuthService,
+    AuthTokenService,
+    OtpDeliveryService,
+    JwtAuthGuard,
+    RolesGuard,
+    SocketAuthService,
+    SupabaseAdminService,
+  ],
+  exports: [
+    AuthService,
+    AuthTokenService,
+    OtpDeliveryService,
+    JwtModule,
+    JwtAuthGuard,
+    RolesGuard,
+    SocketAuthService,
+    SupabaseAdminService,
+  ],
 })
 export class AuthModule {}

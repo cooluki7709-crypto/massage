@@ -33,6 +33,11 @@ export class AdminController {
     return this.admin.reviewProvider(user.id, providerProfileId, VerificationStatus.APPROVED);
   }
 
+  @Post('providers/:id/sync-supabase-role')
+  syncProviderSupabaseRole(@CurrentUser() user: AuthenticatedUser, @Param('id') providerProfileId: string) {
+    return this.admin.syncProviderSupabaseRole(user.id, providerProfileId);
+  }
+
   @Post('providers/:id/reject')
   rejectProvider(
     @CurrentUser() user: AuthenticatedUser,

@@ -64,6 +64,7 @@ SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_JWT_SECRET=
 SUPABASE_JWT_AUDIENCE=authenticated
+SUPABASE_SERVICE_ROLE_KEY=
 AUTH_BACKEND=nest
 ```
 
@@ -81,6 +82,7 @@ SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_JWT_SECRET=<project-jwt-secret>
 SUPABASE_JWT_AUDIENCE=authenticated
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 ```
 
 The Flutter run scripts pass MapTiler and Geoapify keys as Dart defines:
@@ -122,8 +124,9 @@ Supabase Auth setup:
 3. Configure the SMS provider supported by Supabase for Vietnam delivery.
 4. Copy `Project URL`, `anon public`, and the JWT secret into the local `.env`.
 5. Keep `AUTH_BACKEND=nest` until OTP sending is verified, then test `AUTH_BACKEND=supabase` on customer and provider apps.
-6. Provider Supabase login must not rely on a client-selected role. A provider can exchange a Supabase session only if the phone number already belongs to an approved/local HANDS provider account or a trusted backend/admin process has placed `PROVIDER` in Supabase user metadata.
+6. Provider Supabase login must not rely on a client-selected role. A provider can exchange a Supabase session only if the phone number already belongs to an approved/local HANDS provider account or the admin provider-role sync has placed `PROVIDER` in Supabase user metadata.
 7. After setting `SUPABASE_JWT_SECRET`, run `npm.cmd run auth:supabase-smoke` against the API to verify customer mapping, provider mapping, invalid audience rejection, and role escalation rejection.
+8. Keep `SUPABASE_SERVICE_ROLE_KEY` only in the API environment. It is needed for admin provider-role sync and must never be sent to Flutter, browser JavaScript, or Git.
 
 ## 4. Payments
 

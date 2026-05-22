@@ -46,6 +46,7 @@ export class HealthService {
         { key: 'SUPABASE_URL', validator: 'https-url' },
         { key: 'SUPABASE_ANON_KEY' },
         { key: 'SUPABASE_JWT_SECRET', validator: 'secret' },
+        { key: 'SUPABASE_SERVICE_ROLE_KEY', validator: 'secret' },
       ]),
       this.externalGroup('Maps and geocoding', 'maps', [
         { key: 'MAPTILER_API_KEY' },

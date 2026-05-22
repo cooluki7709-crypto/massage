@@ -22,8 +22,10 @@ export type AdminProvider = {
   } | null;
   services?: Array<{ service?: { name: string } }>;
   user?: {
+    id?: string;
     fullName?: string | null;
     phone?: string;
+    supabaseUserId?: string | null;
     pushDevices?: Array<{
       id: string;
       platform: string;
