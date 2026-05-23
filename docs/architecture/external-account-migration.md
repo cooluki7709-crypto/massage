@@ -31,6 +31,7 @@ Current status:
 
 - Registrar: PA Vietnam, `https://www.pavietnam.vn`
 - DNS provider: PA Vietnam direct DNS management
+- DNS permission: operator can add and delete DNS records directly
 - Operator inbox: `administration@hands.vn` is active and can receive email
 
 Planned DNS records later:

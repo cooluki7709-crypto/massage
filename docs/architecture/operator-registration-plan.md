@@ -13,6 +13,7 @@ Business identity:
 - Domain: `hands.vn`
 - Admin/operator email: `administration@hands.vn`
 - Registrar/DNS: PA Vietnam, `https://www.pavietnam.vn`
+- DNS permission: operator can add and delete records directly
 - Public web URL: `https://hands.vn`
 - API URL: `https://api.hands.vn`
 - Admin URL: `https://admin.hands.vn`
