@@ -162,6 +162,29 @@ const registrationItems = [
     setup: ['Confirm Vietnam delivery rates and sender ID rules.', 'Define OTP resend and abuse limits.'],
     verify: ['npm.cmd run external:check:production'],
   },
+  {
+    order: 9,
+    category: 'Mobile release',
+    account: 'Android Play Console signing',
+    purpose: 'Separate customer/provider upload keys and fingerprints for production Android distribution.',
+    consolePath: 'Google Play Console > Setup > App integrity',
+    env: [
+      envItem('ANDROID_CUSTOMER_APPLICATION_ID', 'com.massagevn.customer.customer_app', true),
+      envItem('ANDROID_PROVIDER_APPLICATION_ID', 'com.massagevn.provider.provider_app', true),
+      envItem('ANDROID_CUSTOMER_UPLOAD_KEYSTORE', '<local-secret-keystore-path>', false),
+      envItem('ANDROID_PROVIDER_UPLOAD_KEYSTORE', '<local-secret-keystore-path>', false),
+    ],
+    setup: [
+      'Create separate upload keys for the HANDS customer and provider apps.',
+      'Store keystores outside Git, preferably under C:\\dev\\massage-vn-workspace\\secrets.',
+      'Record SHA-1 and SHA-256 fingerprints for any provider that requires Android app restrictions.',
+      'Add local key.properties files only after production signing credentials exist.',
+    ],
+    verify: [
+      'flutter build apk --release from apps/customer_app after release signing is configured',
+      'flutter build apk --release from apps/provider_app after release signing is configured',
+    ],
+  },
 ];
 
 const output = {
