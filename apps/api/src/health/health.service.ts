@@ -204,45 +204,65 @@ export class HealthService {
     const providerExamplePath = join(repoRoot, 'apps/provider_app/android/key.properties.example');
     const customerUploadKeystore = this.config.get<string>('ANDROID_CUSTOMER_UPLOAD_KEYSTORE')?.trim();
     const providerUploadKeystore = this.config.get<string>('ANDROID_PROVIDER_UPLOAD_KEYSTORE')?.trim();
+    const customerUploadKeystoreExists = this.configuredPathExists(repoRoot, customerUploadKeystore);
+    const providerUploadKeystoreExists = this.configuredPathExists(repoRoot, providerUploadKeystore);
 
     const configured = [
       existsSync(customerExamplePath) ? 'customer_key_properties_example' : null,
       existsSync(providerExamplePath) ? 'provider_key_properties_example' : null,
-      existsSync(customerKeyPropertiesPath) || customerUploadKeystore
+      existsSync(customerKeyPropertiesPath) || customerUploadKeystoreExists
         ? 'ANDROID_CUSTOMER_UPLOAD_KEYSTORE'
         : null,
-      existsSync(providerKeyPropertiesPath) || providerUploadKeystore
+      existsSync(providerKeyPropertiesPath) || providerUploadKeystoreExists
         ? 'ANDROID_PROVIDER_UPLOAD_KEYSTORE'
         : null,
     ].filter((value): value is string => Boolean(value));
     const missing = [
       existsSync(customerExamplePath) ? null : 'apps/customer_app/android/key.properties.example',
       existsSync(providerExamplePath) ? null : 'apps/provider_app/android/key.properties.example',
-      existsSync(customerKeyPropertiesPath) || customerUploadKeystore
+      existsSync(customerKeyPropertiesPath) || customerUploadKeystoreExists
         ? null
         : 'ANDROID_CUSTOMER_UPLOAD_KEYSTORE',
-      existsSync(providerKeyPropertiesPath) || providerUploadKeystore
+      existsSync(providerKeyPropertiesPath) || providerUploadKeystoreExists
         ? null
         : 'ANDROID_PROVIDER_UPLOAD_KEYSTORE',
     ].filter((value): value is string => Boolean(value));
+    const invalid = [
+      customerUploadKeystore && !customerUploadKeystoreExists ? 'ANDROID_CUSTOMER_UPLOAD_KEYSTORE' : null,
+      providerUploadKeystore && !providerUploadKeystoreExists ? 'ANDROID_PROVIDER_UPLOAD_KEYSTORE' : null,
+    ].filter((value): value is string => Boolean(value));
     const localSigningPrepared = existsSync(customerExamplePath) && existsSync(providerExamplePath);
     const releaseSecretsConfigured =
-      (existsSync(customerKeyPropertiesPath) || Boolean(customerUploadKeystore)) &&
-      (existsSync(providerKeyPropertiesPath) || Boolean(providerUploadKeystore));
+      (existsSync(customerKeyPropertiesPath) || customerUploadKeystoreExists) &&
+      (existsSync(providerKeyPropertiesPath) || providerUploadKeystoreExists);
 
     return {
       name: 'Android release signing',
       category: 'mobile-release',
-      status: releaseSecretsConfigured ? 'READY' : localSigningPrepared ? 'PARTIAL' : 'BLOCKED',
+      status:
+        invalid.length > 0
+          ? 'BLOCKED'
+          : releaseSecretsConfigured
+            ? 'READY'
+            : localSigningPrepared
+              ? 'PARTIAL'
+              : 'BLOCKED',
       configured,
       missing,
-      invalid: [],
-      detail: releaseSecretsConfigured
-        ? 'Customer and provider Android release signing values are configured locally.'
-        : localSigningPrepared
-          ? 'Signing examples are committed; create local key.properties files and store keystores outside Git before Play release.'
-          : 'Add Android signing examples and local release signing setup before production distribution.',
+      invalid,
+      detail:
+        invalid.length > 0
+          ? 'One or more Android upload keystore paths are configured but do not exist on disk.'
+          : releaseSecretsConfigured
+            ? 'Customer and provider Android release signing values are configured locally.'
+            : localSigningPrepared
+              ? 'Signing examples are committed; create local key.properties files and store keystores outside Git before Play release.'
+              : 'Add Android signing examples and local release signing setup before production distribution.',
     };
+  }
+
+  private configuredPathExists(repoRoot: string, value?: string) {
+    return Boolean(value && existsSync(resolve(repoRoot, value)));
   }
 
   private mobileFirebaseRemovalReadiness() {
