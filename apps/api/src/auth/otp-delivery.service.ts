@@ -37,7 +37,7 @@ export class OtpDeliveryService {
       body: JSON.stringify({
         to: phone,
         senderId,
-        message: `Your Massage VN verification code is ${otp}. It expires in 5 minutes.`,
+        message: `Your HANDS verification code is ${otp}. It expires in 5 minutes.`,
       }),
     });
 
