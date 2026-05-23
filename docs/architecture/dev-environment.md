@@ -66,7 +66,7 @@ Docker Desktop may also require enabling WSL 2 and rebooting Windows before `doc
 Run this before considering a phase stable:
 
 ```powershell
-npm run verify:local
+npm.cmd run verify:local
 ```
 
 The verification script runs all checks that are possible on the current PC and marks unavailable checks as `SKIP`.
@@ -102,7 +102,7 @@ powershell -ExecutionPolicy Bypass -File .\infra\scripts\verify-local.ps1 -WithS
 
 The Codex shell may not have Administrator privileges. If Chocolatey fails with an access error under `C:\ProgramData\chocolatey`, rerun the install command from an Administrator PowerShell window.
 
-Android builds on Windows should be run from an ASCII-only project path. If the repo is under a path such as `C:\Users\laboy\Downloads\느시`, mirror or move it to a path such as `C:\dev\massage-vn-workspace\repo` before running:
+Android builds on Windows should be run from an ASCII-only project path. If the repo is under a Downloads folder with non-ASCII characters, mirror or move it to a path such as `C:\dev\massage-vn-workspace\repo` before running:
 
 ```powershell
 cd C:\dev\massage-vn-workspace\repo\apps\customer_app

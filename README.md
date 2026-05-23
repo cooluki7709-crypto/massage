@@ -31,9 +31,9 @@ cd C:\dev\massage-vn-workspace\repo
 ```
 
 ```powershell
-npm install
-npm run lint
-npm run typecheck
+npm.cmd install
+npm.cmd run lint
+npm.cmd run typecheck
 docker compose up -d
 ```
 
@@ -43,9 +43,9 @@ Seed and smoke test after Docker is running:
 
 ```powershell
 $env:DATABASE_URL='postgresql://massage:massage@localhost:5432/massage_vn?schema=public'
-npm run prisma:migrate --workspace @massage-vn/api
-npm run prisma:seed --workspace @massage-vn/api
-npm run dev --workspace @massage-vn/api
+npm.cmd run prisma:migrate --workspace @massage-vn/api
+npm.cmd run prisma:seed --workspace @massage-vn/api
+npm.cmd run dev --workspace @massage-vn/api
 node infra/scripts/api-smoke.mjs
 ```
 
@@ -77,7 +77,7 @@ powershell -ExecutionPolicy Bypass -File .\infra\scripts\check-dev-env.ps1
 Full local verification:
 
 ```powershell
-npm run verify:local
+npm.cmd run verify:local
 ```
 
 Mobile Firebase removal check:
