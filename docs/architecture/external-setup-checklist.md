@@ -29,7 +29,8 @@ The Flutter apps no longer use Firebase mobile SDKs. MVP notification behavior i
 Future OS-level push still needs a provider decision:
 
 - Recommended direction: OneSignal or another push provider with a backend adapter
-- Current backend adapter: `IN_APP_ONLY` in `apps/api/src/notifications/push-delivery.service.ts`
+- Current local mode: `IN_APP_ONLY` in `apps/api/src/notifications/push-delivery.service.ts`
+- Server-side OneSignal REST delivery adapter: implemented, but inactive until `PUSH_PROVIDER=onesignal` and credentials are configured
 - Mobile apps should not restore `google-services.json` unless the push strategy changes intentionally
 
 Planned provider value:
@@ -55,7 +56,7 @@ Verification:
 ```powershell
 cd C:\dev\massage-vn-workspace\repo
 node .\infra\scripts\check-mobile-firebase.mjs
-npm.cmd run external:check:strict
+npm.cmd run external:check:production
 ```
 
 ## 2. Low-Cost Maps And Address Search
@@ -143,7 +144,7 @@ Supabase Auth setup:
 4. Copy `Project URL`, `anon public`, and the JWT secret into the local `.env`.
 5. Keep `AUTH_BACKEND=nest` until OTP sending is verified, then test `AUTH_BACKEND=supabase` on customer and provider apps.
 6. Provider Supabase login must not rely on a client-selected role. A provider can exchange a Supabase session only if the phone number already belongs to an approved/local HANDS provider account or the admin provider-role sync has placed `PROVIDER` in Supabase user metadata.
-7. After setting `SUPABASE_JWT_SECRET`, run `npm.cmd run auth:supabase-smoke` against the API to verify customer mapping, provider mapping, invalid audience rejection, and role escalation rejection.
+7. After setting `SUPABASE_JWT_SECRET`, run `npm.cmd run auth:supabase-smoke` against the API to verify customer mapping, provider mapping, invalid audience rejection, and role escalation rejection. The full local verifier also runs this flow with a temporary dev JWT secret against its managed API.
 8. Keep `SUPABASE_SERVICE_ROLE_KEY` only in the API environment. It is needed for admin provider-role sync and must never be sent to Flutter, browser JavaScript, or Git.
 
 ## 4. Payments
@@ -292,19 +293,20 @@ npm.cmd run external:check:payments
 npm.cmd run external:check:storage
 ```
 
-Run strict mode only before production-like E2E testing, because it requires every recommended external integration at once:
+Run production mode only before production-like E2E testing, because it requires every recommended external integration at once:
 
 ```powershell
-npm.cmd run external:check:strict
+npm.cmd run external:check:production
 ```
 
 ## Current Local Status
 
-Last checked from `C:\dev\massage-vn-workspace\repo` on 2026-05-22:
+Last checked from `C:\dev\massage-vn-workspace\repo` on 2026-05-23:
 
 - Mobile Firebase dependencies/config: removed
-- Full local verification with Docker services: passing
-- OS-level push provider: not selected
+- Full local verification with Docker services: passing, including API smoke, realtime smoke, Supabase Auth exchange smoke, Flutter analyze, and Flutter tests
+- Docker host port binding guard: enabled in `infra/scripts/verify-local.ps1`
+- OS-level push provider: OneSignal server adapter is implemented, production account values still pending
 - Push provider mode: `PUSH_PROVIDER=in_app_only` locally
 - MapTiler API key: pending
 - Geoapify API key: pending
@@ -327,7 +329,7 @@ The next external setup items to complete are:
 - MapTiler API key
 - Geoapify API key
 - production push provider decision
-- OneSignal REST API key, only when OS push E2E starts
+- OneSignal app ID and REST API key, only when OS push E2E starts
 
 ## Recommended Fill Order
 
