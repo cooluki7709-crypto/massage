@@ -67,7 +67,7 @@ if (Test-Path $blackboxSource) {
 
 $summaryPath = Join-Path $Root "README_LOCAL.txt"
 $summary = @"
-Massage VN local workspace
+HANDS local workspace
 
 repo:
   $repoTarget
