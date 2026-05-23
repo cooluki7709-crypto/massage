@@ -107,6 +107,35 @@ function Test-LocalInfraReady {
   return $postgresReady -and $redisReady -and $minioReady
 }
 
+function Repair-LocalInfraPorts {
+  Write-Host "Running: docker compose host port repair"
+  try {
+    $downOutput = (& docker compose down 2>&1 | Out-String).Trim()
+    $upOutput = (& docker compose up -d 2>&1 | Out-String).Trim()
+
+    if ($LASTEXITCODE -ne 0) {
+      Add-Result "docker compose host ports" "FAIL" "Docker compose repair failed while recreating local infra.`n$downOutput`n$upOutput"
+      return $false
+    }
+
+    for ($i = 0; $i -lt 20; $i++) {
+      if (Test-LocalInfraReady) {
+        Add-Result "docker compose host ports" "PASS" "Recreated local infra because Docker Desktop started containers without reachable localhost ports."
+        return $true
+      }
+      Start-Sleep -Seconds 1
+    }
+
+    Add-Result "docker compose host ports" "FAIL" "Local infra containers were recreated, but Postgres, Redis, or MinIO still did not bind to localhost."
+    return $false
+  } catch {
+    Add-Result "docker compose host ports" "FAIL" $_.Exception.Message
+    return $false
+  } finally {
+    $global:LASTEXITCODE = 0
+  }
+}
+
 function Invoke-Check {
   param(
     [string]$Name,
@@ -277,6 +306,20 @@ if (Test-CommandExists "docker") {
     } finally {
       $global:LASTEXITCODE = 0
     }
+
+    if (Test-LocalInfraReady) {
+      Add-Result "docker compose host ports" "PASS" "Postgres, Redis, and MinIO are reachable on localhost."
+    } elseif (-not (Repair-LocalInfraPorts)) {
+      Add-Result "prisma migrate deploy" "FAIL" "Local infra host ports are not reachable, so database migration cannot run."
+      Add-Result "prisma seed" "FAIL" "Local infra host ports are not reachable, so seed cannot run."
+      Add-Result "api smoke against local services" "FAIL" "Local infra host ports are not reachable, so API smoke tests cannot run."
+      Write-Host ""
+      Write-Host "== Local Verification Summary =="
+      $results | Format-Table -AutoSize
+      Pop-Location
+      exit 1
+    }
+
     Invoke-Check "prisma migrate deploy" "`$env:DATABASE_URL='postgresql://massage:massage@localhost:5432/massage_vn?schema=public'; npx.cmd prisma migrate deploy --schema apps/api/prisma/schema.prisma"
     Invoke-Check "prisma seed" "`$env:DATABASE_URL='postgresql://massage:massage@localhost:5432/massage_vn?schema=public'; npm.cmd run prisma:seed --workspace @massage-vn/api"
 
