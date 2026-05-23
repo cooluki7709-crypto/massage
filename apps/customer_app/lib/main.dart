@@ -88,6 +88,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Map<String, dynamic>? activeBooking;
   double? customerLat;
   double? customerLng;
+  bool customerLocationIsDemo = false;
   bool loading = false;
   bool otpRequested = false;
   bool restoringSession = true;
@@ -202,6 +203,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         activeBooking = booking;
         customerLat = activeLat;
         customerLng = activeLng;
+        customerLocationIsDemo = location.isDemoLocation;
+        notice = location.isDemoLocation
+            ? 'Using demo Ho Chi Minh City location for discovery only. Confirm your exact service pin before booking.'
+            : null;
       });
     } catch (exception) {
       setState(() => error = '$exception');
@@ -257,6 +262,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   selectedService: service,
                   initialCustomerLat: customerLat,
                   initialCustomerLng: customerLng,
+                  initialCustomerLocationIsDemo: customerLocationIsDemo,
                   onConfirm: ({
                     required customerName,
                     required customerPhone,
@@ -1307,6 +1313,7 @@ class BookingConfirmationPage extends ConsumerStatefulWidget {
     required this.selectedService,
     this.initialCustomerLat,
     this.initialCustomerLng,
+    this.initialCustomerLocationIsDemo = false,
     required this.onConfirm,
   });
 
@@ -1314,6 +1321,7 @@ class BookingConfirmationPage extends ConsumerStatefulWidget {
   final Map<String, dynamic> selectedService;
   final double? initialCustomerLat;
   final double? initialCustomerLng;
+  final bool initialCustomerLocationIsDemo;
   final Future<Map<String, dynamic>> Function({
     required String customerName,
     required String customerPhone,
@@ -1338,9 +1346,11 @@ class _BookingConfirmationPageState
   int couponDiscountAmount = 0;
   String? appliedCouponCode;
   String? couponMessage;
+  String? locationMessage;
   bool applyingCoupon = false;
   bool submitting = false;
   bool loadingLocation = false;
+  bool locationConfirmed = false;
   String? error;
 
   @override
@@ -1348,6 +1358,13 @@ class _BookingConfirmationPageState
     super.initState();
     customerLat = widget.initialCustomerLat;
     customerLng = widget.initialCustomerLng;
+    locationConfirmed = customerLat != null &&
+        customerLng != null &&
+        !widget.initialCustomerLocationIsDemo;
+    if (widget.initialCustomerLocationIsDemo) {
+      locationMessage =
+          'Nearby providers used a demo city pin. Choose the exact service location before booking.';
+    }
     if (customerLat == null || customerLng == null) {
       unawaited(loadCustomerLocation());
     }
@@ -1372,6 +1389,10 @@ class _BookingConfirmationPageState
       setState(() {
         customerLat = location.latitude;
         customerLng = location.longitude;
+        locationConfirmed = !location.isDemoLocation;
+        locationMessage = location.isDemoLocation
+            ? 'GPS is unavailable or outside Vietnam. Choose the service pin on the map before booking.'
+            : 'GPS loaded. You can still adjust the service pin on the map.';
       });
     } catch (_) {
       if (!mounted) {
@@ -1380,6 +1401,9 @@ class _BookingConfirmationPageState
       setState(() {
         customerLat = demoCustomerLat;
         customerLng = demoCustomerLng;
+        locationConfirmed = false;
+        locationMessage =
+            'Could not read GPS. Search the address or choose the service pin manually.';
       });
     } finally {
       if (mounted) {
@@ -1407,18 +1431,30 @@ class _BookingConfirmationPageState
       customerLat = selected.latitude;
       customerLng = selected.longitude;
       addressController.text = selected.addressText;
+      locationConfirmed = true;
+      locationMessage = 'Service location confirmed.';
+      error = null;
     });
   }
 
   Future<void> confirmBooking() async {
+    final lat = customerLat;
+    final lng = customerLng;
+    if (!locationConfirmed || lat == null || lng == null) {
+      setState(() {
+        error =
+            'Please confirm the service location on the map before booking.';
+      });
+      return;
+    }
     setState(() {
       submitting = true;
       error = null;
     });
     try {
       await ref.read(customerRepositoryProvider).saveSelectedLocation(
-            lat: customerLat ?? demoCustomerLat,
-            lng: customerLng ?? demoCustomerLng,
+            lat: lat,
+            lng: lng,
             addressText: addressController.text.trim(),
           );
       final booking = await ref.read(customerRepositoryProvider).createBooking(
@@ -1428,8 +1464,8 @@ class _BookingConfirmationPageState
             customerName: nameController.text.trim(),
             customerPhone: phoneController.text.trim(),
             addressLine: addressController.text.trim(),
-            lat: customerLat ?? demoCustomerLat,
-            lng: customerLng ?? demoCustomerLng,
+            lat: lat,
+            lng: lng,
           );
       if (mounted) {
         Navigator.of(context).pop(booking);
@@ -1606,6 +1642,10 @@ class _BookingConfirmationPageState
                         .bodyMedium
                         ?.copyWith(color: Colors.black54),
                   ),
+                  if (locationMessage != null) ...[
+                    const SizedBox(height: 8),
+                    InfoBanner(text: locationMessage!),
+                  ],
                   if (loadingLocation) ...[
                     const SizedBox(height: 6),
                     const LinearProgressIndicator(minHeight: 4),
@@ -1843,7 +1883,9 @@ class _BookingConfirmationPageState
           child: Text(
             submitting
                 ? 'Creating booking...'
-                : 'Book now - ${formatCurrency(totalAmount)} VND',
+                : !locationConfirmed
+                    ? 'Confirm location before booking'
+                    : 'Book now - ${formatCurrency(totalAmount)} VND',
           ),
         ),
       ),
@@ -3580,6 +3622,7 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
   List<dynamic> providers = [];
   double? customerLat;
   double? customerLng;
+  bool customerLocationIsDemo = false;
   bool loading = false;
   String? error;
   String? notice;
@@ -3613,6 +3656,7 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
         providers = items;
         customerLat = location.latitude;
         customerLng = location.longitude;
+        customerLocationIsDemo = location.isDemoLocation;
         notice = location.isDemoLocation
             ? 'Using demo Ho Chi Minh City location for nearby provider discovery.'
             : null;
@@ -3677,6 +3721,7 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
                   selectedService: service,
                   initialCustomerLat: customerLat,
                   initialCustomerLng: customerLng,
+                  initialCustomerLocationIsDemo: customerLocationIsDemo,
                   onConfirm: ({
                     required customerName,
                     required customerPhone,

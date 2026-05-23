@@ -12,6 +12,7 @@ Customer app:
 - Debounces Geoapify calls by 500 ms and caches repeated queries in memory.
 - Saves `latitude`, `longitude`, and `address_text` before booking.
 - Loads nearby providers from the HANDS API using the selected/customer coordinate.
+- Demo Ho Chi Minh City coordinates can be used for local provider discovery, but booking confirmation requires explicit map/address confirmation before saving a booking location.
 
 Provider app:
 - Requests GPS when the provider logs in and goes online.
