@@ -172,6 +172,20 @@ addRecommended(
 );
 
 addRecommended(
+  'mobile-release',
+  'Android customer/provider upload keystores',
+  allHaveValue(['ANDROID_CUSTOMER_UPLOAD_KEYSTORE', 'ANDROID_PROVIDER_UPLOAD_KEYSTORE']),
+  'Create separate Android upload keystores, store them outside Git, and set local keystore paths before Play release.',
+);
+addPhaseRequired(
+  'mobile-release',
+  'Android customer/provider upload keystores',
+  allHaveValue(['ANDROID_CUSTOMER_UPLOAD_KEYSTORE', 'ANDROID_PROVIDER_UPLOAD_KEYSTORE']),
+  'Fill ANDROID_CUSTOMER_UPLOAD_KEYSTORE and ANDROID_PROVIDER_UPLOAD_KEYSTORE before production Android release.',
+  ['production'],
+);
+
+addRecommended(
   'payments',
   'MoMo credentials',
   allHaveValue(['MOMO_PARTNER_CODE', 'MOMO_ACCESS_KEY', 'MOMO_SECRET_KEY']),

@@ -41,6 +41,7 @@ export class HealthService {
   externalReadiness() {
     const checks = [
       this.mobileFirebaseRemovalReadiness(),
+      this.mobileReleaseReadiness(),
       this.externalGroup('Supabase Auth', 'supabase', [
         { key: 'AUTH_BACKEND', expected: 'supabase' },
         { key: 'SUPABASE_URL', validator: 'https-url' },
@@ -184,7 +185,7 @@ export class HealthService {
     return {
       name: 'OS push provider',
       category: 'push',
-      status: missing.length === 0 ? 'PASS' : 'BLOCKED',
+      status: missing.length === 0 ? 'READY' : 'BLOCKED',
       missing,
       configured,
       invalid: [],
@@ -192,6 +193,55 @@ export class HealthService {
         missing.length === 0
           ? 'OneSignal credentials are configured and backend HTTP delivery is enabled.'
           : 'OneSignal push is selected, but server-side credentials are missing.',
+    };
+  }
+
+  private mobileReleaseReadiness() {
+    const repoRoot = this.findRepoRoot();
+    const customerKeyPropertiesPath = join(repoRoot, 'apps/customer_app/android/key.properties');
+    const providerKeyPropertiesPath = join(repoRoot, 'apps/provider_app/android/key.properties');
+    const customerExamplePath = join(repoRoot, 'apps/customer_app/android/key.properties.example');
+    const providerExamplePath = join(repoRoot, 'apps/provider_app/android/key.properties.example');
+    const customerUploadKeystore = this.config.get<string>('ANDROID_CUSTOMER_UPLOAD_KEYSTORE')?.trim();
+    const providerUploadKeystore = this.config.get<string>('ANDROID_PROVIDER_UPLOAD_KEYSTORE')?.trim();
+
+    const configured = [
+      existsSync(customerExamplePath) ? 'customer_key_properties_example' : null,
+      existsSync(providerExamplePath) ? 'provider_key_properties_example' : null,
+      existsSync(customerKeyPropertiesPath) || customerUploadKeystore
+        ? 'ANDROID_CUSTOMER_UPLOAD_KEYSTORE'
+        : null,
+      existsSync(providerKeyPropertiesPath) || providerUploadKeystore
+        ? 'ANDROID_PROVIDER_UPLOAD_KEYSTORE'
+        : null,
+    ].filter((value): value is string => Boolean(value));
+    const missing = [
+      existsSync(customerExamplePath) ? null : 'apps/customer_app/android/key.properties.example',
+      existsSync(providerExamplePath) ? null : 'apps/provider_app/android/key.properties.example',
+      existsSync(customerKeyPropertiesPath) || customerUploadKeystore
+        ? null
+        : 'ANDROID_CUSTOMER_UPLOAD_KEYSTORE',
+      existsSync(providerKeyPropertiesPath) || providerUploadKeystore
+        ? null
+        : 'ANDROID_PROVIDER_UPLOAD_KEYSTORE',
+    ].filter((value): value is string => Boolean(value));
+    const localSigningPrepared = existsSync(customerExamplePath) && existsSync(providerExamplePath);
+    const releaseSecretsConfigured =
+      (existsSync(customerKeyPropertiesPath) || Boolean(customerUploadKeystore)) &&
+      (existsSync(providerKeyPropertiesPath) || Boolean(providerUploadKeystore));
+
+    return {
+      name: 'Android release signing',
+      category: 'mobile-release',
+      status: releaseSecretsConfigured ? 'READY' : localSigningPrepared ? 'PARTIAL' : 'BLOCKED',
+      configured,
+      missing,
+      invalid: [],
+      detail: releaseSecretsConfigured
+        ? 'Customer and provider Android release signing values are configured locally.'
+        : localSigningPrepared
+          ? 'Signing examples are committed; create local key.properties files and store keystores outside Git before Play release.'
+          : 'Add Android signing examples and local release signing setup before production distribution.',
     };
   }
 

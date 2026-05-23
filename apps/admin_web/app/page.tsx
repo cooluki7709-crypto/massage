@@ -298,6 +298,9 @@ function externalSetupHref(category: string) {
   if (category === 'maps') {
     return '/setup#maps';
   }
+  if (category === 'mobile-release') {
+    return '/setup#mobile-release';
+  }
 
   return '/setup';
 }

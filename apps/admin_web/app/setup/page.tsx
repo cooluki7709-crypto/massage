@@ -17,6 +17,30 @@ const setupOrder = [
     commands: ['node infra\\scripts\\check-mobile-firebase.mjs', 'npm.cmd run verify:local'],
   },
   {
+    id: 'mobile-release',
+    title: 'Android release signing',
+    phase: 'Store release preparation',
+    operatorAction:
+      'Create separate customer/provider upload keystores, store them outside Git, and fill local key.properties files.',
+    exitCriteria: 'Customer and provider release APK builds succeed with local upload signing enabled.',
+    purpose: 'Required before Play Console upload and any Android provider that requires SHA fingerprints.',
+    env: ['ANDROID_CUSTOMER_UPLOAD_KEYSTORE', 'ANDROID_PROVIDER_UPLOAD_KEYSTORE'],
+    notes: [
+      'Local MVP release builds fall back to debug signing when android/key.properties is missing.',
+      'Copy apps/customer_app/android/key.properties.example to apps/customer_app/android/key.properties.',
+      'Copy apps/provider_app/android/key.properties.example to apps/provider_app/android/key.properties.',
+      'Keep .jks/.keystore files under C:\\dev\\massage-vn-workspace\\secrets or another private folder.',
+      'Never commit key.properties, keystore files, passwords, or Play Console credentials.',
+    ],
+    commands: [
+      'Copy-Item .\\apps\\customer_app\\android\\key.properties.example .\\apps\\customer_app\\android\\key.properties',
+      'Copy-Item .\\apps\\provider_app\\android\\key.properties.example .\\apps\\provider_app\\android\\key.properties',
+      'cd apps\\customer_app; flutter build apk --release; cd ..\\..',
+      'cd apps\\provider_app; flutter build apk --release; cd ..\\..',
+      'npm.cmd run external:check:production',
+    ],
+  },
+  {
     id: 'supabase',
     title: 'Supabase Auth and database',
     phase: 'Staging foundation',
@@ -472,6 +496,9 @@ function setupGroupMatches(groupId: string, category: string) {
   }
   if (groupId === 'mobile') {
     return category === 'mobile';
+  }
+  if (groupId === 'mobile-release') {
+    return category === 'mobile-release';
   }
   if (groupId === 'notifications') {
     return category === 'sms' || category === 'push';
