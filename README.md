@@ -110,13 +110,28 @@ This creates:
 HANDS local API/Admin startup on non-conflicting ports:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\infra\scripts\start-hands-local.ps1
+npm.cmd run local:start
+npm.cmd run local:status
+npm.cmd run local:stop
 ```
 
 Default local URLs:
 
 - API: `http://localhost:3100/api/health`
 - Admin: `http://localhost:3101`
+
+External operator setup:
+
+```powershell
+npm.cmd run setup:doctor
+npm.cmd run external:pack:write
+```
+
+Use this operator order when registering Supabase, MapTiler, Geoapify, MoMo, VNPay, OneSignal/SMS, storage, and Android release values:
+
+- `docs/architecture/operator-registration-plan.md`
+- `infra/setup/.generated/hands-external-registration-pack.md`
+- `infra/supabase/.generated/hands-staging-setup.sql`
 
 Android Emulator run:
 
@@ -189,6 +204,7 @@ Nginx routing and environment validation notes are documented in:
 - `docs/architecture/backup-restore.md`
 - `docs/architecture/observability.md`
 - `docs/architecture/external-setup-checklist.md`
+- `docs/architecture/operator-registration-plan.md`
 
 Production-style compose:
 
