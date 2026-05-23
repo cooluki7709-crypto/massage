@@ -2,6 +2,7 @@
 
 Operational scripts:
 
+- `start-hands-local.ps1`, `stop-hands-local.ps1`, and `status-hands-local.ps1` manage the local HANDS API/Admin dev servers on ports 3100 and 3101. The stop script also removes lingering HANDS Node listeners that can keep ports occupied after a parent shell exits.
 - `api-smoke.mjs` runs the end-to-end MVP API flow against a running API.
 - `check-env.mjs` validates required and recommended environment variables.
 - `external-registration-pack.mjs` prints or writes the external account/key registration pack for HANDS.
@@ -15,3 +16,9 @@ Operational scripts:
 - `collect-logs.ps1` and `collect-logs.sh` collect Docker Compose service logs under `logs/`.
 
 The deploy scripts validate env, start `docker-compose.prod.yml`, run Prisma migrations, optionally seed demo data, and optionally run the smoke script.
+
+External registration order is documented here:
+
+```text
+C:\dev\massage-vn-workspace\repo\docs\architecture\operator-registration-plan.md
+```

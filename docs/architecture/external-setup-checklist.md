@@ -2,6 +2,12 @@
 
 This checklist records the external accounts, keys, and console setup needed before HANDS moves from local MVP testing to real Vietnam-wide operation.
 
+For the recommended operator order, use:
+
+```text
+C:\dev\massage-vn-workspace\repo\docs\architecture\operator-registration-plan.md
+```
+
 Keep secrets outside Git. The recommended local secret folder is:
 
 ```powershell
