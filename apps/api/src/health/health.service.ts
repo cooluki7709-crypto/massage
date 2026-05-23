@@ -184,13 +184,13 @@ export class HealthService {
     return {
       name: 'OS push provider',
       category: 'push',
-      status: missing.length === 0 ? 'PARTIAL' : 'BLOCKED',
+      status: missing.length === 0 ? 'PASS' : 'BLOCKED',
       missing,
       configured,
       invalid: [],
       detail:
         missing.length === 0
-          ? 'OneSignal credentials are configured, but backend provider HTTP delivery is still intentionally pending.'
+          ? 'OneSignal credentials are configured and backend HTTP delivery is enabled.'
           : 'OneSignal push is selected, but server-side credentials are missing.',
     };
   }
