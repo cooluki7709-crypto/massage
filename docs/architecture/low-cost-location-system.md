@@ -19,6 +19,7 @@ Provider app:
 - Sends another update every 10 minutes while the app is open.
 - Does not run background tracking when the app is closed.
 - Keeps the last stored provider location available to customers.
+- If GPS is denied, reuses the last valid stored provider location only; it does not overwrite the server with a fake/demo coordinate.
 
 Backend:
 - Stores `ProviderProfile.currentLat`, `currentLng`, and `currentLocationUpdatedAt`.

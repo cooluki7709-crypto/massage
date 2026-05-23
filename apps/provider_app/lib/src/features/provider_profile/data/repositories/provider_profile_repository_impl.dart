@@ -3,9 +3,6 @@ import '../../../../core/realtime_socket.dart';
 import '../../../map/data/datasources/provider_device_location_datasource.dart';
 import '../../domain/repositories/provider_profile_repository.dart';
 
-const double demoProviderLat = 10.7769;
-const double demoProviderLng = 106.7009;
-
 class ProviderProfileRepositoryImpl implements ProviderProfileRepository {
   const ProviderProfileRepositoryImpl({
     required ApiClient api,
@@ -37,8 +34,12 @@ class ProviderProfileRepositoryImpl implements ProviderProfileRepository {
       lat: position?.latitude,
       lng: position?.longitude,
     );
-    final lat = resolved['lat']!;
-    final lng = resolved['lng']!;
+    final lat = resolved['lat'];
+    final lng = resolved['lng'];
+    if (lat == null || lng == null) {
+      throw StateError(
+          'Location permission is required before sharing provider location.');
+    }
     await _api.postJson('/provider/location', {'lat': lat, 'lng': lng});
     _socket.updateLocation(lat: lat, lng: lng, bookingId: bookingId);
     return {'lat': lat, 'lng': lng};
@@ -50,7 +51,7 @@ class ProviderProfileRepositoryImpl implements ProviderProfileRepository {
     return result is Map<String, dynamic> ? result : <String, dynamic>{};
   }
 
-  Future<Map<String, double>> _resolveProviderLocation({
+  Future<Map<String, double?>> _resolveProviderLocation({
     double? lat,
     double? lng,
   }) async {
@@ -68,7 +69,7 @@ class ProviderProfileRepositoryImpl implements ProviderProfileRepository {
       return {'lat': profileLat, 'lng': profileLng};
     }
 
-    return {'lat': demoProviderLat, 'lng': demoProviderLng};
+    return {'lat': null, 'lng': null};
   }
 }
 
