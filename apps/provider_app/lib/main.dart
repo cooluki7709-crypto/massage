@@ -163,7 +163,9 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       if (session != null) {
         attachRealtimeListeners();
         await goOnline();
-        await ref.read(providerLocationHeartbeatProvider).start();
+        await ref
+            .read(providerLocationHeartbeatProvider)
+            .start(runImmediately: false);
         await loadOpenBookings(showLoading: false);
       }
     } catch (exception) {
@@ -189,7 +191,9 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
           await ref.read(registerCurrentDevicePushTokenProvider).call();
       attachRealtimeListeners();
       await goOnline();
-      await ref.read(providerLocationHeartbeatProvider).start();
+      await ref
+          .read(providerLocationHeartbeatProvider)
+          .start(runImmediately: false);
       await loadOpenBookings();
       if (mounted) {
         setState(() => statusMessage = pushResult.message);
@@ -243,7 +247,9 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
           await ref.read(registerCurrentDevicePushTokenProvider).call();
       attachRealtimeListeners();
       await goOnline();
-      await ref.read(providerLocationHeartbeatProvider).start();
+      await ref
+          .read(providerLocationHeartbeatProvider)
+          .start(runImmediately: false);
       await loadOpenBookings();
       if (mounted) {
         setState(() => statusMessage = pushResult.message);
@@ -415,7 +421,9 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                     });
                     try {
                       await goOnline();
-                      await ref.read(providerLocationHeartbeatProvider).start();
+                      await ref
+                          .read(providerLocationHeartbeatProvider)
+                          .start(runImmediately: false);
                       await loadOpenBookings();
                     } catch (exception) {
                       setState(() => error = '$exception');
