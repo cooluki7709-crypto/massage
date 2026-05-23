@@ -163,12 +163,16 @@ function Invoke-Check {
 function Invoke-SmokeWithApi {
   param(
     [string]$ApiBaseUrl = "http://localhost:3000/api",
-    [string]$SocketBaseUrl = "http://localhost:3000"
+    [string]$SocketBaseUrl = "http://localhost:3000",
+    [switch]$IncludeSupabaseAuthSmoke
   )
 
   Invoke-Check "api readiness against local services" "Invoke-RestMethod $ApiBaseUrl/health/ready | ConvertTo-Json -Depth 5"
   Invoke-Check "api smoke against local services" "`$env:API_BASE_URL='$ApiBaseUrl'; `$env:SOCKET_BASE_URL='$SocketBaseUrl'; node infra\scripts\api-smoke.mjs"
   Invoke-Check "realtime smoke against local services" "`$env:API_BASE_URL='$ApiBaseUrl'; `$env:SOCKET_BASE_URL='$SocketBaseUrl'; node infra\scripts\realtime-smoke.mjs"
+  if ($IncludeSupabaseAuthSmoke) {
+    Invoke-Check "supabase auth smoke against local services" "`$env:API_BASE_URL='$ApiBaseUrl'; `$env:SUPABASE_JWT_SECRET='dev-supabase-jwt-secret-for-local-smoke'; node infra\scripts\supabase-auth-smoke.mjs"
+  }
 }
 
 function Invoke-SmokeWithManagedApi {
@@ -185,6 +189,8 @@ function Invoke-SmokeWithManagedApi {
     $env:API_PORT = "$using:managedApiPort"
     $env:JWT_ACCESS_SECRET = "dev-access-secret"
     $env:JWT_REFRESH_SECRET = "dev-refresh-secret"
+    $env:SUPABASE_JWT_SECRET = "dev-supabase-jwt-secret-for-local-smoke"
+    $env:SUPABASE_JWT_AUDIENCE = "authenticated"
     $env:DEV_OTP = "123456"
     $env:S3_ENDPOINT = "http://localhost:9000"
     $env:S3_REGION = "auto"
@@ -213,7 +219,7 @@ function Invoke-SmokeWithManagedApi {
     }
 
     Add-Result "api runtime source" "PASS" "Started managed HANDS API on $managedApiBaseUrl"
-    Invoke-SmokeWithApi -ApiBaseUrl $managedApiBaseUrl -SocketBaseUrl $managedSocketBaseUrl
+    Invoke-SmokeWithApi -ApiBaseUrl $managedApiBaseUrl -SocketBaseUrl $managedSocketBaseUrl -IncludeSupabaseAuthSmoke
   } finally {
     Stop-Job $job -ErrorAction SilentlyContinue
     Remove-Job $job -Force -ErrorAction SilentlyContinue
