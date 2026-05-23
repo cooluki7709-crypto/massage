@@ -12,7 +12,7 @@ class ProviderLocationHeartbeat {
       await _updateLocation();
     }
     _timer = Timer.periodic(const Duration(minutes: 10), (_) {
-      unawaited(_updateLocation());
+      unawaited(_updateLocation().catchError((_) {}));
     });
   }
 
