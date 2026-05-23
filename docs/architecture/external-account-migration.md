@@ -12,16 +12,23 @@ Use this file when moving from the current personal/dev accounts to the final HA
 
 ## Migration Rule
 
+Clean-account policy:
+
+- Prefer creating new HANDS-owned accounts under `administration@hands.vn`.
+- Do not migrate old personal API keys, service role keys, tokens, or merchant secrets.
+- Use old accounts only as temporary references until the new account passes verification.
+- Revoke old personal/dev keys only after the new values pass E2E.
+
 For every external service:
 
-1. Create or transfer the account under `administration@hands.vn`.
+1. Create a new account, organization, project, or app under `administration@hands.vn`.
 2. Enable two-factor authentication.
 3. Store recovery codes and secrets outside Git under `C:\dev\massage-vn-workspace\secrets`.
 4. Create new API keys from the new account.
 5. Put only env variable names and non-secret identifiers in Git.
 6. Update local `.env` with real values.
 7. Run the matching verification command.
-8. Revoke old personal/dev account keys only after the new values pass E2E.
+8. After verification, remove old personal/dev credentials from local machines and provider consoles.
 
 ## Account Transfer Order
 
@@ -43,16 +50,21 @@ Planned DNS records later:
 
 ### 2. GitHub
 
+Current plan:
+
+- Account type: GitHub Organization
+- Organization owner/name: `hands-platform`
+- Organization should be created and controlled by `administration@hands.vn`
+
 Need from operator:
 
-- New GitHub username or organization controlled by `administration@hands.vn`.
-- Target repository URL.
+- Target repository name and URL after the organization/repository is created.
 
 Current dev remote can stay until the new repository exists. After migration:
 
 ```powershell
 cd C:\dev\massage-vn-workspace\repo
-git remote set-url origin https://github.com/<new-owner>/<new-repo>.git
+git remote set-url origin https://github.com/hands-platform/<new-repo>.git
 git push -u origin develop
 ```
 
