@@ -171,8 +171,16 @@ const registrationItems = [
     env: [
       envItem('ANDROID_CUSTOMER_APPLICATION_ID', 'com.massagevn.customer.customer_app', true),
       envItem('ANDROID_PROVIDER_APPLICATION_ID', 'com.massagevn.provider.provider_app', true),
-      envItem('ANDROID_CUSTOMER_UPLOAD_KEYSTORE', '<local-secret-keystore-path>', false),
-      envItem('ANDROID_PROVIDER_UPLOAD_KEYSTORE', '<local-secret-keystore-path>', false),
+      envItem(
+        'ANDROID_CUSTOMER_UPLOAD_KEYSTORE',
+        '<local-secret-keystore-path>',
+        hasValue(env.ANDROID_CUSTOMER_UPLOAD_KEYSTORE),
+      ),
+      envItem(
+        'ANDROID_PROVIDER_UPLOAD_KEYSTORE',
+        '<local-secret-keystore-path>',
+        hasValue(env.ANDROID_PROVIDER_UPLOAD_KEYSTORE),
+      ),
     ],
     setup: [
       'Create separate upload keys for the HANDS customer and provider apps.',

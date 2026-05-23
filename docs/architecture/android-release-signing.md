@@ -1,0 +1,84 @@
+# HANDS Android Release Signing
+
+This runbook prepares Android upload signing for the HANDS customer and provider apps.
+
+Do not commit keystores, passwords, `key.properties`, Play Console credentials, or screenshot-visible secrets.
+
+## App IDs
+
+- Customer: `com.massagevn.customer.customer_app`
+- Provider: `com.massagevn.provider.provider_app`
+
+## Recommended Local Flow
+
+Run from the repository root:
+
+```powershell
+cd C:\dev\massage-vn-workspace\repo
+npm.cmd run android:signing:create
+```
+
+The helper creates two upload keystores under the local secrets folder:
+
+```text
+C:\dev\massage-vn-workspace\secrets\android-signing\hands-customer-upload.jks
+C:\dev\massage-vn-workspace\secrets\android-signing\hands-provider-upload.jks
+```
+
+It also writes ignored app-local Gradle signing files:
+
+```text
+C:\dev\massage-vn-workspace\repo\apps\customer_app\android\key.properties
+C:\dev\massage-vn-workspace\repo\apps\provider_app\android\key.properties
+```
+
+The Play Console and Android API restriction handoff file is:
+
+```text
+C:\dev\massage-vn-workspace\secrets\android-signing\android-signing-summary.txt
+```
+
+This file includes the SHA-1 and SHA-256 fingerprints for both apps.
+
+## Build Verification
+
+```powershell
+cd C:\dev\massage-vn-workspace\repo\apps\customer_app
+flutter build apk --release
+
+cd C:\dev\massage-vn-workspace\repo\apps\provider_app
+flutter build apk --release
+```
+
+The Gradle files automatically use `android/key.properties` when it exists. If it is missing, local MVP release builds fall back to debug signing so emulator testing is not blocked.
+
+## Environment Values
+
+For production-like readiness checks, fill these in your local `.env` or deployment environment:
+
+```dotenv
+ANDROID_CUSTOMER_UPLOAD_KEYSTORE=C:\dev\massage-vn-workspace\secrets\android-signing\hands-customer-upload.jks
+ANDROID_PROVIDER_UPLOAD_KEYSTORE=C:\dev\massage-vn-workspace\secrets\android-signing\hands-provider-upload.jks
+```
+
+Then verify:
+
+```powershell
+cd C:\dev\massage-vn-workspace\repo
+npm.cmd run external:check:production
+```
+
+## Play Console Notes
+
+Create the customer and provider apps separately in Play Console because they use different package names.
+
+For each app:
+
+- Use the matching package name.
+- Keep the matching upload key backed up outside Git.
+- Store the SHA-1 and SHA-256 fingerprints from `android-signing-summary.txt`.
+- If a third-party provider asks for Android app restrictions, use the matching package name and SHA fingerprint for that app.
+
+## Recovery Rule
+
+If an upload key is lost before Play Console is configured, generate a fresh key and replace the local `key.properties`. If the key is already registered in Play Console, follow Google's upload key reset process instead of replacing it locally without coordination.

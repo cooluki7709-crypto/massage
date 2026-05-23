@@ -260,6 +260,12 @@ Before launch:
 
 ## 8. Android Store Signing
 
+Detailed runbook:
+
+```text
+C:\dev\massage-vn-workspace\repo\docs\architecture\android-release-signing.md
+```
+
 Current local app IDs:
 
 - Customer app: `com.massagevn.customer.customer_app`
