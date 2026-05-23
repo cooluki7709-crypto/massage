@@ -250,6 +250,18 @@ export default async function SetupPage() {
               </a>
             ))}
           </div>
+          <div className="setup-command-block" style={{ marginTop: 16 }}>
+            <h3>Operator handoff files</h3>
+            <p className="muted">
+              Use these files when filling external console values. They stay in the repo path under
+              <code>C:\dev\massage-vn-workspace\repo</code>.
+            </p>
+            <div className="setup-command-list">
+              <code>docs\architecture\operator-registration-plan.md</code>
+              <code>infra\setup\.generated\hands-external-registration-pack.md</code>
+              <code>infra\supabase\.generated\hands-staging-setup.sql</code>
+            </div>
+          </div>
         </div>
       </section>
 
