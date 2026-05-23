@@ -253,6 +253,7 @@ Invoke-Check "script syntax: flutter architecture check" "node --check infra\scr
 Invoke-Check "script syntax: supabase schema check" "node --check infra\scripts\check-supabase-schema.mjs"
 Invoke-Check "script syntax: supabase sql pack" "node --check infra\scripts\prepare-supabase-sql-pack.mjs"
 Invoke-Check "script syntax: seed" "node --check apps\api\prisma\seed.js"
+Invoke-Check "script syntax: android signing helper" "powershell -NoProfile -Command `"[void][scriptblock]::Create([System.IO.File]::ReadAllText((Resolve-Path '.\infra\scripts\create-android-upload-keystores.ps1')))`""
 Invoke-Check "env example" "node infra\scripts\check-env.mjs .env.example"
 Invoke-Check "external setup advisory" "node infra\scripts\check-external-setup.mjs"
 Invoke-Check "external registration pack" "node infra\scripts\external-registration-pack.mjs --format=json"
