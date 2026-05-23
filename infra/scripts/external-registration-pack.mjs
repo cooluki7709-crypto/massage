@@ -177,12 +177,14 @@ const registrationItems = [
     setup: [
       'Create separate upload keys for the HANDS customer and provider apps.',
       'Store keystores outside Git, preferably under C:\\dev\\massage-vn-workspace\\secrets.',
+      'Copy apps/customer_app/android/key.properties.example to apps/customer_app/android/key.properties and fill local secret values.',
+      'Copy apps/provider_app/android/key.properties.example to apps/provider_app/android/key.properties and fill local secret values.',
+      'Release builds automatically use android/key.properties when it exists and fall back to debug signing for local MVP builds.',
       'Record SHA-1 and SHA-256 fingerprints for any provider that requires Android app restrictions.',
-      'Add local key.properties files only after production signing credentials exist.',
     ],
     verify: [
-      'flutter build apk --release from apps/customer_app after release signing is configured',
-      'flutter build apk --release from apps/provider_app after release signing is configured',
+      'cd apps/customer_app && flutter build apk --release',
+      'cd apps/provider_app && flutter build apk --release',
     ],
   },
 ];
