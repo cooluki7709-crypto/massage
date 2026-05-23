@@ -258,6 +258,22 @@ Before launch:
 - define owner / operator / finance permissions
 - enable audit log review for payout, refund, provider approval, and coupon changes
 
+## 8. Android Store Signing
+
+Current local app IDs:
+
+- Customer app: `com.massagevn.customer.customer_app`
+- Provider app: `com.massagevn.provider.provider_app`
+
+Local MVP builds intentionally use the debug signing key so emulator/device testing stays simple. Before Play Store or production distribution:
+
+- create separate upload keys for customer and provider apps
+- store keystores outside Git, preferably under `C:\dev\massage-vn-workspace\secrets`
+- add `key.properties` files locally only
+- configure release signing in each Flutter Android app
+- record SHA-1/SHA-256 fingerprints for any provider that requires Android app restrictions
+- never commit keystores, passwords, or Play Console credentials
+
 ## One-Time Full Check
 
 Generate the external registration pack first. It lists all accounts, console paths, Android package names, env values, and verification commands in one place:
