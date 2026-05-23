@@ -27,11 +27,11 @@ For every external service:
 
 ### 1. Domain, DNS, And Email
 
-Need from operator:
+Current status:
 
-- Confirm `hands.vn` registrar account access under `administration@hands.vn`.
-- Confirm email inbox works for `administration@hands.vn`.
-- Confirm whether DNS is managed by the registrar, Cloudflare, or another DNS provider.
+- Registrar: PA Vietnam, `https://www.pavietnam.vn`
+- DNS provider: PA Vietnam direct DNS management
+- Operator inbox: `administration@hands.vn` is active and can receive email
 
 Planned DNS records later:
 
@@ -156,4 +156,3 @@ Need from operator:
 ## Current Prompt Sequence
 
 I will request values one service at a time. Start with domain/email/DNS, then GitHub, then Supabase, then maps/geocoding, then storage, push, payments, and SMS.
-
