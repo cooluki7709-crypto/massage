@@ -10,6 +10,11 @@ const env = { ...fileEnv, ...process.env };
 const required = [
   'NODE_ENV',
   'API_PORT',
+  'APP_DOMAIN',
+  'PUBLIC_WEB_URL',
+  'API_PUBLIC_URL',
+  'ADMIN_PUBLIC_URL',
+  'ADMIN_EMAIL',
   'DATABASE_URL',
   'REDIS_URL',
   'JWT_ACCESS_SECRET',
@@ -18,6 +23,7 @@ const required = [
 ];
 
 const recommended = [
+  'SUPPORT_EMAIL',
   'STORAGE_PROVIDER',
   'S3_ENDPOINT',
   'S3_REGION',

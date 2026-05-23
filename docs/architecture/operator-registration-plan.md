@@ -8,6 +8,20 @@ Recommended secret folder:
 C:\dev\massage-vn-workspace\secrets
 ```
 
+Business identity:
+
+- Domain: `hands.vn`
+- Admin/operator email: `administration@hands.vn`
+- Public web URL: `https://hands.vn`
+- API URL: `https://api.hands.vn`
+- Admin URL: `https://admin.hands.vn`
+
+External account migration details:
+
+```text
+C:\dev\massage-vn-workspace\repo\docs\architecture\external-account-migration.md
+```
+
 Primary fill-in template:
 
 ```text
@@ -37,6 +51,39 @@ C:\dev\massage-vn-workspace\repo\infra\setup\.generated\hands-external-registrat
 - External production-like registrations: pending
 
 ## Registration Order
+
+### 0. Domain And Account Ownership
+
+Purpose:
+
+- Make every external service owned by the HANDS business account, not a personal/dev account.
+
+Use:
+
+- `hands.vn`
+- `administration@hands.vn`
+
+Register or transfer:
+
+- GitHub owner/repository
+- Supabase
+- MapTiler
+- Geoapify
+- OneSignal
+- Storage/CDN
+- MoMo/VNPay merchant accounts
+- SMS provider if separate from Supabase Phone Auth
+
+Set:
+
+```dotenv
+APP_DOMAIN=hands.vn
+PUBLIC_WEB_URL=https://hands.vn
+API_PUBLIC_URL=https://api.hands.vn
+ADMIN_PUBLIC_URL=https://admin.hands.vn
+ADMIN_EMAIL=administration@hands.vn
+SUPPORT_EMAIL=administration@hands.vn
+```
 
 ### 1. Supabase Staging
 
@@ -251,4 +298,3 @@ cd C:\dev\massage-vn-workspace\repo
 npm.cmd run external:check:production
 npm.cmd run verify:local -- -WithServices
 ```
-

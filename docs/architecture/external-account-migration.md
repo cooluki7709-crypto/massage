@@ -1,0 +1,159 @@
+# HANDS External Account Migration
+
+All external services should be owned by the HANDS business identity:
+
+- Domain: `hands.vn`
+- Operator/admin email: `administration@hands.vn`
+- Public web URL: `https://hands.vn`
+- API URL: `https://api.hands.vn`
+- Admin URL: `https://admin.hands.vn`
+
+Use this file when moving from the current personal/dev accounts to the final HANDS-owned accounts. Do not commit passwords, API keys, recovery codes, service role keys, merchant secrets, or private keys.
+
+## Migration Rule
+
+For every external service:
+
+1. Create or transfer the account under `administration@hands.vn`.
+2. Enable two-factor authentication.
+3. Store recovery codes and secrets outside Git under `C:\dev\massage-vn-workspace\secrets`.
+4. Create new API keys from the new account.
+5. Put only env variable names and non-secret identifiers in Git.
+6. Update local `.env` with real values.
+7. Run the matching verification command.
+8. Revoke old personal/dev account keys only after the new values pass E2E.
+
+## Account Transfer Order
+
+### 1. Domain, DNS, And Email
+
+Need from operator:
+
+- Confirm `hands.vn` registrar account access under `administration@hands.vn`.
+- Confirm email inbox works for `administration@hands.vn`.
+- Confirm whether DNS is managed by the registrar, Cloudflare, or another DNS provider.
+
+Planned DNS records later:
+
+- `hands.vn` for public web/app landing
+- `api.hands.vn` for backend API
+- `admin.hands.vn` for admin dashboard
+- email SPF/DKIM/DMARC records for `hands.vn`
+
+### 2. GitHub
+
+Need from operator:
+
+- New GitHub username or organization controlled by `administration@hands.vn`.
+- Target repository URL.
+
+Current dev remote can stay until the new repository exists. After migration:
+
+```powershell
+cd C:\dev\massage-vn-workspace\repo
+git remote set-url origin https://github.com/<new-owner>/<new-repo>.git
+git push -u origin develop
+```
+
+### 3. Supabase
+
+Need from operator:
+
+- Supabase project URL
+- anon public key
+- JWT secret
+- service role key
+- confirmation that Phone Auth is enabled
+- confirmation of the SMS provider used for Vietnam OTP
+
+Verification:
+
+```powershell
+npm.cmd run supabase:sql:pack
+npm.cmd run external:check:supabase
+npm.cmd run auth:supabase-smoke
+```
+
+### 4. MapTiler
+
+Need from operator:
+
+- MapTiler API key created under `administration@hands.vn`
+- Any allowed domain/package restrictions configured in MapTiler, if used
+
+Verification:
+
+```powershell
+npm.cmd run external:check:maps
+```
+
+### 5. Geoapify
+
+Need from operator:
+
+- Geoapify API key created under `administration@hands.vn`
+- Any allowed domain/package restrictions configured in Geoapify, if used
+
+Verification:
+
+```powershell
+npm.cmd run external:check:maps
+```
+
+### 6. OneSignal Or Push Provider
+
+Need from operator:
+
+- OneSignal App ID
+- OneSignal REST API key
+- Android/iOS app setup confirmation when mobile push E2E starts
+
+Keep `PUSH_PROVIDER=in_app_only` until push E2E is intentionally tested.
+
+### 7. Storage
+
+Need from operator:
+
+- Final storage provider choice: Supabase Storage S3, Cloudflare R2, or another S3-compatible provider
+- endpoint
+- region
+- bucket
+- access key
+- secret key
+- public CDN/base URL
+
+Verification:
+
+```powershell
+npm.cmd run external:check:storage
+```
+
+### 8. Payments
+
+Need from operator:
+
+- MoMo sandbox merchant credentials
+- VNPay sandbox merchant credentials
+- callback/return URL requirements from each gateway
+- legal merchant account owner details
+
+Planned callback domains:
+
+- `https://api.hands.vn/api/payments/momo/callback`
+- `https://api.hands.vn/api/payments/vnpay/callback`
+
+### 9. SMS
+
+If Supabase Phone Auth does not fully handle Vietnam OTP, choose a backend SMS provider.
+
+Need from operator:
+
+- provider name
+- API URL
+- API key
+- sender ID rules for `HANDS`
+
+## Current Prompt Sequence
+
+I will request values one service at a time. Start with domain/email/DNS, then GitHub, then Supabase, then maps/geocoding, then storage, push, payments, and SMS.
+

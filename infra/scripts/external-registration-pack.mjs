@@ -14,6 +14,27 @@ const env = { ...fileEnv, ...process.env };
 const registrationItems = [
   {
     order: 1,
+    category: 'Identity',
+    account: 'HANDS domain and operator email',
+    purpose: 'Single ownership identity for all external services and production callbacks.',
+    consolePath: 'Domain registrar / DNS provider / email host',
+    env: [
+      envItem('APP_DOMAIN', 'hands.vn', env.APP_DOMAIN === 'hands.vn'),
+      envItem('PUBLIC_WEB_URL', 'https://hands.vn', env.PUBLIC_WEB_URL === 'https://hands.vn'),
+      envItem('API_PUBLIC_URL', 'https://api.hands.vn', env.API_PUBLIC_URL === 'https://api.hands.vn'),
+      envItem('ADMIN_PUBLIC_URL', 'https://admin.hands.vn', env.ADMIN_PUBLIC_URL === 'https://admin.hands.vn'),
+      envItem('ADMIN_EMAIL', 'administration@hands.vn', env.ADMIN_EMAIL === 'administration@hands.vn'),
+      envItem('SUPPORT_EMAIL', 'administration@hands.vn', env.SUPPORT_EMAIL === 'administration@hands.vn'),
+    ],
+    setup: [
+      'Use administration@hands.vn as the owner/admin login for GitHub, Supabase, MapTiler, Geoapify, OneSignal, payment gateways, and storage providers.',
+      'Keep DNS under the account controlled by administration@hands.vn.',
+      'Use api.hands.vn for API callbacks and admin.hands.vn for the admin dashboard after hosting is ready.',
+    ],
+    verify: ['npm.cmd run external:pack:write', 'npm.cmd run env:check'],
+  },
+  {
+    order: 2,
     category: 'Supabase',
     account: 'Supabase project',
     purpose: 'Phone OTP, future PostgreSQL/RLS, Storage, and Realtime migration.',
@@ -42,7 +63,7 @@ const registrationItems = [
     ],
   },
   {
-    order: 2,
+    order: 3,
     category: 'Maps',
     account: 'MapTiler',
     purpose: 'Low-cost map tile/style rendering for customer and provider mobile screens.',
@@ -58,7 +79,7 @@ const registrationItems = [
     ],
   },
   {
-    order: 3,
+    order: 4,
     category: 'Geocoding',
     account: 'Geoapify',
     purpose: 'Vietnam address search and coordinate lookup.',
@@ -71,7 +92,7 @@ const registrationItems = [
     verify: ['npm.cmd run external:check:maps'],
   },
   {
-    order: 4,
+    order: 5,
     category: 'Payments',
     account: 'MoMo merchant sandbox',
     purpose: 'Vietnam wallet authorization, release, capture, and refund testing.',
@@ -85,7 +106,7 @@ const registrationItems = [
     verify: ['npm.cmd run external:check:payments', 'node infra\\scripts\\api-smoke.mjs'],
   },
   {
-    order: 5,
+    order: 6,
     category: 'Payments',
     account: 'VNPay merchant sandbox',
     purpose: 'Vietnam card/bank payment authorization and refund testing.',
@@ -98,7 +119,7 @@ const registrationItems = [
     verify: ['npm.cmd run external:check:payments', 'node infra\\scripts\\api-smoke.mjs'],
   },
   {
-    order: 6,
+    order: 7,
     category: 'Storage',
     account: 'Supabase Storage S3, R2, or S3-compatible bucket',
     purpose: 'Provider verification files, public profile media, and moderation evidence.',
@@ -126,7 +147,7 @@ const registrationItems = [
     ],
   },
   {
-    order: 7,
+    order: 8,
     category: 'Push',
     account: 'OneSignal or equivalent push provider',
     purpose: 'Native OS push after Firebase Messaging removal.',
@@ -148,7 +169,7 @@ const registrationItems = [
     verify: ['npm.cmd run external:check:production'],
   },
   {
-    order: 8,
+    order: 9,
     category: 'SMS',
     account: 'Vietnam-capable SMS provider',
     purpose: 'Real OTP delivery if not handled fully through Supabase Phone Auth.',
@@ -163,7 +184,7 @@ const registrationItems = [
     verify: ['npm.cmd run external:check:production'],
   },
   {
-    order: 9,
+    order: 10,
     category: 'Mobile release',
     account: 'Android Play Console signing',
     purpose: 'Separate customer/provider upload keys and fingerprints for production Android distribution.',
@@ -202,6 +223,8 @@ const output = {
   ok: true,
   project: {
     appName: 'HANDS',
+    domain: env.APP_DOMAIN ?? 'hands.vn',
+    adminEmail: env.ADMIN_EMAIL ?? 'administration@hands.vn',
     serviceArea: 'Vietnam nationwide',
     workspace: normalizePath(repoRoot),
     secretFolder: 'C:\\dev\\massage-vn-workspace\\secrets',
@@ -250,6 +273,8 @@ function toMarkdown(pack) {
     '# HANDS External Registration Pack',
     '',
     `- App: ${pack.project.appName}`,
+    `- Domain: \`${pack.project.domain}\``,
+    `- Admin email: \`${pack.project.adminEmail}\``,
     `- Service area: ${pack.project.serviceArea}`,
     `- Workspace: \`${pack.project.workspace}\``,
     `- Secret folder: \`${pack.project.secretFolder}\``,
