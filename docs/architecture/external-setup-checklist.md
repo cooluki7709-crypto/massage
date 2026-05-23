@@ -269,8 +269,9 @@ Local MVP builds intentionally use the debug signing key so emulator/device test
 
 - create separate upload keys for customer and provider apps
 - store keystores outside Git, preferably under `C:\dev\massage-vn-workspace\secrets`
-- add `key.properties` files locally only
-- configure release signing in each Flutter Android app
+- copy `apps/customer_app/android/key.properties.example` to `apps/customer_app/android/key.properties` and fill local secret values
+- copy `apps/provider_app/android/key.properties.example` to `apps/provider_app/android/key.properties` and fill local secret values
+- release builds automatically use `android/key.properties` when it exists and fall back to debug signing for local MVP builds
 - record SHA-1/SHA-256 fingerprints for any provider that requires Android app restrictions
 - never commit keystores, passwords, or Play Console credentials
 

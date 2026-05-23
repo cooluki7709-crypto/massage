@@ -1,0 +1,4 @@
+storeFile=C:/dev/massage-vn-workspace/secrets/hands-customer-upload.jks
+storePassword=replace-with-keystore-password
+keyAlias=hands-customer
+keyPassword=replace-with-key-password

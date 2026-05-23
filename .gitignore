@@ -24,3 +24,6 @@ android/.gradle/
 ios/Pods/
 **/google-services.json
 **/GoogleService-Info.plist
+**/android/key.properties
+**/*.jks
+**/*.keystore
