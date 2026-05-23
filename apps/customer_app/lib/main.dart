@@ -3143,8 +3143,11 @@ class _LocationSelectionPageState extends ConsumerState<LocationSelectionPage> {
     if (target == null) {
       return;
     }
+    final adjustedAddress =
+        'Map pin: ${formatCoordinate(target.latitude)}, ${formatCoordinate(target.longitude)}';
     setState(() {
       selectedPoint = target;
+      selectedAddress = adjustedAddress;
       statusMessage =
           'Pin adjusted to ${formatCoordinate(target.latitude)}, ${formatCoordinate(target.longitude)}.';
     });
