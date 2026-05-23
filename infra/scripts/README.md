@@ -7,6 +7,7 @@ Operational scripts:
 - `external-registration-pack.mjs` prints or writes the external account/key registration pack for HANDS.
 - `setup-doctor.mjs` runs the external setup preflight and regenerates operator handoff files.
 - `prepare-supabase-sql-pack.mjs` generates the ordered Supabase staging SQL bundle under `infra/supabase/.generated/`.
+- `create-android-upload-keystores.ps1` generates local customer/provider Android upload keystores, writes ignored `key.properties` files, and records SHA fingerprints under the local secrets folder.
 - `deploy-prod.ps1` runs the production-style Docker flow on Windows PowerShell.
 - `deploy-prod.sh` runs the production-style Docker flow on Linux/macOS shells.
 - `backup-db.ps1` and `backup-db.sh` create PostgreSQL backups under `backups/`.

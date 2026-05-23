@@ -275,6 +275,32 @@ Local MVP builds intentionally use the debug signing key so emulator/device test
 - record SHA-1/SHA-256 fingerprints for any provider that requires Android app restrictions
 - never commit keystores, passwords, or Play Console credentials
 
+Recommended helper:
+
+```powershell
+cd C:\dev\massage-vn-workspace\repo
+npm.cmd run android:signing:create
+```
+
+The helper writes keystores under:
+
+```text
+C:\dev\massage-vn-workspace\secrets\android-signing
+```
+
+It also writes ignored app-local signing files:
+
+```text
+C:\dev\massage-vn-workspace\repo\apps\customer_app\android\key.properties
+C:\dev\massage-vn-workspace\repo\apps\provider_app\android\key.properties
+```
+
+The fingerprint handoff file is:
+
+```text
+C:\dev\massage-vn-workspace\secrets\android-signing\android-signing-summary.txt
+```
+
 ## One-Time Full Check
 
 Generate the external registration pack first. It lists all accounts, console paths, Android package names, env values, and verification commands in one place:

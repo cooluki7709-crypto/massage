@@ -176,6 +176,7 @@ const registrationItems = [
     ],
     setup: [
       'Create separate upload keys for the HANDS customer and provider apps.',
+      'Optional helper: run npm.cmd run android:signing:create to generate local upload keys and key.properties files.',
       'Store keystores outside Git, preferably under C:\\dev\\massage-vn-workspace\\secrets.',
       'Copy apps/customer_app/android/key.properties.example to apps/customer_app/android/key.properties and fill local secret values.',
       'Copy apps/provider_app/android/key.properties.example to apps/provider_app/android/key.properties and fill local secret values.',
