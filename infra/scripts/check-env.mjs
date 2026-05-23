@@ -38,7 +38,9 @@ const recommended = [
   'SUPABASE_JWT_AUDIENCE',
   'SUPABASE_SERVICE_ROLE_KEY',
   'AUTH_BACKEND',
+  'PUSH_PROVIDER',
   'ONESIGNAL_APP_ID',
+  'ONESIGNAL_REST_API_KEY',
 ];
 
 const insecureValues = new Set(['change-me', 'changeme', 'secret', 'password', '']);

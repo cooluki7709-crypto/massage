@@ -141,18 +141,57 @@ export class HealthService {
   }
 
   private pushProviderExternalReadiness() {
+    const pushProvider = this.config.get<string>('PUSH_PROVIDER')?.trim().toLowerCase() || 'in_app_only';
     const oneSignalAppId = this.config.get<string>('ONESIGNAL_APP_ID')?.trim();
+    const oneSignalRestApiKey = this.config.get<string>('ONESIGNAL_REST_API_KEY')?.trim();
+
+    if (pushProvider === 'in_app_only') {
+      return {
+        name: 'OS push provider',
+        category: 'push',
+        status: 'BLOCKED',
+        missing: ['ONESIGNAL_APP_ID', 'ONESIGNAL_REST_API_KEY'],
+        configured: ['PUSH_PROVIDER'],
+        invalid: [],
+        detail:
+          'Current delivery is intentionally in-app only. Set PUSH_PROVIDER=onesignal and server credentials before OS push E2E.',
+      };
+    }
+
+    if (pushProvider !== 'onesignal') {
+      return {
+        name: 'OS push provider',
+        category: 'push',
+        status: 'BLOCKED',
+        missing: [],
+        configured: [],
+        invalid: ['PUSH_PROVIDER'],
+        detail:
+          'Unsupported push provider. Use PUSH_PROVIDER=in_app_only locally or PUSH_PROVIDER=onesignal for staging.',
+      };
+    }
+
+    const missing = [
+      oneSignalAppId ? null : 'ONESIGNAL_APP_ID',
+      oneSignalRestApiKey ? null : 'ONESIGNAL_REST_API_KEY',
+    ].filter((key): key is string => Boolean(key));
+    const configured = [
+      'PUSH_PROVIDER',
+      oneSignalAppId ? 'ONESIGNAL_APP_ID' : null,
+      oneSignalRestApiKey ? 'ONESIGNAL_REST_API_KEY' : null,
+    ].filter((key): key is string => Boolean(key));
 
     return {
       name: 'OS push provider',
       category: 'push',
-      status: oneSignalAppId ? 'PARTIAL' : 'BLOCKED',
-      missing: oneSignalAppId ? [] : ['ONESIGNAL_APP_ID'],
-      configured: oneSignalAppId ? ['ONESIGNAL_APP_ID'] : [],
+      status: missing.length === 0 ? 'PARTIAL' : 'BLOCKED',
+      missing,
+      configured,
       invalid: [],
-      detail: oneSignalAppId
-        ? 'A push provider app id is configured, but backend delivery is still intentionally in-app only.'
-        : 'Current delivery is intentionally in-app only until a production push provider is chosen.',
+      detail:
+        missing.length === 0
+          ? 'OneSignal credentials are configured, but backend provider HTTP delivery is still intentionally pending.'
+          : 'OneSignal push is selected, but server-side credentials are missing.',
     };
   }
 

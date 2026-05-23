@@ -26,8 +26,9 @@ const clockFormatter = new Intl.DateTimeFormat('en-GB', {
 export function BookingMonitor({ bookings }: Props) {
   const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [lastRefreshLabel, setLastRefreshLabel] = useState('loading...');
+  const [lastRefreshLabel, setLastRefreshLabel] = useState('pending');
   const [nowMs, setNowMs] = useState<number | null>(null);
+  const [hasMounted, setHasMounted] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [view, setView] = useState<'active' | 'chat' | 'all'>('active');
   const currentTimeMs = nowMs ?? 0;
@@ -85,6 +86,7 @@ export function BookingMonitor({ bookings }: Props) {
 
   useEffect(() => {
     const mountedAt = new Date();
+    setHasMounted(true);
     setLastRefreshLabel(formatClockTime(mountedAt));
     setNowMs(mountedAt.getTime());
 
@@ -144,7 +146,7 @@ export function BookingMonitor({ bookings }: Props) {
 
       <div className="monitor-meta">
         <span>{isPending ? 'Refreshing...' : 'Ready'}</span>
-        <span suppressHydrationWarning>Last refresh {lastRefreshLabel}</span>
+        <span suppressHydrationWarning>Last refresh {hasMounted ? lastRefreshLabel : 'pending'}</span>
       </div>
 
       <div className="actions" style={{ marginTop: 16 }}>

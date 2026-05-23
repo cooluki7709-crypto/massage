@@ -32,9 +32,21 @@ Tokens are stored in `PushDevice` when a production push provider is enabled. Th
 
 ## Delivery Adapter
 
-The current delivery adapter is intentionally `IN_APP_ONLY`. It records a skipped delivery attempt for existing enabled `PushDevice` rows and does not call Firebase, Google, OneSignal, or any external push provider.
+The current delivery adapter is intentionally `IN_APP_ONLY` through `PUSH_PROVIDER=in_app_only`.
+It records a skipped delivery attempt for existing enabled `PushDevice` rows and does not call Firebase, Google, OneSignal, or any external push provider.
 
 This keeps the local retry/audit flow visible in Admin Web while avoiding paid or vendor-specific push dependencies during the MVP.
+
+Production OS push should be enabled explicitly:
+
+```dotenv
+PUSH_PROVIDER=onesignal
+ONESIGNAL_APP_ID=
+ONESIGNAL_REST_API_KEY=
+```
+
+`ONESIGNAL_REST_API_KEY` is server-side only. It must never be sent to Flutter, admin browser JavaScript, or Git.
+Until the OneSignal HTTP adapter is implemented, selecting `PUSH_PROVIDER=onesignal` records a failed provider attempt with `PUSH_PROVIDER_ADAPTER_PENDING` instead of silently pretending push was delivered.
 
 When a production provider is selected, keep the replacement behind `PushDeliveryService` and preserve this contract:
 
@@ -50,4 +62,4 @@ The repository includes `node infra/scripts/check-mobile-firebase.mjs` and the f
 ## Next Adapter Step
 
 - Add notification templates per locale.
-- Select a production OS push provider such as OneSignal and implement it behind `PushDeliveryService`.
+- Implement the OneSignal HTTP adapter behind `PushDeliveryService` after OneSignal app credentials and mobile SDK decisions are confirmed.

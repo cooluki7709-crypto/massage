@@ -34,9 +34,29 @@ addCheck(
 );
 addRecommended(
   'push',
-  'production push provider',
-  hasValue('ONESIGNAL_APP_ID'),
-  'Choose OneSignal or another OS push provider before production launch.',
+  'PUSH_PROVIDER',
+  hasValue('PUSH_PROVIDER'),
+  'Use PUSH_PROVIDER=in_app_only locally; set PUSH_PROVIDER=onesignal before production push E2E.',
+);
+addRecommended(
+  'push',
+  'OneSignal credentials',
+  allHaveValue(['ONESIGNAL_APP_ID', 'ONESIGNAL_REST_API_KEY']),
+  'Choose OneSignal or another OS push provider and fill server-side credentials before production launch.',
+);
+addPhaseRequired(
+  'push',
+  'PUSH_PROVIDER=onesignal for OS push',
+  hasExpectedValue('PUSH_PROVIDER', 'onesignal'),
+  'Set PUSH_PROVIDER=onesignal before production-like OS push E2E.',
+  ['production'],
+);
+addPhaseRequired(
+  'push',
+  'OneSignal credentials for OS push',
+  allHaveValue(['ONESIGNAL_APP_ID', 'ONESIGNAL_REST_API_KEY']),
+  'Fill ONESIGNAL_APP_ID and ONESIGNAL_REST_API_KEY before production-like OS push E2E.',
+  ['production'],
 );
 
 addRecommended(

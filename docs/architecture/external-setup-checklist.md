@@ -35,8 +35,20 @@ Future OS-level push still needs a provider decision:
 Planned provider value:
 
 ```dotenv
+PUSH_PROVIDER=in_app_only
 ONESIGNAL_APP_ID=
+ONESIGNAL_REST_API_KEY=
 ```
+
+Use this only after the provider app, customer app, and backend adapter are ready for production-like push E2E:
+
+```dotenv
+PUSH_PROVIDER=onesignal
+ONESIGNAL_APP_ID=<onesignal-app-id>
+ONESIGNAL_REST_API_KEY=<server-rest-api-key>
+```
+
+`ONESIGNAL_REST_API_KEY` is API-server only. Do not put it in Flutter, Admin Web, screenshots, or GitHub.
 
 Verification:
 
@@ -293,6 +305,7 @@ Last checked from `C:\dev\massage-vn-workspace\repo` on 2026-05-22:
 - Mobile Firebase dependencies/config: removed
 - Full local verification with Docker services: passing
 - OS-level push provider: not selected
+- Push provider mode: `PUSH_PROVIDER=in_app_only` locally
 - MapTiler API key: pending
 - Geoapify API key: pending
 - Supabase URL / anon key / JWT secret: pending for real Supabase OTP
@@ -314,6 +327,7 @@ The next external setup items to complete are:
 - MapTiler API key
 - Geoapify API key
 - production push provider decision
+- OneSignal REST API key, only when OS push E2E starts
 
 ## Recommended Fill Order
 

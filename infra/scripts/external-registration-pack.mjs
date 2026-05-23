@@ -131,10 +131,19 @@ const registrationItems = [
     account: 'OneSignal or equivalent push provider',
     purpose: 'Native OS push after Firebase Messaging removal.',
     consolePath: 'OneSignal Dashboard > App Settings',
-    env: [envItem('ONESIGNAL_APP_ID', '<onesignal-app-id>', hasValue(env.ONESIGNAL_APP_ID))],
+    env: [
+      envItem('PUSH_PROVIDER', 'onesignal', env.PUSH_PROVIDER === 'onesignal'),
+      envItem('ONESIGNAL_APP_ID', '<onesignal-app-id>', hasValue(env.ONESIGNAL_APP_ID)),
+      envItem(
+        'ONESIGNAL_REST_API_KEY',
+        '<onesignal-rest-api-key-server-only>',
+        hasValue(env.ONESIGNAL_REST_API_KEY),
+      ),
+    ],
     setup: [
       'Choose the production push provider before launch.',
-      'Keep the current API delivery adapter in-app-only until provider credentials are ready.',
+      'Keep PUSH_PROVIDER=in_app_only locally until provider credentials and mobile SDK setup are ready.',
+      'Keep the REST API key server-side only and never send it to Flutter or browser JavaScript.',
     ],
     verify: ['npm.cmd run external:check:production'],
   },
